@@ -34,6 +34,7 @@ const formatRegisteredAt = (isoDate: string) => {
 
 export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
   function toggleRawText(orderId: string) {
     setExpandedRawTextIds((current) =>
@@ -46,7 +47,7 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
       <section className="orderListPanel" aria-label="주문 목록">
         <div className="sectionHeader">
           <h2>주문 목록</h2>
-          <p>확인할 주문을 고릅니다.</p>
+          <p>주문을 빠르게 훑고 선택합니다.</p>
         </div>
         <p className="emptyState">아직 저장된 주문이 없습니다.</p>
       </section>
@@ -58,11 +59,35 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
       <div className="listHeader">
         <div className="sectionHeader">
           <h2>주문 목록</h2>
-          <p>확인할 주문을 고릅니다.</p>
+          <p>주문을 빠르게 훑고 선택합니다.</p>
         </div>
-        <span>{orders.length}건</span>
+        <div className="listHeaderActions">
+          <span>{orders.length}건</span>
+          <div className="viewToggle" aria-label="주문 목록 보기 방식">
+            <button
+              type="button"
+              className={viewMode === 'card' ? 'active' : ''}
+              aria-label="카드형 보기"
+              title="카드형 보기"
+              aria-pressed={viewMode === 'card'}
+              onClick={() => setViewMode('card')}
+            >
+              <span className="cardIcon" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className={viewMode === 'list' ? 'active' : ''}
+              aria-label="목록형 보기"
+              title="목록형 보기"
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode('list')}
+            >
+              <span className="listIcon" aria-hidden="true" />
+            </button>
+          </div>
+        </div>
       </div>
-      <div className="orderList">
+      <div className={viewMode === 'list' ? 'orderList compact' : 'orderList'}>
         {orders.map((order) => {
           const isExpanded = expandedRawTextIds.includes(order.id);
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
@@ -92,7 +117,7 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                 </span>
               </button>
 
-              {order.missingFields.length > 0 ? (
+              {viewMode === 'card' && order.missingFields.length > 0 ? (
                 <div className="rawTextArea">
                   <p>
                     부족 항목:{' '}

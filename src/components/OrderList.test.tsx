@@ -35,6 +35,15 @@ describe('OrderList', () => {
     expect(screen.getByText('성함: 김리루')).toBeInTheDocument();
   });
 
+  it('switches to compact list mode and hides raw text expansion', async () => {
+    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
+
+    expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
   it('shows fulfillment type in the primary list fields', () => {
     render(<OrderList orders={[{ ...order, fulfillmentType: '픽업' }]} selectedId={null} onSelect={vi.fn()} />);
 

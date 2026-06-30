@@ -262,9 +262,86 @@ pre {
   color: #746956;
 }
 
+.listHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewToggle {
+  display: inline-flex;
+  gap: 2px;
+  border: 1px solid #e2d5bf;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 2px;
+}
+
+.viewToggle button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #746956;
+  padding: 0;
+}
+
+.viewToggle button.active {
+  background: #172033;
+  color: #fffaf2;
+}
+
+.cardIcon,
+.listIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.cardIcon {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+
+.cardIcon::before,
+.cardIcon::after,
+.listIcon::before,
+.listIcon::after {
+  content: "";
+}
+
+.cardIcon::before,
+.cardIcon::after {
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  box-shadow: 9px 0 0 -1.5px currentColor;
+}
+
+.listIcon {
+  position: relative;
+  display: block;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.listIcon::before {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  border-top: 2px solid currentColor;
+}
+
 .orderList {
   display: grid;
   gap: 8px;
+}
+
+.orderList.compact {
+  gap: 6px;
 }
 
 .orderRow {
@@ -291,6 +368,18 @@ pre {
   background: transparent;
   color: #1b2430;
   text-align: left;
+}
+
+.orderList.compact .orderRowMain {
+  min-height: 58px;
+  grid-template-columns: minmax(84px, 0.9fr) minmax(130px, 1.4fr) minmax(130px, 1.3fr);
+  align-items: center;
+  column-gap: 8px;
+}
+
+.orderList.compact .rowTopline,
+.orderList.compact .flagLine {
+  grid-column: 1 / -1;
 }
 
 .rowTopline,
