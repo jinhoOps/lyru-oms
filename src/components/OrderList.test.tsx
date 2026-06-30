@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_ORDER_FIELDS, type CapturedOrder } from '../domain/orderTypes';
 import { OrderList } from './OrderList';
 
@@ -22,6 +22,10 @@ const order: CapturedOrder = {
   updatedAt: '2026-06-30T00:00:00.000Z',
 };
 
+afterEach(() => {
+  cleanup();
+});
+
 describe('OrderList', () => {
   it('does not show full raw text until expanded for information shortage', async () => {
     render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
@@ -29,5 +33,17 @@ describe('OrderList', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '원문 보기' }));
     expect(screen.getByText('성함: 김리루')).toBeInTheDocument();
+  });
+
+  it('shows fulfillment type in the primary list fields', () => {
+    render(<OrderList orders={[{ ...order, fulfillmentType: '픽업' }]} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText('픽업')).toBeInTheDocument();
+  });
+
+  it('shows fallback when fulfillment type is empty', () => {
+    render(<OrderList orders={[{ ...order, fulfillmentType: '' }]} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText('수령 방식 없음')).toBeInTheDocument();
   });
 });

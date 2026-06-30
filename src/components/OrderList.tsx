@@ -59,6 +59,7 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                 </span>
                 <strong>{fallback(order.customerName, '고객명 미정')}</strong>
                 <span className="mutedText">{fallback(order.desiredDateTime, '희망일 미정')}</span>
+                <span>{fallback(order.fulfillmentType, '수령 방식 없음')}</span>
                 <span>{summarizeOrder(order)}</span>
                 <span className="flagLine">
                   <span className={hasCustomerRequest ? 'flagOn' : 'flagOff'}>
