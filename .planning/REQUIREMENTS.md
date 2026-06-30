@@ -11,6 +11,8 @@
 - [ ] **ORD-02**: 사용자는 네이버 스마트스토어 등 외부 주문 목록을 CSV 또는 엑셀에서 가져올 수 있다.
 - [ ] **ORD-03**: 사용자는 주문 출처를 네이버 스마트스토어, 네이버 톡톡, 카카오톡 채널, 인스타그램, 기타로 구분할 수 있다.
 - [ ] **ORD-04**: 사용자는 고객명, 연락처, 주문 상품, 수량, 희망 발송일, 수령/배송 메모를 주문에 기록할 수 있다.
+- [ ] **ORD-05**: 사용자는 여러 채널에서 받은 주문/문의 원문을 붙여넣고 원문 그대로 저장할 수 있으며, 원문 전체는 기본 목록에 노출되지 않는다.
+- [ ] **ORD-06**: 시스템은 알려진 주문서 라벨과 필드별 연관 키워드를 기준으로 원문에서 가능한 주문 항목을 자동 추출하고, 사용자는 추출값을 수정할 수 있다.
 
 ### 일정과 생산 관리
 
@@ -25,6 +27,15 @@
 - [ ] **REQ-02**: 사용자는 고객 요청 변경을 변경 전/변경 후/요청 채널/확인 여부와 함께 기록할 수 있다.
 - [ ] **REQ-03**: 사용자는 확인되지 않은 요청 변경이 있는 주문을 별도로 볼 수 있다.
 - [ ] **REQ-04**: 사용자는 발송 완료 전에 미확인 요청사항이 남아 있으면 경고를 볼 수 있다.
+- [ ] **REQ-05**: 사용자는 고객이 남긴 요청사항과 사장님 내부 메모를 별도 입력 영역에 분리해서 기록할 수 있으며, 목록에서는 내부 메모의 내용이 아니라 존재 여부만 확인할 수 있다.
+- [ ] **REQ-06**: 시스템은 정보 부족과 확인 필요 사유를 분리해서 기록하되, 둘을 같은 주의 경고 레벨로 표시할 수 있다.
+- [ ] **REQ-07**: 시스템은 수량이 대량 주문 기준 이상이면 확인 필요로 표시하고, 사용자는 관리 모달에서 기준 수량을 조정할 수 있다.
+- [ ] **REQ-09**: 시스템은 정보 부족 또는 확인 필요 사유가 하나라도 있는 주문/문의의 상태를 자동으로 확인필요로 전환한다.
+- [ ] **REQ-10**: 시스템은 필수 항목 설정, 대량 주문 기준, 주문 필드가 변경되어도 기존 정리 완료 주문/문의의 상태를 자동으로 확인필요로 되돌리지 않는다.
+- [ ] **REQ-11**: 사용자는 자동 판정 사유가 없어도 필요할 때 주문/문의를 수동으로 확인필요 상태로 변경할 수 있다.
+- [ ] **REQ-12**: 시스템은 같거나 비슷한 주문/문의 원문이 이미 있으면 중복 가능성을 경고하되 저장은 차단하지 않는다.
+- [ ] **REQ-13**: 시스템은 원문 수정이나 재파싱 시 사장님이 수동으로 수정한 값을 자동으로 덮어쓰지 않고, 새 추출값과 차이가 있으면 무채색 점과 터치/호버 설명으로만 표시한다.
+- [ ] **REQ-08**: Phase 1 검증 기간에는 사장님에게 확인해야 할 운영 질문을 주문 수집 화면 상단의 접이식 임시 쪽지 영역에서 일반적인 표현으로 확인할 수 있으며, 답변 저장 기능은 포함하지 않는다.
 
 ### 주문 상태와 작업 흐름
 
@@ -43,7 +54,9 @@
 
 - [ ] **DATA-01**: 사용자는 주문 데이터를 내보내 백업할 수 있다.
 - [ ] **DATA-02**: 사용자는 실수로 변경한 주문을 추적할 수 있도록 주요 변경 이력을 볼 수 있다.
-- [ ] **DATA-03**: 시스템은 필수 정보가 빠진 주문을 저장하기 전에 명확히 표시한다.
+- [ ] **DATA-03**: 시스템은 필수 정보가 빠진 주문을 명확히 표시하고, 사용자는 정보 부족 주문에서 원문을 펼쳐 확인할 수 있다.
+- [ ] **DATA-04**: 사용자는 관리 모달에서 정보 부족 판정에 사용할 필수 항목을 설정할 수 있다.
+- [ ] **DATA-05**: 시스템은 필수 정보가 빠지거나 파싱이 실패해도 주문/문의 원문 저장을 차단하지 않는다.
 
 ## v2 Requirements
 
@@ -72,10 +85,12 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ORD-01 | Phase 1 | Pending |
+| ORD-01 | Phase 2 | Pending |
 | ORD-02 | Phase 2 | Pending |
 | ORD-03 | Phase 1 | Pending |
 | ORD-04 | Phase 1 | Pending |
+| ORD-05 | Phase 1 | Pending |
+| ORD-06 | Phase 1 | Pending |
 | SCH-01 | Phase 3 | Pending |
 | SCH-02 | Phase 3 | Pending |
 | SCH-03 | Phase 3 | Pending |
@@ -84,8 +99,17 @@
 | REQ-02 | Phase 2 | Pending |
 | REQ-03 | Phase 2 | Pending |
 | REQ-04 | Phase 4 | Pending |
-| STS-01 | Phase 1 | Pending |
-| STS-02 | Phase 1 | Pending |
+| REQ-05 | Phase 1 | Pending |
+| REQ-06 | Phase 1 | Pending |
+| REQ-07 | Phase 1 | Pending |
+| REQ-08 | Phase 1 | Pending |
+| REQ-09 | Phase 1 | Pending |
+| REQ-10 | Phase 1 | Pending |
+| REQ-11 | Phase 1 | Pending |
+| REQ-12 | Phase 1 | Pending |
+| REQ-13 | Phase 1 | Pending |
+| STS-01 | Phase 2 | Pending |
+| STS-02 | Phase 2 | Pending |
 | STS-03 | Phase 4 | Pending |
 | STS-04 | Phase 4 | Pending |
 | MOB-01 | Phase 5 | Pending |
@@ -94,12 +118,14 @@
 | DATA-01 | Phase 4 | Pending |
 | DATA-02 | Phase 4 | Pending |
 | DATA-03 | Phase 1 | Pending |
+| DATA-04 | Phase 1 | Pending |
+| DATA-05 | Phase 1 | Pending |
 
 **Coverage:**
-- v1 requirements: 22 total
-- Mapped to phases: 22
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-06-29 after initial definition*
+*Last updated: 2026-06-30 after aligning Phase 1 with order standardization MVP*

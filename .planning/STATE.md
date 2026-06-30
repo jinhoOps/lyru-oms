@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** 사장님이 오늘 만들고 보내야 할 주문과 변경 요청을 놓치지 않고 확인할 수 있어야 한다.
-**Current focus:** Phase 1 - 주문 대장 MVP
+**Current focus:** Phase 1 - 주문 표준화 MVP
 
 ## Workflow State
 
@@ -16,11 +16,11 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 
 ## Active Phase
 
-### Phase 1: 주문 대장 MVP
+### Phase 1: 주문 표준화 MVP
 
-**Goal:** 사장님이 주문을 직접 등록하고 상태별로 확인할 수 있다.
+**Goal:** 사장님이 여러 채널의 주문/문의 원문을 붙여넣고, 가능한 항목을 구조화해 정보 부족과 확인 필요 주문을 빠르게 볼 수 있다.
 
-**Requirements:** ORD-01, ORD-03, ORD-04, STS-01, STS-02, DATA-03
+**Requirements:** ORD-03, ORD-04, ORD-05, ORD-06, REQ-05, REQ-06, REQ-07, REQ-08, REQ-09, REQ-10, REQ-11, REQ-12, REQ-13, DATA-03, DATA-04, DATA-05
 
 ## Notes for Agents
 
