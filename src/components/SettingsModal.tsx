@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
   FIELD_DEFINITIONS,
@@ -29,14 +29,24 @@ const configurableRequiredFields: OrderFieldKey[] = [
 export function SettingsModal({ open, settings, onClose, onSave }: SettingsModalProps) {
   const [requiredFields, setRequiredFields] = useState<OrderFieldKey[]>([...settings.requiredFields]);
   const [bulkQuantityThreshold, setBulkQuantityThreshold] = useState(String(settings.bulkQuantityThreshold));
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
 
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setRequiredFields([...settings.requiredFields]);
     setBulkQuantityThreshold(String(settings.bulkQuantityThreshold));
+    closeButtonRef.current?.focus();
+
+    return () => {
+      previousFocusRef.current?.focus();
+      previousFocusRef.current = null;
+    };
   }, [open, settings]);
 
   if (!open) {
@@ -60,22 +70,65 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
       bulkQuantityThreshold:
         Number.isFinite(parsedThreshold) && parsedThreshold > 0
           ? Math.floor(parsedThreshold)
-          : DEFAULT_SETTINGS.bulkQuantityThreshold,
+          : settings.bulkQuantityThreshold,
     };
 
     onSave(nextSettings);
     onClose();
   }
 
+  function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+
+    if (event.key !== 'Tab') {
+      return;
+    }
+
+    const focusableControls = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+      ) ?? [],
+    );
+
+    if (focusableControls.length === 0) {
+      return;
+    }
+
+    const firstControl = focusableControls[0];
+    const lastControl = focusableControls[focusableControls.length - 1];
+
+    if (event.shiftKey && document.activeElement === firstControl) {
+      event.preventDefault();
+      lastControl.focus();
+      return;
+    }
+
+    if (!event.shiftKey && document.activeElement === lastControl) {
+      event.preventDefault();
+      firstControl.focus();
+    }
+  }
+
   return (
     <div className="modalBackdrop" role="presentation">
-      <section className="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section
+        ref={dialogRef}
+        className="settingsModal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        onKeyDown={handleDialogKeyDown}
+      >
         <div className="modalHeader">
           <div>
             <p className="eyebrow">관리 설정</p>
             <h2 id="settings-title">정보 부족 기준</h2>
           </div>
-          <button type="button" className="iconButton" aria-label="설정 닫기" onClick={onClose}>
+          <button ref={closeButtonRef} type="button" className="iconButton" aria-label="설정 닫기" onClick={onClose}>
             ×
           </button>
         </div>

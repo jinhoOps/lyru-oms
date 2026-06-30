@@ -69,7 +69,7 @@ export function OrderDetail({ order, settings, onChange }: OrderDetailProps) {
       return;
     }
 
-    onChange({ ...order, status, updatedAt: new Date().toISOString() });
+    publish({ ...order, status });
   }
 
   function handleRawTextChange(rawText: string) {
