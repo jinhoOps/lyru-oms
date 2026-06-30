@@ -70,7 +70,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   }
 }
 ```
@@ -129,7 +129,9 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "outDir": "node_modules/.tmp/tsconfig-node",
+    "tsBuildInfoFile": "node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }
@@ -251,7 +253,7 @@ Expected: `package-lock.json` is created and install completes without errors.
 
 Run: `npm run test`
 
-Expected: Vitest exits successfully with no tests or a no-test warning depending on Vitest version.
+Expected: Vitest exits successfully with no tests because `--passWithNoTests` is enabled.
 
 Run: `npm run build`
 
