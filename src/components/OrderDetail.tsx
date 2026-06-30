@@ -85,6 +85,11 @@ export function OrderDetail({ order, settings, onChange }: OrderDetailProps) {
   }
 
   const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
+  const missingReasonFields = order.reviewReasons
+    .filter((reason) => reason.kind === '정보 부족' && reason.field)
+    .map((reason) => reason.field as OrderFieldKey);
+  const missingFieldsToShow = order.missingFields.length > 0 ? order.missingFields : missingReasonFields;
+  const otherReviewReasons = order.reviewReasons.filter((reason) => reason.kind !== '정보 부족');
 
   return (
     <section className="orderDetailPanel" aria-label="주문 상세">
@@ -106,7 +111,17 @@ export function OrderDetail({ order, settings, onChange }: OrderDetailProps) {
 
       {order.reviewReasons.length > 0 ? (
         <div className="reviewReasonBox" aria-label="확인 필요 사유">
-          {order.reviewReasons.map((reason) => (
+          {missingFieldsToShow.length > 0 ? (
+            <div>
+              <p>아래 항목이 비어 있습니다.</p>
+              <ul>
+                {missingFieldsToShow.map((field) => (
+                  <li key={field}>{FIELD_DEFINITIONS[field].label}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {otherReviewReasons.map((reason) => (
             <p key={`${reason.kind}-${reason.field ?? reason.message}`}>{reason.message}</p>
           ))}
         </div>

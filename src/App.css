@@ -372,6 +372,15 @@ pre {
   margin-top: 6px;
 }
 
+.reviewReasonBox ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.reviewReasonBox li + li {
+  margin-top: 3px;
+}
+
 .fieldGrid {
   display: grid;
   gap: 12px;

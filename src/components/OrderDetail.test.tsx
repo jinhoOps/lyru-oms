@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, EMPTY_ORDER_FIELDS, type CapturedOrder } from '../domain/orderTypes';
@@ -29,6 +29,31 @@ afterEach(() => {
 });
 
 describe('OrderDetail', () => {
+  it('groups missing field reasons into a concise field list', () => {
+    const order = baseOrder({
+      phone: '',
+      desiredDateTime: '',
+      fulfillmentType: '',
+      missingFields: ['phone', 'desiredDateTime', 'fulfillmentType'],
+      reviewReasons: [
+        { kind: '정보 부족', field: 'phone', message: '연락처 정보가 비어 있어 확인이 필요합니다.' },
+        { kind: '정보 부족', field: 'desiredDateTime', message: '희망일 정보가 비어 있어 확인이 필요합니다.' },
+        { kind: '정보 부족', field: 'fulfillmentType', message: '수령 방식 정보가 비어 있어 확인이 필요합니다.' },
+      ],
+      warningLevel: 'attention',
+    });
+
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={vi.fn()} />);
+
+    const reviewBox = screen.getByLabelText('확인 필요 사유');
+
+    expect(within(reviewBox).getByText('아래 항목이 비어 있습니다.')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('연락처')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('희망일')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
+    expect(screen.queryByText('연락처 정보가 비어 있어 확인이 필요합니다.')).not.toBeInTheDocument();
+  });
+
   it('keeps an order with review reasons in 확인필요 when status select tries to save 수집', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
