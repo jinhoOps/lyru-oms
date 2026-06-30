@@ -28,6 +28,10 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
   if (orders.length === 0) {
     return (
       <section className="orderListPanel" aria-label="주문 목록">
+        <div className="sectionHeader">
+          <h2>주문 목록</h2>
+          <p>확인할 주문을 고릅니다.</p>
+        </div>
         <p className="emptyState">아직 저장된 주문이 없습니다.</p>
       </section>
     );
@@ -36,7 +40,10 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
   return (
     <section className="orderListPanel" aria-label="주문 목록">
       <div className="listHeader">
-        <h2>주문 목록</h2>
+        <div className="sectionHeader">
+          <h2>주문 목록</h2>
+          <p>확인할 주문을 고릅니다.</p>
+        </div>
         <span>{orders.length}건</span>
       </div>
       <div className="orderList">

@@ -38,8 +38,11 @@ export function OrderDetail({ order, settings, onChange }: OrderDetailProps) {
   if (!order) {
     return (
       <section className="orderDetailPanel emptyDetail" aria-label="주문 상세">
-        <h2>주문을 선택해 주세요</h2>
-        <p>목록에서 주문을 누르면 요청사항, 내부 메모, 상태를 확인하고 수정할 수 있습니다.</p>
+        <div className="sectionHeader">
+          <h2>주문 상세</h2>
+          <p>추출된 값을 확인하고 수정합니다.</p>
+        </div>
+        <p>목록에서 주문을 선택해 주세요.</p>
       </section>
     );
   }
@@ -89,6 +92,7 @@ export function OrderDetail({ order, settings, onChange }: OrderDetailProps) {
         <div>
           <p className="eyebrow">{order.source}</p>
           <h2>{order.customerName || '고객명 미정'}</h2>
+          <p className="sectionHelp">추출된 값을 확인하고 수정합니다.</p>
         </div>
         <label className="statusSelect">
           상태

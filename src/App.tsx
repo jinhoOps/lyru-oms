@@ -53,6 +53,10 @@ export default function App() {
 
       <div className="workspaceLayout">
         <section className="capturePanel" aria-label="주문 수집">
+          <div className="sectionHeader">
+            <h2>주문 수집</h2>
+            <p>원문을 붙여넣고 저장합니다.</p>
+          </div>
           <QuestionNote />
           <OrderCaptureForm
             existingRawTexts={orders.map((order) => order.rawText)}

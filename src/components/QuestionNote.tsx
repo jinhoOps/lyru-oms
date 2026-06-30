@@ -2,15 +2,12 @@ import { useState } from 'react';
 
 const questions = [
   '몇 개부터 미리 확인해야 하는 큰 주문으로 보시나요?',
-  '택배 주문에서 꼭 빠지면 안 되는 정보는 무엇인가요?',
-  '픽업 주문에서 꼭 빠지면 안 되는 정보는 무엇인가요?',
-  '주문 메시지에서 자주 빠지는 정보는 무엇인가요?',
   '고객님들이 이름, 연락처, 주소 같은 정보를 보통 어떤 표현으로 적어주시나요?',
   '어떤 표현이 있으면 맞춤 요청으로 따로 확인해야 하나요?',
 ];
 
 export function QuestionNote() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   return (
     <section className="questionNote" aria-label="확인 질문 쪽지">

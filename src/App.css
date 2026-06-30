@@ -135,10 +135,10 @@ pre {
 .orderListPanel,
 .orderDetailPanel,
 .questionNote {
-  border: 1px solid #e4dac7;
+  border: 1px solid #eee5d6;
   border-radius: 8px;
   background: #fffaf2;
-  box-shadow: 0 10px 24px rgba(28, 28, 28, 0.05);
+  box-shadow: 0 6px 16px rgba(28, 28, 28, 0.03);
 }
 
 .capturePanel,
@@ -149,7 +149,9 @@ pre {
 
 .questionNote {
   margin-bottom: 12px;
-  background: #fffcf6;
+  border-color: #efe6d8;
+  background: #fffdf8;
+  box-shadow: none;
 }
 
 .noteToggle {
@@ -176,6 +178,22 @@ pre {
   padding-left: 20px;
 }
 
+.sectionHeader {
+  margin-bottom: 12px;
+}
+
+.sectionHeader h2 {
+  margin-bottom: 4px;
+}
+
+.sectionHeader p,
+.sectionHelp {
+  margin: 0;
+  color: #746956;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .captureForm {
   display: grid;
   gap: 12px;
@@ -193,7 +211,7 @@ pre {
 .reviewReasonBox,
 .rawTextArea {
   border-radius: 8px;
-  background: #f7f1e7;
+  background: #fbf6ed;
   padding: 10px;
 }
 
@@ -250,7 +268,7 @@ pre {
 }
 
 .orderRow {
-  border: 1px solid #e2d5bf;
+  border: 1px solid #eee3d2;
   border-radius: 8px;
   background: #fffdf9;
 }
@@ -261,7 +279,7 @@ pre {
 }
 
 .orderRow.selected {
-  border-color: #172033;
+  border-color: #9b835d;
 }
 
 .orderRowMain {
