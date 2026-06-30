@@ -133,7 +133,6 @@ pre {
 
 .capturePanel,
 .orderListPanel,
-.orderDetailPanel,
 .questionNote {
   border: 1px solid #eee5d6;
   border-radius: 8px;
@@ -142,8 +141,7 @@ pre {
 }
 
 .capturePanel,
-.orderListPanel,
-.orderDetailPanel {
+.orderListPanel {
   padding: 14px;
 }
 
@@ -290,8 +288,9 @@ pre {
 }
 
 .viewToggle button.active {
-  background: #172033;
-  color: #fffaf2;
+  border: 1px solid #d8c6a8;
+  background: #f8efe1;
+  color: #5b4322;
 }
 
 .cardIcon,
@@ -341,7 +340,7 @@ pre {
 }
 
 .orderList.compact {
-  gap: 6px;
+  gap: 5px;
 }
 
 .orderRow {
@@ -371,15 +370,29 @@ pre {
 }
 
 .orderList.compact .orderRowMain {
-  min-height: 58px;
-  grid-template-columns: minmax(84px, 0.9fr) minmax(130px, 1.4fr) minmax(130px, 1.3fr);
-  align-items: center;
-  column-gap: 8px;
+  min-height: 0;
+  gap: 2px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-size: 13px;
 }
 
-.orderList.compact .rowTopline,
-.orderList.compact .flagLine {
-  grid-column: 1 / -1;
+.orderList.compact .orderRowMain strong {
+  font-size: 14px;
+}
+
+.orderList.compact .sourcePill,
+.orderList.compact .statusPill,
+.orderList.compact .flagOn,
+.orderList.compact .flagOff {
+  min-height: 20px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.orderList.compact .registeredAt,
+.orderList.compact .mutedText {
+  font-size: 12px;
 }
 
 .rowTopline,
@@ -443,15 +456,50 @@ pre {
   color: #6f6251;
 }
 
-.emptyDetail {
+.statusSelect {
+  width: 132px;
+}
+
+.detailModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
   display: grid;
-  align-content: center;
-  min-height: 220px;
+  place-items: center;
+  padding: 18px;
+  background: rgba(22, 32, 51, 0.32);
+}
+
+.orderDetailModal {
+  width: min(100%, 780px);
+  max-height: calc(100vh - 36px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #e4dac7;
+  border-radius: 8px;
+  background: #fffaf2;
+  box-shadow: 0 18px 48px rgba(22, 32, 51, 0.2);
+}
+
+.orderDetailModal .detailHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid #eadfce;
+  background: #fffaf2;
+  padding: 14px;
+}
+
+.detailHeaderActions {
+  display: flex;
+  align-items: end;
   gap: 8px;
 }
 
-.statusSelect {
-  width: 132px;
+.detailModalBody {
+  overflow: auto;
+  padding: 14px;
 }
 
 .reviewReasonBox {
@@ -581,10 +629,6 @@ pre {
     align-items: start;
   }
 
-  .orderDetailPanel {
-    grid-column: 1 / -1;
-  }
-
   .fieldGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -596,10 +640,25 @@ pre {
 
 @media (min-width: 1040px) {
   .workspaceLayout {
-    grid-template-columns: minmax(280px, 0.85fr) minmax(300px, 0.95fr) minmax(360px, 1.2fr);
+    grid-template-columns: minmax(320px, 0.85fr) minmax(360px, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .detailModalBackdrop {
+    place-items: end center;
+    padding: 10px;
   }
 
-  .orderDetailPanel {
-    grid-column: auto;
+  .orderDetailModal {
+    max-height: calc(100vh - 20px);
+  }
+
+  .orderDetailModal .detailHeader {
+    align-items: flex-start;
+  }
+
+  .detailHeaderActions {
+    align-items: end;
   }
 }

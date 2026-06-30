@@ -43,7 +43,7 @@ describe('OrderDetail', () => {
       warningLevel: 'attention',
     });
 
-    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={vi.fn()} />);
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />);
 
     const reviewBox = screen.getByLabelText('확인 필요 사유');
 
@@ -65,7 +65,7 @@ describe('OrderDetail', () => {
       status: '확인필요',
     });
 
-    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} />);
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
     await userEvent.selectOptions(screen.getByLabelText('상태'), '수집');
 
@@ -88,7 +88,7 @@ describe('OrderDetail', () => {
       status: '확인필요',
     });
 
-    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} />);
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
     await userEvent.selectOptions(screen.getByLabelText('상태'), '정리 완료');
 
@@ -98,5 +98,17 @@ describe('OrderDetail', () => {
         warningLevel: 'attention',
       }),
     );
+  });
+
+  it('renders as a dialog and closes from the fixed header action', async () => {
+    const onClose = vi.fn();
+
+    render(<OrderDetail order={baseOrder()} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={onClose} />);
+
+    expect(screen.getByRole('dialog', { name: '주문 상세' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

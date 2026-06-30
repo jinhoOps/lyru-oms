@@ -67,7 +67,12 @@ export default function App() {
 
         <OrderList orders={orders} selectedId={selectedId} onSelect={setSelectedId} />
 
-        <OrderDetail order={selectedOrder} settings={settings} onChange={handleChangeOrder} />
+        <OrderDetail
+          order={selectedOrder}
+          settings={settings}
+          onChange={handleChangeOrder}
+          onClose={() => setSelectedId(null)}
+        />
       </div>
 
       <SettingsModal
