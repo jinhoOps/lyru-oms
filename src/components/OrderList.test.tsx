@@ -38,12 +38,18 @@ describe('OrderList', () => {
   it('shows fulfillment type in the primary list fields', () => {
     render(<OrderList orders={[{ ...order, fulfillmentType: '픽업' }]} selectedId={null} onSelect={vi.fn()} />);
 
-    expect(screen.getByText('픽업')).toBeInTheDocument();
+    expect(screen.getByText('희망일 미정 · 픽업')).toBeInTheDocument();
   });
 
   it('shows fallback when fulfillment type is empty', () => {
     render(<OrderList orders={[{ ...order, fulfillmentType: '' }]} selectedId={null} onSelect={vi.fn()} />);
 
-    expect(screen.getByText('수령 방식 없음')).toBeInTheDocument();
+    expect(screen.getByText('희망일 미정 · 수령 방식 없음')).toBeInTheDocument();
+  });
+
+  it('shows registered date up to the minute', () => {
+    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText('등록 2026-06-30 09:00')).toBeInTheDocument();
   });
 });

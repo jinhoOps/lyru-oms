@@ -16,6 +16,22 @@ const summarizeOrder = (order: CapturedOrder) => {
   return `${item} · ${quantity}`;
 };
 
+const formatRegisteredAt = (isoDate: string) => {
+  const date = new Date(isoDate);
+
+  if (Number.isNaN(date.getTime())) {
+    return '등록일 미정';
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+
+  return `등록 ${year}-${month}-${day} ${hours}:${minutes}`;
+};
+
 export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
 
@@ -63,18 +79,16 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                 <span className="rowTopline">
                   <span className="sourcePill">{order.source}</span>
                   <span className="statusPill">{order.status}</span>
+                  <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
                 </span>
                 <strong>{fallback(order.customerName, '고객명 미정')}</strong>
-                <span className="mutedText">{fallback(order.desiredDateTime, '희망일 미정')}</span>
-                <span>{fallback(order.fulfillmentType, '수령 방식 없음')}</span>
                 <span>{summarizeOrder(order)}</span>
+                <span className="mutedText">
+                  {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
+                </span>
                 <span className="flagLine">
-                  <span className={hasCustomerRequest ? 'flagOn' : 'flagOff'}>
-                    고객 요청 {hasCustomerRequest ? '있음' : '없음'}
-                  </span>
-                  <span className={hasOwnerMemo ? 'flagOn' : 'flagOff'}>
-                    내부 메모 {hasOwnerMemo ? '있음' : '없음'}
-                  </span>
+                  {hasCustomerRequest ? <span className="flagOn">고객 요청 있음</span> : null}
+                  {hasOwnerMemo ? <span className="flagOn">내부 메모 있음</span> : null}
                 </span>
               </button>
 
