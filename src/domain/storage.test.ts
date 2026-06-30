@@ -83,6 +83,39 @@ describe('storage', () => {
     expect(loadOrders()).toEqual([validOrder]);
   });
 
+  it('discards stored orders with invalid fulfillment type while keeping valid values', () => {
+    const baseOrder: CapturedOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: '1',
+      source: '카카오톡 채널',
+      rawText: '성함: 김리루',
+      status: '수집',
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+    const emptyFulfillmentOrder = { ...baseOrder, id: 'empty', fulfillmentType: '' };
+    const pickupOrder = { ...baseOrder, id: 'pickup', fulfillmentType: '픽업' };
+    const deliveryOrder = { ...baseOrder, id: 'delivery', fulfillmentType: '택배' };
+
+    localStorage.setItem(
+      'lyru-oms.orders.v1',
+      JSON.stringify([
+        emptyFulfillmentOrder,
+        pickupOrder,
+        deliveryOrder,
+        { ...baseOrder, id: 'visit', fulfillmentType: '방문' },
+        { ...baseOrder, id: 'invalid', fulfillmentType: 'invalid' },
+      ]),
+    );
+
+    expect(loadOrders()).toEqual([emptyFulfillmentOrder, pickupOrder, deliveryOrder]);
+  });
+
   it('falls back per malformed settings field', () => {
     localStorage.setItem(
       'lyru-oms.settings.v1',

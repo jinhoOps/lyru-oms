@@ -16,6 +16,7 @@ const SETTINGS_STORAGE_KEY = 'lyru-oms.settings.v1';
 const ORDER_FIELD_KEYS = new Set<OrderFieldKey>(Object.keys(FIELD_DEFINITIONS) as OrderFieldKey[]);
 const ORDER_SOURCE_VALUES = new Set<string>(ORDER_SOURCES);
 const ORDER_STATUS_VALUES = new Set<string>(ORDER_STATUSES);
+const FULFILLMENT_TYPE_VALUES = new Set<string>(['', '픽업', '택배']);
 const REVIEW_REASON_KINDS = new Set<string>(['정보 부족', '확인필요', '중복 가능성']);
 const WARNING_LEVELS = new Set<string>(['none', 'attention']);
 
@@ -93,6 +94,7 @@ const isCapturedOrder = (value: unknown): value is CapturedOrder =>
   typeof value.id === 'string' &&
   typeof value.rawText === 'string' &&
   hasRequiredStringOrderFields(value) &&
+  FULFILLMENT_TYPE_VALUES.has(String(value.fulfillmentType)) &&
   ORDER_SOURCE_VALUES.has(String(value.source)) &&
   ORDER_STATUS_VALUES.has(String(value.status)) &&
   WARNING_LEVELS.has(String(value.warningLevel)) &&
