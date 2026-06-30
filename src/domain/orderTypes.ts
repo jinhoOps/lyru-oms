@@ -39,12 +39,12 @@ export interface ReviewReason {
 }
 
 export interface ConditionalRequiredField {
-  field: OrderFieldKey;
-  equals: string;
+  field: 'fulfillmentType';
+  equals: Exclude<FulfillmentType, ''>;
 }
 
 export interface OrderSettings {
-  requiredFields: OrderFieldKey[];
+  requiredFields: readonly OrderFieldKey[];
   conditionalRequiredFields: Partial<Record<OrderFieldKey, ConditionalRequiredField>>;
   bulkQuantityThreshold: number;
 }
@@ -81,7 +81,7 @@ export interface CapturedOrder {
   updatedAt: string;
 }
 
-export const FIELD_DEFINITIONS: Record<OrderFieldKey, { label: string; keywords: string[] }> = {
+export const FIELD_DEFINITIONS = {
   customerName: { label: '고객명', keywords: ['성함', '이름', '고객명'] },
   phone: { label: '연락처', keywords: ['연락처', '전화번호', '휴대폰'] },
   orderItems: { label: '주문 내용', keywords: ['주문 내용', '주문상품', '상품'] },
@@ -95,16 +95,16 @@ export const FIELD_DEFINITIONS: Record<OrderFieldKey, { label: string; keywords:
   options: { label: '추가 옵션', keywords: ['추가 옵션', '보자기/노리개/꽃'] },
   customerRequestNote: { label: '고객 요청사항', keywords: ['요청사항', '기타 요청사항', '메모'] },
   ownerMemo: { label: '사장님 내부 메모', keywords: [] },
-};
+} as const satisfies Record<OrderFieldKey, { label: string; keywords: readonly string[] }>;
 
-export const DEFAULT_SETTINGS: OrderSettings = {
+export const DEFAULT_SETTINGS = {
   requiredFields: ['customerName', 'phone', 'orderItems', 'quantity', 'desiredDateTime', 'fulfillmentType'],
   conditionalRequiredFields: {
     address: { field: 'fulfillmentType', equals: '택배' },
     pickupTime: { field: 'fulfillmentType', equals: '픽업' },
   },
   bulkQuantityThreshold: 5,
-};
+} as const satisfies OrderSettings;
 
 export const EMPTY_ORDER_FIELDS = {
   customerName: '',
@@ -120,4 +120,4 @@ export const EMPTY_ORDER_FIELDS = {
   options: '',
   customerRequestNote: '',
   ownerMemo: '',
-};
+} as const satisfies Record<OrderFieldKey, string>;
