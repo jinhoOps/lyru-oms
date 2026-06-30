@@ -44,6 +44,25 @@ describe('OrderList', () => {
     expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  it('shows only essential fields in compact list mode', async () => {
+    render(
+      <OrderList
+        orders={[{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
+
+    expect(screen.getByText('확인필요')).toBeInTheDocument();
+    expect(screen.getByText('곶감밀푀유 · 5개')).toBeInTheDocument();
+    expect(screen.getByText('7월 3일 · 픽업')).toBeInTheDocument();
+    expect(screen.queryByText('카카오톡 채널')).not.toBeInTheDocument();
+    expect(screen.queryByText('김리루')).not.toBeInTheDocument();
+    expect(screen.queryByText('고객 요청 있음')).not.toBeInTheDocument();
+  });
+
   it('shows fulfillment type in the primary list fields', () => {
     render(<OrderList orders={[{ ...order, fulfillmentType: '픽업' }]} selectedId={null} onSelect={vi.fn()} />);
 

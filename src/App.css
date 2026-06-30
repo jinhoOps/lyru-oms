@@ -372,25 +372,36 @@ pre {
 .orderList.compact .orderRowMain {
   min-height: 0;
   gap: 2px;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding: 7px 10px;
   font-size: 13px;
 }
 
-.orderList.compact .orderRowMain strong {
-  font-size: 14px;
+.compactRow {
+  align-content: center;
 }
 
-.orderList.compact .sourcePill,
-.orderList.compact .statusPill,
-.orderList.compact .flagOn,
-.orderList.compact .flagOff {
-  min-height: 20px;
+.compactLine {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.compactLine strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.orderList.compact .statusPill {
+  min-height: 19px;
+  flex: 0 0 auto;
   padding: 2px 6px;
   font-size: 11px;
 }
 
-.orderList.compact .registeredAt,
 .orderList.compact .mutedText {
   font-size: 12px;
 }

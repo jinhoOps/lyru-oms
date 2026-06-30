@@ -100,22 +100,34 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                 order.warningLevel === 'attention' ? 'attention' : ''
               }`}
             >
-              <button type="button" className="orderRowMain" onClick={() => onSelect(order.id)}>
-                <span className="rowTopline">
-                  <span className="sourcePill">{order.source}</span>
-                  <span className="statusPill">{order.status}</span>
-                  <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
-                </span>
-                <strong>{fallback(order.customerName, '고객명 미정')}</strong>
-                <span>{summarizeOrder(order)}</span>
-                <span className="mutedText">
-                  {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
-                </span>
-                <span className="flagLine">
-                  {hasCustomerRequest ? <span className="flagOn">고객 요청 있음</span> : null}
-                  {hasOwnerMemo ? <span className="flagOn">내부 메모 있음</span> : null}
-                </span>
-              </button>
+              {viewMode === 'list' ? (
+                <button type="button" className="orderRowMain compactRow" onClick={() => onSelect(order.id)}>
+                  <span className="compactLine">
+                    <span className="statusPill">{order.status}</span>
+                    <strong>{summarizeOrder(order)}</strong>
+                  </span>
+                  <span className="compactLine mutedText">
+                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
+                  </span>
+                </button>
+              ) : (
+                <button type="button" className="orderRowMain" onClick={() => onSelect(order.id)}>
+                  <span className="rowTopline">
+                    <span className="sourcePill">{order.source}</span>
+                    <span className="statusPill">{order.status}</span>
+                    <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
+                  </span>
+                  <strong>{fallback(order.customerName, '고객명 미정')}</strong>
+                  <span>{summarizeOrder(order)}</span>
+                  <span className="mutedText">
+                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
+                  </span>
+                  <span className="flagLine">
+                    {hasCustomerRequest ? <span className="flagOn">고객 요청 있음</span> : null}
+                    {hasOwnerMemo ? <span className="flagOn">내부 메모 있음</span> : null}
+                  </span>
+                </button>
+              )}
 
               {viewMode === 'card' && order.missingFields.length > 0 ? (
                 <div className="rawTextArea">
