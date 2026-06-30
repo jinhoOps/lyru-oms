@@ -185,11 +185,17 @@ pre {
 }
 
 .sectionHeader p,
-.sectionHelp {
+.sectionHelp,
+.inputHelp {
   margin: 0;
   color: #746956;
   font-size: 13px;
   font-weight: 500;
+}
+
+.inputHelp {
+  margin-top: -2px;
+  font-weight: 400;
 }
 
 .captureForm {

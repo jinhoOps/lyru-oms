@@ -10,6 +10,12 @@ afterEach(() => {
 });
 
 describe('OrderCaptureForm', () => {
+  it('shows future smart store API automation guidance above raw input', () => {
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={vi.fn()} />);
+
+    expect(screen.getByText('네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.')).toBeInTheDocument();
+  });
+
   it('saves raw text even when required fields are missing', async () => {
     const onSave = vi.fn();
     render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={onSave} />);

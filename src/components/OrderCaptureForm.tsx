@@ -77,7 +77,13 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
       </label>
       <label>
         주문/문의 원문
-        <textarea value={rawText} onChange={(event) => setRawText(event.target.value)} rows={8} />
+        <span className="inputHelp">네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.</span>
+        <textarea
+          aria-label="주문/문의 원문"
+          value={rawText}
+          onChange={(event) => setRawText(event.target.value)}
+          rows={8}
+        />
       </label>
       {isDuplicate ? <p className="softWarning">비슷한 원문이 이미 있어요. 그래도 저장할 수 있습니다.</p> : null}
       <div className="previewGrid" aria-label="추출 결과 미리보기">
