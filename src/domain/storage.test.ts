@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS, type CapturedOrder } from './orderTypes';
+import { DEFAULT_SETTINGS, EMPTY_ORDER_FIELDS, type CapturedOrder } from './orderTypes';
 import { loadOrders, loadSettings, saveOrders, saveSettings } from './storage';
 
 describe('storage', () => {
@@ -17,27 +17,49 @@ describe('storage', () => {
   });
 
   it('round-trips orders and settings', () => {
+    const order: CapturedOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: '1',
+      source: '카카오톡 채널',
+      rawText: '성함: 김리루',
+      status: '수집',
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+
     saveOrders([
-      {
-        id: '1',
-        source: '카카오톡 채널',
-        rawText: '성함: 김리루',
-        status: '수집',
-        createdAt: '2026-06-30T09:00:00.000Z',
-        updatedAt: '2026-06-30T09:00:00.000Z',
-      } as CapturedOrder,
+      order,
     ]);
     saveSettings({ ...DEFAULT_SETTINGS, bulkQuantityThreshold: 7 });
 
-    expect(loadOrders()).toHaveLength(1);
+    expect(loadOrders()).toEqual([order]);
     expect(loadSettings().bulkQuantityThreshold).toBe(7);
   });
 
   it('discards malformed order entries from stored arrays', () => {
-    const validOrder = {
+    const validOrder: CapturedOrder = {
+      ...EMPTY_ORDER_FIELDS,
       id: '1',
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
+      status: '수집',
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+    const partialOrder = {
+      id: '2',
+      source: '카카오톡 채널',
+      rawText: '성함: 박리루',
       status: '수집',
       createdAt: '2026-06-30T09:00:00.000Z',
       updatedAt: '2026-06-30T09:00:00.000Z',
@@ -54,6 +76,7 @@ describe('storage', () => {
         { ...validOrder, source: '문자' },
         { ...validOrder, status: '배송완료' },
         { ...validOrder, createdAt: null },
+        partialOrder,
       ]),
     );
 

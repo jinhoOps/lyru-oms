@@ -1,6 +1,7 @@
 import {
   DEFAULT_SETTINGS,
   FIELD_DEFINITIONS,
+  EMPTY_ORDER_FIELDS,
   ORDER_SOURCES,
   ORDER_STATUSES,
   type CapturedOrder,
@@ -15,6 +16,8 @@ const SETTINGS_STORAGE_KEY = 'lyru-oms.settings.v1';
 const ORDER_FIELD_KEYS = new Set<OrderFieldKey>(Object.keys(FIELD_DEFINITIONS) as OrderFieldKey[]);
 const ORDER_SOURCE_VALUES = new Set<string>(ORDER_SOURCES);
 const ORDER_STATUS_VALUES = new Set<string>(ORDER_STATUSES);
+const REVIEW_REASON_KINDS = new Set<string>(['정보 부족', '확인필요', '중복 가능성']);
+const WARNING_LEVELS = new Set<string>(['none', 'attention']);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -56,12 +59,47 @@ const cloneDefaultSettings = (): OrderSettings => ({
   bulkQuantityThreshold: DEFAULT_SETTINGS.bulkQuantityThreshold,
 });
 
+const isOrderFieldKey = (value: unknown): value is OrderFieldKey =>
+  typeof value === 'string' && ORDER_FIELD_KEYS.has(value as OrderFieldKey);
+
+const isOrderFieldKeyArray = (value: unknown): value is OrderFieldKey[] =>
+  Array.isArray(value) && value.every(isOrderFieldKey);
+
+const hasRequiredStringOrderFields = (value: Record<string, unknown>): boolean =>
+  Object.keys(EMPTY_ORDER_FIELDS).every((field) => typeof value[field] === 'string');
+
+const isReparseDifferenceArray = (value: unknown): value is CapturedOrder['reparseDifferences'] =>
+  Array.isArray(value) &&
+  value.every(
+    (difference) =>
+      isPlainObject(difference) &&
+      isOrderFieldKey(difference.field) &&
+      typeof difference.extractedValue === 'string',
+  );
+
+const isReviewReasonArray = (value: unknown): value is CapturedOrder['reviewReasons'] =>
+  Array.isArray(value) &&
+  value.every(
+    (reason) =>
+      isPlainObject(reason) &&
+      typeof reason.kind === 'string' &&
+      REVIEW_REASON_KINDS.has(reason.kind) &&
+      typeof reason.message === 'string' &&
+      (reason.field === undefined || isOrderFieldKey(reason.field)),
+  );
+
 const isCapturedOrder = (value: unknown): value is CapturedOrder =>
   isPlainObject(value) &&
   typeof value.id === 'string' &&
   typeof value.rawText === 'string' &&
+  hasRequiredStringOrderFields(value) &&
   ORDER_SOURCE_VALUES.has(String(value.source)) &&
   ORDER_STATUS_VALUES.has(String(value.status)) &&
+  WARNING_LEVELS.has(String(value.warningLevel)) &&
+  isOrderFieldKeyArray(value.manuallyEditedFields) &&
+  isOrderFieldKeyArray(value.missingFields) &&
+  isReparseDifferenceArray(value.reparseDifferences) &&
+  isReviewReasonArray(value.reviewReasons) &&
   typeof value.createdAt === 'string' &&
   typeof value.updatedAt === 'string';
 
