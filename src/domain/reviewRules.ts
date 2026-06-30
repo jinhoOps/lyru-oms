@@ -16,9 +16,9 @@ const isBlank = (value: string) => value.trim() === '';
 
 const parseQuantity = (quantity: string) => {
   const normalizedQuantity = quantity.replace(/,/g, '').trim();
-  const matchedNumber = normalizedQuantity.match(/\d+/);
+  const matchedNumbers = normalizedQuantity.match(/\d+/g);
 
-  return matchedNumber ? Number(matchedNumber[0]) : 0;
+  return matchedNumbers?.reduce((sum, matchedNumber) => sum + Number(matchedNumber), 0) ?? 0;
 };
 
 const setOrderField = <Field extends OrderFieldKey>(
@@ -50,11 +50,14 @@ export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): Ca
     }
   }
 
-  const reviewReasons: ReviewReason[] = [...missingFields].map((field) => ({
-    kind: '정보 부족',
-    field,
-    message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어 확인이 필요합니다.`,
-  }));
+  const reviewReasons: ReviewReason[] = [
+    ...order.reviewReasons.filter((reason) => reason.kind === '중복 가능성'),
+    ...[...missingFields].map((field) => ({
+      kind: '정보 부족' as const,
+      field,
+      message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어 확인이 필요합니다.`,
+    })),
+  ];
 
   if (parseQuantity(order.quantity) >= settings.bulkQuantityThreshold) {
     reviewReasons.push({

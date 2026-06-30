@@ -63,6 +63,46 @@ describe('evaluateOrder', () => {
     expect(evaluated.status).toBe('정리 완료');
     expect(evaluated.reviewReasons.some((reason) => reason.message.includes('대량'))).toBe(true);
   });
+
+  it('preserves existing duplicate review reasons while recalculating derived reasons', () => {
+    const duplicateReason = { kind: '중복 가능성' as const, message: '비슷한 원문이 이미 있어요.' };
+
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        reviewReasons: [duplicateReason],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toContainEqual(duplicateReason);
+    expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
+  });
+
+  it.each(['3개 + 3개', '2세트 3개씩', '5'])(
+    'flags bulk orders when summed quantity reaches the threshold: %s',
+    (quantity) => {
+      const evaluated = evaluateOrder(
+        order({
+          customerName: '김리루',
+          phone: '010',
+          orderItems: '곶감밀푀유',
+          quantity,
+          desiredDateTime: '7월 3일',
+          fulfillmentType: '픽업',
+          pickupTime: '14:00',
+        }),
+        DEFAULT_SETTINGS,
+      );
+
+      expect(evaluated.reviewReasons).toContainEqual({
+        kind: '확인필요',
+        field: 'quantity',
+        message: '대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.',
+      });
+      expect(evaluated.status).toBe('확인필요');
+    },
+  );
 });
 
 describe('mergeParsedFields', () => {
