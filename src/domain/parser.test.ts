@@ -26,11 +26,25 @@ describe('parseRawText', () => {
     expect(parsed.desiredDateTime).toBe('');
     expect(parsed.fulfillmentType).toBe('');
   });
+
+  it('keeps clear single fulfillment signals and rejects ambiguous corrections', () => {
+    expect(parseRawText('수령방법: 택배').fulfillmentType).toBe('택배');
+    expect(parseRawText('수령방법: 픽업').fulfillmentType).toBe('픽업');
+    expect(parseRawText('수령방법: 방문').fulfillmentType).toBe('픽업');
+
+    expect(parseRawText('수령방법: 택배 아니고 픽업').fulfillmentType).toBe('');
+    expect(parseRawText('수령방법: 택배X 방문').fulfillmentType).toBe('');
+    expect(parseRawText('수령방법: 택배 취소').fulfillmentType).toBe('');
+  });
 });
 
 describe('hasSimilarRawText', () => {
-  it('flags exact or near-exact raw text as duplicate possibility', () => {
+  it('flags normalized exact raw text as duplicate possibility', () => {
     expect(hasSimilarRawText('성함: 김리루\n수량: 5', [' 성함: 김리루 수량: 5 '])).toBe(true);
+  });
+
+  it('does not flag punctuation or phone-format differences as duplicate', () => {
+    expect(hasSimilarRawText('전화번호: 010-1111-2222', ['전화번호 01011112222'])).toBe(false);
   });
 
   it('does not flag unrelated messages', () => {

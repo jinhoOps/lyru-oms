@@ -12,7 +12,7 @@ const PARSEABLE_FIELDS = Object.keys(FIELD_DEFINITIONS).filter(
 
 const normalizeKeyword = (value: string) => value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, '');
 
-const normalizeComparableText = (value: string) =>
+const normalizeRawTextForExactDuplicate = (value: string) =>
   value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 
 const findFieldByLabel = (label: string): ParseableOrderField | undefined => {
@@ -41,11 +41,20 @@ const splitLabeledLine = (line: string): { label: string; value: string } | unde
 };
 
 const normalizeFulfillmentType = (value: string): FulfillmentType => {
-  if (value.includes('택배')) {
+  const normalizedValue = value.normalize('NFKC').trim().toLowerCase();
+  const hasDeliverySignal = normalizedValue.includes('택배');
+  const hasPickupSignal = normalizedValue.includes('픽업') || normalizedValue.includes('방문');
+  const hasCorrectionSignal = /아니|아님|x|취소/.test(normalizedValue);
+
+  if (hasCorrectionSignal || (hasDeliverySignal && hasPickupSignal)) {
+    return '';
+  }
+
+  if (hasDeliverySignal) {
     return '택배';
   }
 
-  if (value.includes('픽업') || value.includes('방문')) {
+  if (hasPickupSignal) {
     return '픽업';
   }
 
@@ -80,7 +89,7 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
 };
 
 export const hasSimilarRawText = (rawText: string, existingRawTexts: readonly string[]) => {
-  const normalizedRawText = normalizeComparableText(rawText);
+  const normalizedRawText = normalizeRawTextForExactDuplicate(rawText);
 
-  return existingRawTexts.some((existingRawText) => normalizeComparableText(existingRawText) === normalizedRawText);
+  return existingRawTexts.some((existingRawText) => normalizeRawTextForExactDuplicate(existingRawText) === normalizedRawText);
 };
