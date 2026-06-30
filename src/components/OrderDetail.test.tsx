@@ -111,4 +111,19 @@ describe('OrderDetail', () => {
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('hides delivery-only and pickup-only fields after fulfillment type is chosen', () => {
+    const pickupOrder = baseOrder({ fulfillmentType: '픽업' });
+    const { rerender } = render(
+      <OrderDetail order={pickupOrder} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />,
+    );
+
+    expect(screen.getByText('픽업 시간')).toBeInTheDocument();
+    expect(screen.queryByText('택배 주소')).not.toBeInTheDocument();
+
+    rerender(<OrderDetail order={baseOrder({ fulfillmentType: '택배' })} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByText('택배 주소')).toBeInTheDocument();
+    expect(screen.queryByText('픽업 시간')).not.toBeInTheDocument();
+  });
 });

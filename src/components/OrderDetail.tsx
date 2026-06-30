@@ -83,6 +83,17 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     .map((reason) => reason.field as OrderFieldKey);
   const missingFieldsToShow = order.missingFields.length > 0 ? order.missingFields : missingReasonFields;
   const otherReviewReasons = order.reviewReasons.filter((reason) => reason.kind !== '정보 부족');
+  const visibleEditableFields = editableFields.filter((field) => {
+    if (order.fulfillmentType === '픽업') {
+      return field !== 'address';
+    }
+
+    if (order.fulfillmentType === '택배') {
+      return field !== 'pickupTime';
+    }
+
+    return true;
+  });
 
   return (
     <div className="detailModalBackdrop" role="presentation" onMouseDown={onClose}>
@@ -139,7 +150,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       </label>
 
       <div className="fieldGrid">
-        {editableFields.map((field) => {
+        {visibleEditableFields.map((field) => {
           const difference = differenceByField.get(field);
           const isTextarea = multilineFields.has(field);
 
