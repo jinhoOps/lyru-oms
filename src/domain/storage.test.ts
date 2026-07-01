@@ -23,6 +23,9 @@ describe('storage', () => {
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
       status: '수집',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
       manuallyEditedFields: [],
       reparseDifferences: [],
       missingFields: [],
@@ -35,10 +38,49 @@ describe('storage', () => {
     saveOrders([
       order,
     ]);
-    saveSettings({ ...DEFAULT_SETTINGS, bulkQuantityThreshold: 7 });
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      quantityRules: {
+        bulkRealUnitThreshold: 48,
+        minimumOrderRules: [
+          { unitCount: 2, minimumSets: 6 },
+          { unitCount: 4, minimumSets: 3 },
+        ],
+      },
+    };
+
+    saveSettings(settings);
 
     expect(loadOrders()).toEqual([order]);
-    expect(loadSettings().bulkQuantityThreshold).toBe(7);
+    expect(loadSettings()).toEqual(settings);
+  });
+
+  it('hydrates legacy orders with new parser metadata defaults', () => {
+    const legacyOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: 'legacy',
+      source: '카카오톡 채널',
+      rawText: '대추야자 9구 5세트',
+      status: '수집',
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([legacyOrder]));
+
+    expect(loadOrders()).toEqual([
+      {
+        ...legacyOrder,
+        menuMatches: [],
+        quantityCandidates: [],
+        parsedDate: null,
+      },
+    ]);
   });
 
   it('discards malformed order entries from stored arrays', () => {
@@ -48,6 +90,9 @@ describe('storage', () => {
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
       status: '수집',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
       manuallyEditedFields: [],
       reparseDifferences: [],
       missingFields: [],
@@ -90,6 +135,9 @@ describe('storage', () => {
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
       status: '수집',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
       manuallyEditedFields: [],
       reparseDifferences: [],
       missingFields: [],
@@ -126,11 +174,35 @@ describe('storage', () => {
           pickupTime: { field: 'desiredDateTime', equals: '픽업' },
           phone: { field: 'fulfillmentType', equals: '픽업' },
         },
-        bulkQuantityThreshold: Number.NaN,
+        quantityRules: {
+          bulkRealUnitThreshold: Number.NaN,
+          minimumOrderRules: [{ unitCount: 0, minimumSets: 2 }],
+        },
       }),
     );
 
     expect(loadSettings()).toEqual(DEFAULT_SETTINGS);
+  });
+
+  it('hydrates legacy bulk threshold settings into real-unit quantity rules', () => {
+    localStorage.setItem(
+      'lyru-oms.settings.v1',
+      JSON.stringify({
+        requiredFields: ['orderItems', 'quantity'],
+        conditionalRequiredFields: {
+          address: { field: 'fulfillmentType', equals: '택배' },
+        },
+        bulkQuantityThreshold: 7,
+      }),
+    );
+
+    expect(loadSettings()).toEqual({
+      requiredFields: ['orderItems', 'quantity'],
+      conditionalRequiredFields: {
+        address: { field: 'fulfillmentType', equals: '택배' },
+      },
+      quantityRules: DEFAULT_SETTINGS.quantityRules,
+    });
   });
 
   it('keeps valid settings fields while defaulting malformed fields independently', () => {
@@ -140,9 +212,14 @@ describe('storage', () => {
         requiredFields: ['customerName', 'phone'],
         conditionalRequiredFields: {
           address: { field: 'fulfillmentType', equals: '택배' },
-          pickupTime: { field: 'desiredDateTime', equals: '픽업' },
         },
-        bulkQuantityThreshold: 12,
+        quantityRules: {
+          bulkRealUnitThreshold: 64.8,
+          minimumOrderRules: [
+            { unitCount: 2.9, minimumSets: 5.8 },
+            { unitCount: 4, minimumSets: 2 },
+          ],
+        },
       }),
     );
 
@@ -150,9 +227,14 @@ describe('storage', () => {
       requiredFields: ['customerName', 'phone'],
       conditionalRequiredFields: {
         address: { field: 'fulfillmentType', equals: '택배' },
-        pickupTime: { field: 'fulfillmentType', equals: '픽업' },
       },
-      bulkQuantityThreshold: 12,
+      quantityRules: {
+        bulkRealUnitThreshold: 64,
+        minimumOrderRules: [
+          { unitCount: 2, minimumSets: 5 },
+          { unitCount: 4, minimumSets: 2 },
+        ],
+      },
     });
   });
 

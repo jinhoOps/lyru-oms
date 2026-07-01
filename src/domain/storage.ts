@@ -6,8 +6,12 @@ import {
   ORDER_STATUSES,
   type CapturedOrder,
   type ConditionalRequiredField,
+  type MenuMatch,
   type OrderFieldKey,
   type OrderSettings,
+  type ParsedDateValue,
+  type QuantityCandidate,
+  type QuantityRules,
 } from './orderTypes';
 
 const ORDERS_STORAGE_KEY = 'lyru-oms.orders.v1';
@@ -55,9 +59,11 @@ const cloneDefaultSettings = (): OrderSettings => ({
   requiredFields: [...DEFAULT_SETTINGS.requiredFields],
   conditionalRequiredFields: {
     address: { ...DEFAULT_SETTINGS.conditionalRequiredFields.address },
-    pickupTime: { ...DEFAULT_SETTINGS.conditionalRequiredFields.pickupTime },
   },
-  bulkQuantityThreshold: DEFAULT_SETTINGS.bulkQuantityThreshold,
+  quantityRules: {
+    bulkRealUnitThreshold: DEFAULT_SETTINGS.quantityRules.bulkRealUnitThreshold,
+    minimumOrderRules: DEFAULT_SETTINGS.quantityRules.minimumOrderRules.map((rule) => ({ ...rule })),
+  },
 });
 
 const isOrderFieldKey = (value: unknown): value is OrderFieldKey =>
@@ -89,7 +95,37 @@ const isReviewReasonArray = (value: unknown): value is CapturedOrder['reviewReas
       (reason.field === undefined || isOrderFieldKey(reason.field)),
   );
 
-const isCapturedOrder = (value: unknown): value is CapturedOrder =>
+const isMenuMatchArray = (value: unknown): value is MenuMatch[] =>
+  Array.isArray(value) &&
+  value.every(
+    (match) =>
+      isPlainObject(match) &&
+      typeof match.menuId === 'string' &&
+      typeof match.label === 'string' &&
+      (typeof match.unitCount === 'number' || match.unitCount === null) &&
+      ['exact', 'alias', 'family'].includes(String(match.confidence)),
+  );
+
+const isQuantityCandidateArray = (value: unknown): value is QuantityCandidate[] =>
+  Array.isArray(value) &&
+  value.every(
+    (candidate) =>
+      isPlainObject(candidate) &&
+      typeof candidate.value === 'number' &&
+      Number.isFinite(candidate.value) &&
+      ['개', '세트'].includes(String(candidate.unit)) &&
+      typeof candidate.rawText === 'string',
+  );
+
+const isParsedDateValue = (value: unknown): value is ParsedDateValue | null =>
+  value === null ||
+  (isPlainObject(value) &&
+    typeof value.isoDate === 'string' &&
+    typeof value.timeText === 'string' &&
+    typeof value.originalText === 'string' &&
+    typeof value.isRelative === 'boolean');
+
+const isStoredOrderBase = (value: unknown): value is CapturedOrder =>
   isPlainObject(value) &&
   typeof value.id === 'string' &&
   typeof value.rawText === 'string' &&
@@ -105,18 +141,30 @@ const isCapturedOrder = (value: unknown): value is CapturedOrder =>
   typeof value.createdAt === 'string' &&
   typeof value.updatedAt === 'string';
 
+const hydrateStoredOrder = (value: CapturedOrder): CapturedOrder => {
+  const storedValue = value as unknown as Record<string, unknown>;
+
+  return {
+    ...value,
+    menuMatches: isMenuMatchArray(storedValue.menuMatches) ? (storedValue.menuMatches as MenuMatch[]) : [],
+    quantityCandidates: isQuantityCandidateArray(storedValue.quantityCandidates)
+      ? (storedValue.quantityCandidates as QuantityCandidate[])
+      : [],
+    parsedDate: isParsedDateValue(storedValue.parsedDate) ? (storedValue.parsedDate as ParsedDateValue | null) : null,
+  };
+};
+
 const parseRequiredFields = (value: unknown): readonly OrderFieldKey[] =>
   Array.isArray(value) && value.every((field): field is OrderFieldKey => ORDER_FIELD_KEYS.has(field as OrderFieldKey))
     ? [...value]
     : [...DEFAULT_SETTINGS.requiredFields];
 
 const isDefaultLikeConditionalField = (
-  key: 'address' | 'pickupTime',
   value: unknown,
 ): value is ConditionalRequiredField =>
   isPlainObject(value) &&
   value.field === 'fulfillmentType' &&
-  value.equals === DEFAULT_SETTINGS.conditionalRequiredFields[key].equals;
+  value.equals === DEFAULT_SETTINGS.conditionalRequiredFields.address.equals;
 
 const parseConditionalRequiredFields = (
   value: unknown,
@@ -124,24 +172,49 @@ const parseConditionalRequiredFields = (
   const storedFields = isPlainObject(value) ? value : {};
 
   return {
-    address: isDefaultLikeConditionalField('address', storedFields.address)
+    address: isDefaultLikeConditionalField(storedFields.address)
       ? { field: storedFields.address.field, equals: storedFields.address.equals }
       : { ...DEFAULT_SETTINGS.conditionalRequiredFields.address },
-    pickupTime: isDefaultLikeConditionalField('pickupTime', storedFields.pickupTime)
-      ? { field: storedFields.pickupTime.field, equals: storedFields.pickupTime.equals }
-      : { ...DEFAULT_SETTINGS.conditionalRequiredFields.pickupTime },
   };
 };
 
-const parseBulkQuantityThreshold = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? value
-    : DEFAULT_SETTINGS.bulkQuantityThreshold;
+const parseQuantityRules = (value: unknown): QuantityRules => {
+  const fallback = cloneDefaultSettings().quantityRules;
+
+  if (!isPlainObject(value)) {
+    return fallback;
+  }
+
+  const bulkRealUnitThreshold =
+    typeof value.bulkRealUnitThreshold === 'number' &&
+    Number.isFinite(value.bulkRealUnitThreshold) &&
+    value.bulkRealUnitThreshold > 0
+      ? Math.floor(value.bulkRealUnitThreshold)
+      : fallback.bulkRealUnitThreshold;
+
+  const minimumOrderRules =
+    Array.isArray(value.minimumOrderRules) &&
+    value.minimumOrderRules.every(
+      (rule) =>
+        isPlainObject(rule) &&
+        typeof rule.unitCount === 'number' &&
+        typeof rule.minimumSets === 'number' &&
+        rule.unitCount > 0 &&
+        rule.minimumSets > 0,
+    )
+      ? value.minimumOrderRules.map((rule) => ({
+          unitCount: Math.floor(Number(rule.unitCount)),
+          minimumSets: Math.floor(Number(rule.minimumSets)),
+        }))
+      : fallback.minimumOrderRules;
+
+  return { bulkRealUnitThreshold, minimumOrderRules };
+};
 
 export const loadOrders = (): CapturedOrder[] => {
   const storedOrders = parseStoredJson(safeGetItem(ORDERS_STORAGE_KEY));
 
-  return Array.isArray(storedOrders) ? storedOrders.filter(isCapturedOrder) : [];
+  return Array.isArray(storedOrders) ? storedOrders.filter(isStoredOrderBase).map(hydrateStoredOrder) : [];
 };
 
 export const saveOrders = (orders: CapturedOrder[]): void => {
@@ -158,7 +231,7 @@ export const loadSettings = (): OrderSettings => {
   return {
     requiredFields: parseRequiredFields(storedSettings.requiredFields),
     conditionalRequiredFields: parseConditionalRequiredFields(storedSettings.conditionalRequiredFields),
-    bulkQuantityThreshold: parseBulkQuantityThreshold(storedSettings.bulkQuantityThreshold),
+    quantityRules: parseQuantityRules(storedSettings.quantityRules),
   };
 };
 

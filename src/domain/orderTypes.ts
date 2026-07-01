@@ -15,6 +15,49 @@ export type WarningLevel = 'none' | 'attention';
 
 export type FulfillmentType = '' | '픽업' | '택배';
 
+export type PurposeCategory = '상견례/인사' | '답례품' | '기념일/행사' | '감사 선물' | '단체/기업' | '기타';
+export type ReviewReasonGroup = 'info' | 'check';
+export type ReviewReasonCode =
+  | 'missing-field'
+  | 'duplicate-raw-text'
+  | 'event-purpose'
+  | 'ambiguous-menu'
+  | 'ambiguous-quantity'
+  | 'bulk-real-unit'
+  | 'minimum-order'
+  | 'delivery-check'
+  | 'relative-date';
+
+export interface MenuMatch {
+  menuId: string;
+  label: string;
+  unitCount: number | null;
+  confidence: 'exact' | 'alias' | 'family';
+}
+
+export interface QuantityCandidate {
+  value: number;
+  unit: '개' | '세트';
+  rawText: string;
+}
+
+export interface ParsedDateValue {
+  isoDate: string;
+  timeText: string;
+  originalText: string;
+  isRelative: boolean;
+}
+
+export interface MinimumOrderRule {
+  unitCount: number;
+  minimumSets: number;
+}
+
+export interface QuantityRules {
+  bulkRealUnitThreshold: number;
+  minimumOrderRules: MinimumOrderRule[];
+}
+
 export type OrderFieldKey =
   | 'customerName'
   | 'phone'
@@ -34,7 +77,11 @@ export type ReviewReasonKind = '정보 부족' | '확인필요' | '중복 가능
 
 export interface ReviewReason {
   kind: ReviewReasonKind;
+  group: ReviewReasonGroup;
+  code: ReviewReasonCode;
   field?: OrderFieldKey;
+  label: string;
+  detail?: string;
   message: string;
 }
 
@@ -46,7 +93,7 @@ export interface ConditionalRequiredField {
 export interface OrderSettings {
   requiredFields: readonly OrderFieldKey[];
   conditionalRequiredFields: Partial<Record<OrderFieldKey, ConditionalRequiredField>>;
-  bulkQuantityThreshold: number;
+  quantityRules: QuantityRules;
 }
 
 export interface ReparseDifference {
@@ -71,6 +118,9 @@ export interface CapturedOrder {
   options: string;
   customerRequestNote: string;
   ownerMemo: string;
+  menuMatches: MenuMatch[];
+  quantityCandidates: QuantityCandidate[];
+  parsedDate: ParsedDateValue | null;
   manuallyEditedFields: OrderFieldKey[];
   reparseDifferences: ReparseDifference[];
   missingFields: OrderFieldKey[];
@@ -98,12 +148,17 @@ export const FIELD_DEFINITIONS = {
 } as const satisfies Record<OrderFieldKey, { label: string; keywords: readonly string[] }>;
 
 export const DEFAULT_SETTINGS = {
-  requiredFields: ['customerName', 'phone', 'orderItems', 'quantity', 'desiredDateTime', 'fulfillmentType'],
+  requiredFields: ['orderItems', 'quantity', 'desiredDateTime', 'fulfillmentType'],
   conditionalRequiredFields: {
     address: { field: 'fulfillmentType', equals: '택배' },
-    pickupTime: { field: 'fulfillmentType', equals: '픽업' },
   },
-  bulkQuantityThreshold: 5,
+  quantityRules: {
+    bulkRealUnitThreshold: 40,
+    minimumOrderRules: [
+      { unitCount: 2, minimumSets: 5 },
+      { unitCount: 4, minimumSets: 2 },
+    ],
+  },
 } as const satisfies OrderSettings;
 
 export const EMPTY_ORDER_FIELDS = {
