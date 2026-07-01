@@ -2,6 +2,7 @@ import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import {
   DEFAULT_SETTINGS,
   FIELD_DEFINITIONS,
+  type MinimumOrderRule,
   type OrderFieldKey,
   type OrderSettings,
 } from '../domain/orderTypes';
@@ -26,10 +27,30 @@ const configurableRequiredFields: OrderFieldKey[] = [
   'customerRequestNote',
 ];
 
+interface MinimumOrderRuleDraft {
+  unitCount: string;
+  minimumSets: string;
+}
+
+function toMinimumOrderRuleDrafts(rules: readonly MinimumOrderRule[]): MinimumOrderRuleDraft[] {
+  return rules.map((rule) => ({
+    unitCount: String(rule.unitCount),
+    minimumSets: String(rule.minimumSets),
+  }));
+}
+
+function parsePositiveInteger(value: string): number | null {
+  const parsedValue = Number(value);
+  return Number.isInteger(parsedValue) && parsedValue > 0 ? parsedValue : null;
+}
+
 export function SettingsModal({ open, settings, onClose, onSave }: SettingsModalProps) {
   const [requiredFields, setRequiredFields] = useState<OrderFieldKey[]>([...settings.requiredFields]);
   const [bulkQuantityThreshold, setBulkQuantityThreshold] = useState(
     String(settings.quantityRules.bulkRealUnitThreshold),
+  );
+  const [minimumOrderRules, setMinimumOrderRules] = useState<MinimumOrderRuleDraft[]>(
+    toMinimumOrderRuleDrafts(settings.quantityRules.minimumOrderRules),
   );
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
@@ -43,6 +64,7 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setRequiredFields([...settings.requiredFields]);
     setBulkQuantityThreshold(String(settings.quantityRules.bulkRealUnitThreshold));
+    setMinimumOrderRules(toMinimumOrderRuleDrafts(settings.quantityRules.minimumOrderRules));
     closeButtonRef.current?.focus();
 
     return () => {
@@ -61,8 +83,26 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
     );
   }
 
+  function updateMinimumOrderRule(index: number, field: keyof MinimumOrderRuleDraft, value: string) {
+    setMinimumOrderRules((currentRules) =>
+      currentRules.map((rule, ruleIndex) => (ruleIndex === index ? { ...rule, [field]: value } : rule)),
+    );
+  }
+
   function handleSave() {
-    const parsedThreshold = Number(bulkQuantityThreshold);
+    const parsedThreshold = parsePositiveInteger(bulkQuantityThreshold);
+    const nextMinimumOrderRules = settings.quantityRules.minimumOrderRules.map((previousRule, index) => {
+      const draftRule = minimumOrderRules[index];
+
+      if (!draftRule) {
+        return previousRule;
+      }
+
+      return {
+        unitCount: parsePositiveInteger(draftRule.unitCount) ?? previousRule.unitCount,
+        minimumSets: parsePositiveInteger(draftRule.minimumSets) ?? previousRule.minimumSets,
+      };
+    });
     const nextSettings: OrderSettings = {
       requiredFields: [...requiredFields],
       conditionalRequiredFields: {
@@ -70,10 +110,8 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
       },
       quantityRules: {
         ...settings.quantityRules,
-        bulkRealUnitThreshold:
-          Number.isFinite(parsedThreshold) && parsedThreshold > 0
-            ? Math.floor(parsedThreshold)
-            : settings.quantityRules.bulkRealUnitThreshold,
+        bulkRealUnitThreshold: parsedThreshold ?? settings.quantityRules.bulkRealUnitThreshold,
+        minimumOrderRules: nextMinimumOrderRules,
       },
     };
 
@@ -153,18 +191,50 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
           </div>
         </fieldset>
 
-        <label className="settingInput">
-          대량 주문 기준 수량
-          <input
-            type="number"
-            min="1"
-            inputMode="numeric"
-            value={bulkQuantityThreshold}
-            onChange={(event) => setBulkQuantityThreshold(event.target.value)}
-          />
-        </label>
+        <fieldset className="settingsGroup">
+          <legend>주문 수량 조건</legend>
+          <label className="settingInput">
+            대량 기준 실수량
+            <input
+              type="number"
+              min="1"
+              inputMode="numeric"
+              value={bulkQuantityThreshold}
+              onChange={(event) => setBulkQuantityThreshold(event.target.value)}
+            />
+          </label>
+          <div className="quantityRuleList">
+            {minimumOrderRules.map((rule, index) => (
+              <div key={index} className="quantityRuleRow">
+                <label>
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    aria-label={`최소 주문 조건 ${index + 1} 상품 구수`}
+                    value={rule.unitCount}
+                    onChange={(event) => updateMinimumOrderRule(index, 'unitCount', event.target.value)}
+                  />
+                  <span>구 상품</span>
+                </label>
+                <label>
+                  <span>최소</span>
+                  <input
+                    type="number"
+                    min="1"
+                    inputMode="numeric"
+                    aria-label={`최소 주문 조건 ${index + 1} 최소 세트`}
+                    value={rule.minimumSets}
+                    onChange={(event) => updateMinimumOrderRule(index, 'minimumSets', event.target.value)}
+                  />
+                  <span>세트</span>
+                </label>
+              </div>
+            ))}
+          </div>
+        </fieldset>
 
-        <p className="settingsNote">택배 주소는 택배 주문일 때, 픽업 시간은 픽업 주문일 때만 추가로 확인합니다.</p>
+        <p className="settingsNote">택배 주소는 수령 방식이 택배일 때만 추가 확인 항목으로 봅니다.</p>
 
         <div className="modalActions">
           <button type="button" className="secondaryButton" onClick={onClose}>
