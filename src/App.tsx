@@ -5,6 +5,7 @@ import { OrderList } from './components/OrderList';
 import { QuestionNote } from './components/QuestionNote';
 import { SettingsModal } from './components/SettingsModal';
 import { type CapturedOrder, type OrderSettings } from './domain/orderTypes';
+import { evaluateOrder } from './domain/reviewRules';
 import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/storage';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
 
   function handleSaveSettings(nextSettings: OrderSettings) {
     setSettings(nextSettings);
+    setOrders((current) => current.map((order) => evaluateOrder(order, nextSettings)));
   }
 
   return (

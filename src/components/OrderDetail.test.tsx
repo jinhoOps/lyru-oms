@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, EMPTY_ORDER_FIELDS, type CapturedOrder } from '../domain/orderTypes';
@@ -186,6 +186,24 @@ describe('OrderDetail', () => {
       expect.objectContaining({
         status: '정리 완료',
         warningLevel: 'attention',
+      }),
+    );
+  });
+
+  it('updates parsed date metadata when desired date is edited manually', async () => {
+    const onChange = vi.fn();
+
+    render(<OrderDetail order={baseOrder()} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('희망일'), { target: { value: '2026-07-03' } });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desiredDateTime: '2026-07-03',
+        parsedDate: expect.objectContaining({
+          isoDate: '2026-07-03',
+          isRelative: false,
+        }),
       }),
     );
   });

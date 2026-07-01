@@ -117,10 +117,10 @@ describe('storage', () => {
     expect(loadOrders()).toEqual([order]);
   });
 
-  it('discards stored orders with malformed review reason metadata', () => {
-    const malformedOrder = {
+  it('hydrates stored orders with legacy review reason metadata', () => {
+    const legacyReviewReasonOrder = {
       ...EMPTY_ORDER_FIELDS,
-      id: 'malformed-review-reason',
+      id: 'legacy-review-reason',
       source: '카카오톡 채널',
       rawText: '연락처 없음',
       status: '확인필요',
@@ -142,9 +142,23 @@ describe('storage', () => {
       updatedAt: '2026-06-30T09:00:00.000Z',
     };
 
-    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([malformedOrder]));
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([legacyReviewReasonOrder]));
 
-    expect(loadOrders()).toEqual([]);
+    expect(loadOrders()).toEqual([
+      {
+        ...legacyReviewReasonOrder,
+        reviewReasons: [
+          {
+            kind: '정보 부족',
+            group: 'info',
+            code: 'missing-field',
+            field: 'phone',
+            label: '연락처',
+            message: '연락처 정보가 비어 있어요.',
+          },
+        ],
+      },
+    ]);
   });
 
   it('discards malformed order entries from stored arrays', () => {

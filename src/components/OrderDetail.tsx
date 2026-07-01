@@ -7,6 +7,7 @@ import {
   type OrderStatus,
   type ReviewReason,
 } from '../domain/orderTypes';
+import { parseExplicitDate } from '../domain/dateDisplay';
 import { parseRawText } from '../domain/parser';
 import { evaluateOrder, mergeParsedFields } from '../domain/reviewRules';
 import { ReparseHint } from './ReparseHint';
@@ -74,6 +75,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     publish({
       ...order,
       [field]: value,
+      ...(field === 'desiredDateTime' ? { parsedDate: parseExplicitDate(value) } : {}),
       manuallyEditedFields,
     });
   }

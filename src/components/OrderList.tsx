@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatDday } from '../domain/dateDisplay';
+import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
 import { FIELD_DEFINITIONS, type CapturedOrder } from '../domain/orderTypes';
 
 interface OrderListProps {
@@ -64,6 +64,12 @@ const formatRegisteredAt = (isoDate: string) => {
   return `등록 ${year}-${month}-${day} ${hours}:${minutes}`;
 };
 
+const getDisplayDate = (order: CapturedOrder) => {
+  const parsedDesiredDate = order.desiredDateTime.trim() ? parseExplicitDate(order.desiredDateTime) : null;
+
+  return parsedDesiredDate ?? order.parsedDate;
+};
+
 export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
@@ -124,7 +130,7 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
           const isExpanded = expandedRawTextIds.includes(order.id);
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
           const hasOwnerMemo = order.ownerMemo.trim() !== '';
-          const dday = formatDday(order.parsedDate);
+          const dday = formatDday(getDisplayDate(order));
           const reasonSummaries = summarizeReviewReasonGroups(order);
 
           return (

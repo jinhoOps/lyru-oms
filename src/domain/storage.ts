@@ -113,6 +113,67 @@ const isReviewReasonArray = (value: unknown): value is CapturedOrder['reviewReas
       (reason.field === undefined || isOrderFieldKey(reason.field)),
   );
 
+const hydrateReviewReasons = (value: unknown): CapturedOrder['reviewReasons'] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  if (isReviewReasonArray(value)) {
+    return value;
+  }
+
+  return value.flatMap((reason): CapturedOrder['reviewReasons'] => {
+    if (
+      !isPlainObject(reason) ||
+      typeof reason.kind !== 'string' ||
+      !REVIEW_REASON_KINDS.has(reason.kind) ||
+      typeof reason.message !== 'string'
+    ) {
+      return [];
+    }
+
+    const field = isOrderFieldKey(reason.field) ? reason.field : undefined;
+    const label = typeof reason.label === 'string' ? reason.label : field ? FIELD_DEFINITIONS[field].label : reason.kind;
+
+    if (reason.kind === '정보 부족') {
+      return [
+        {
+          kind: '정보 부족',
+          group: 'info',
+          code: 'missing-field',
+          ...(field ? { field } : {}),
+          label,
+          message: reason.message,
+        },
+      ];
+    }
+
+    if (reason.kind === '중복 가능성') {
+      return [
+        {
+          kind: '중복 가능성',
+          group: 'check',
+          code: 'duplicate-raw-text',
+          ...(field ? { field } : {}),
+          label,
+          message: reason.message,
+        },
+      ];
+    }
+
+    return [
+      {
+        kind: '확인필요',
+        group: 'check',
+        code: 'event-purpose',
+        ...(field ? { field } : {}),
+        label,
+        message: reason.message,
+      },
+    ];
+  });
+};
+
 const isMenuMatchArray = (value: unknown): value is MenuMatch[] =>
   Array.isArray(value) &&
   value.every(
@@ -155,7 +216,7 @@ const isStoredOrderBase = (value: unknown): value is CapturedOrder =>
   isOrderFieldKeyArray(value.manuallyEditedFields) &&
   isOrderFieldKeyArray(value.missingFields) &&
   isReparseDifferenceArray(value.reparseDifferences) &&
-  isReviewReasonArray(value.reviewReasons) &&
+  Array.isArray(value.reviewReasons) &&
   typeof value.createdAt === 'string' &&
   typeof value.updatedAt === 'string';
 
@@ -169,6 +230,7 @@ const hydrateStoredOrder = (value: CapturedOrder): CapturedOrder => {
       ? (storedValue.quantityCandidates as QuantityCandidate[])
       : [],
     parsedDate: isParsedDateValue(storedValue.parsedDate) ? (storedValue.parsedDate as ParsedDateValue | null) : null,
+    reviewReasons: hydrateReviewReasons(storedValue.reviewReasons),
   };
 };
 

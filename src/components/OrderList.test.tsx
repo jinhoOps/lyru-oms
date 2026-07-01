@@ -133,6 +133,19 @@ describe('OrderList', () => {
     expect(screen.queryByText('180개')).not.toBeInTheDocument();
   });
 
+  it('uses desired date text for D-Day when parsed metadata is missing', () => {
+    render(
+      <OrderList
+        orders={[{ ...order, desiredDateTime: '2026-07-03', parsedDate: null }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
+    expect(screen.getByText('2026-07-03 · 수령 방식 없음')).toBeInTheDocument();
+  });
+
   it('uses missing fields as a fallback when info review reasons are missing', () => {
     render(
       <OrderList
