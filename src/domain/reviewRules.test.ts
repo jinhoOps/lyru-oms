@@ -31,7 +31,7 @@ describe('evaluateOrder', () => {
     expect(evaluated.missingFields).toContain('orderItems');
   });
 
-  it('requires address only for 택배', () => {
+  it('requires address for delivery but does not require pickup time for pickup', () => {
     const delivery = evaluateOrder(
       order({
         customerName: '김리루',
@@ -45,6 +45,16 @@ describe('evaluateOrder', () => {
     );
     expect(delivery.missingFields).toContain('address');
     expect(delivery.missingFields).not.toContain('pickupTime');
+    expect(delivery.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: '확인필요',
+          group: 'check',
+          code: 'delivery-check',
+          label: '택배 가능 여부',
+        }),
+      ]),
+    );
 
     const pickup = evaluateOrder(
       order({
@@ -67,17 +77,14 @@ describe('evaluateOrder', () => {
       { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 5 } },
     );
     expect(evaluated.status).toBe('정리 완료');
-    expect(evaluated.reviewReasons.some((reason) => reason.message.includes('대량'))).toBe(true);
+    expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
   });
 
   it('preserves existing duplicate review reasons while recalculating derived reasons', () => {
     const duplicateReason = {
       kind: '중복 가능성' as const,
-      group: 'check' as const,
-      code: 'duplicate-raw-text' as const,
-      label: '중복 가능성',
       message: '비슷한 원문이 이미 있어요.',
-    };
+    } as CapturedOrder['reviewReasons'][number];
 
     const evaluated = evaluateOrder(
       order({
@@ -87,37 +94,243 @@ describe('evaluateOrder', () => {
       DEFAULT_SETTINGS,
     );
 
-    expect(evaluated.reviewReasons).toContainEqual(duplicateReason);
+    expect(evaluated.reviewReasons).toContainEqual({
+      kind: '중복 가능성',
+      group: 'check',
+      code: 'duplicate-raw-text',
+      label: '중복 가능성',
+      message: '비슷한 원문이 이미 있어요.',
+    });
     expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
   });
 
-  it.each(['3개 + 3개', '2세트 3개씩', '5'])(
-    'flags bulk orders when summed quantity reaches the threshold: %s',
-    (quantity) => {
-      const evaluated = evaluateOrder(
-        order({
-          customerName: '김리루',
-          phone: '010',
-          orderItems: '곶감밀푀유',
-          quantity,
-          desiredDateTime: '7월 3일',
-          fulfillmentType: '픽업',
-          pickupTime: '14:00',
-        }),
-        { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 5 } },
-      );
+  it('flags real-unit bulk orders at 40구 or more', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 9구',
+        quantity: '5세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-9',
+            label: '화과자 9구',
+            unitCount: 9,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 5, unit: '세트', rawText: '5세트' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
 
-      expect(evaluated.reviewReasons).toContainEqual({
-        kind: '확인필요',
-        group: 'check',
-        code: 'bulk-real-unit',
-        field: 'quantity',
-        label: '대량 주문',
-        message: '대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.',
-      });
-      expect(evaluated.status).toBe('확인필요');
-    },
-  );
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: '확인필요',
+          group: 'check',
+          code: 'bulk-real-unit',
+          field: 'quantity',
+          label: '대량 기준 가능성',
+        }),
+      ]),
+    );
+    expect(evaluated.status).toBe('확인필요');
+  });
+
+  it('flags minimum order rules for shared 2구 and 4구 products', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 2구',
+        quantity: '3세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-2',
+            label: '화과자 2구',
+            unitCount: 2,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 3, unit: '세트', rawText: '3세트' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: '확인필요',
+          group: 'check',
+          code: 'minimum-order',
+          field: 'quantity',
+          label: '최소 주문 조건 확인',
+        }),
+      ]),
+    );
+  });
+
+  it('groups ambiguous menu and quantity candidates as concise check items', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '대추야자',
+        quantity: '3세트 5개',
+        purpose: '답례품',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'dates-wood-9',
+            label: '대추야자 오동나무 9구 세트',
+            unitCount: 9,
+            confidence: 'family',
+          },
+          {
+            menuId: 'dates-basic-9',
+            label: '대추야자 9구 세트',
+            unitCount: 9,
+            confidence: 'family',
+          },
+        ],
+        quantityCandidates: [
+          { value: 3, unit: '세트', rawText: '3세트' },
+          { value: 5, unit: '개', rawText: '5개' },
+        ],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          group: 'check',
+          code: 'event-purpose',
+          label: '행사/답례품 주문',
+        }),
+        expect.objectContaining({
+          group: 'check',
+          code: 'ambiguous-menu',
+          label: '비슷한 메뉴 여러 개',
+        }),
+        expect.objectContaining({
+          group: 'check',
+          code: 'ambiguous-quantity',
+          label: '수량 후보 여러 개',
+        }),
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+  });
+
+  it('flags relative dates with the original expression in detail', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '곶감밀푀유',
+        quantity: '1세트',
+        desiredDateTime: '다음 주 금요일',
+        fulfillmentType: '픽업',
+        parsedDate: {
+          isoDate: '2026-07-10',
+          timeText: '',
+          originalText: '다음 주 금요일',
+          isRelative: true,
+        },
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'relative-date',
+          field: 'desiredDateTime',
+          label: '날짜 확인 필요',
+          detail: '원문 표현: 다음 주 금요일',
+          message: '날짜 표현을 확인해야 합니다.',
+        },
+      ]),
+    );
+  });
+
+  it('does not sum multiple quantity candidates for bulk checks', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 9구',
+        quantity: '3세트 2세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-9',
+            label: '화과자 9구',
+            unitCount: 9,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [
+          { value: 3, unit: '세트', rawText: '3세트' },
+          { value: 2, unit: '세트', rawText: '2세트' },
+        ],
+      }),
+      { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 40 } },
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'ambiguous-quantity',
+          field: 'quantity',
+          label: '수량 후보 여러 개',
+          message: '수량으로 볼 수 있는 표현이 여러 개라 확인이 필요합니다.',
+        },
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+  });
+
+  it('uses concise labels for missing required fields', () => {
+    const evaluated = evaluateOrder(order({ customerName: '김리루' }), DEFAULT_SETTINGS);
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        {
+          kind: '정보 부족',
+          group: 'info',
+          code: 'missing-field',
+          field: 'orderItems',
+          label: '주문 내용',
+          message: '주문 내용',
+        },
+      ]),
+    );
+  });
 });
 
 describe('mergeParsedFields', () => {

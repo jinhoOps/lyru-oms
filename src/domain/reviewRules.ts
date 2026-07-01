@@ -3,6 +3,7 @@ import {
   type CapturedOrder,
   type OrderFieldKey,
   type OrderSettings,
+  type ReviewReasonCode,
   type ReviewReason,
 } from './orderTypes';
 
@@ -11,15 +12,9 @@ export type ParsedOrderFields = Partial<{
 } & Pick<CapturedOrder, 'menuMatches' | 'quantityCandidates' | 'parsedDate'>>;
 
 const ORDER_FIELDS = Object.keys(FIELD_DEFINITIONS) as OrderFieldKey[];
+const EVENT_PURPOSES = new Set(['상견례/인사', '답례품', '기념일/행사', '감사 선물', '단체/기업']);
 
 const isBlank = (value: string) => value.trim() === '';
-
-const parseQuantity = (quantity: string) => {
-  const normalizedQuantity = quantity.replace(/,/g, '').trim();
-  const matchedNumbers = normalizedQuantity.match(/\d+/g);
-
-  return matchedNumbers?.reduce((sum, matchedNumber) => sum + Number(matchedNumber), 0) ?? 0;
-};
 
 const setOrderField = <Field extends OrderFieldKey>(
   order: CapturedOrder,
@@ -29,23 +24,160 @@ const setOrderField = <Field extends OrderFieldKey>(
   order[field] = value;
 };
 
-const createMissingFieldReason = (field: OrderFieldKey): ReviewReason => ({
-  kind: '정보 부족',
-  group: 'info',
-  code: 'missing-field',
-  field,
-  label: FIELD_DEFINITIONS[field].label,
-  message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어 확인이 필요합니다.`,
+const reason = (
+  code: ReviewReasonCode,
+  label: string,
+  message: string,
+  options: Pick<ReviewReason, 'kind' | 'group'> & Partial<Pick<ReviewReason, 'field' | 'detail'>>,
+): ReviewReason => ({
+  code,
+  label,
+  message,
+  ...options,
 });
 
-const createBulkQuantityReason = (): ReviewReason => ({
-  kind: '확인필요',
-  group: 'check',
-  code: 'bulk-real-unit',
-  field: 'quantity',
-  label: '대량 주문',
-  message: '대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.',
+const createMissingFieldReason = (field: OrderFieldKey): ReviewReason =>
+  reason('missing-field', FIELD_DEFINITIONS[field].label, FIELD_DEFINITIONS[field].label, {
+    kind: '정보 부족',
+    group: 'info',
+    field,
+  });
+
+const hydrateDuplicateReason = (existingReason: ReviewReason): ReviewReason => ({
+  kind: existingReason.kind,
+  group: existingReason.group ?? 'check',
+  code: existingReason.code ?? 'duplicate-raw-text',
+  label: existingReason.label ?? '중복 가능성',
+  message: existingReason.message,
+  ...(existingReason.field ? { field: existingReason.field } : {}),
+  ...(existingReason.detail ? { detail: existingReason.detail } : {}),
 });
+
+const checkReason = (
+  code: Exclude<ReviewReasonCode, 'missing-field' | 'duplicate-raw-text'>,
+  label: string,
+  message: string,
+  options: Partial<Pick<ReviewReason, 'field' | 'detail'>> = {},
+): ReviewReason =>
+  reason(code, label, message, {
+    kind: '확인필요',
+    group: 'check',
+    ...options,
+  });
+
+const getUniqueKnownUnitCount = (order: CapturedOrder) => {
+  const unitCounts = new Set(
+    order.menuMatches
+      .map((match) => match.unitCount)
+      .filter((unitCount): unitCount is number => unitCount !== null),
+  );
+
+  return unitCounts.size === 1 ? [...unitCounts][0] : null;
+};
+
+const createQuantityReviewReasons = (order: CapturedOrder, settings: OrderSettings): ReviewReason[] => {
+  const unitCount = getUniqueKnownUnitCount(order);
+
+  if (unitCount === null || order.quantityCandidates.length !== 1) {
+    return [];
+  }
+
+  const [quantityCandidate] = order.quantityCandidates;
+  const matchingMinimumRule = settings.quantityRules.minimumOrderRules.find((rule) => rule.unitCount === unitCount);
+  const reviewReasons: ReviewReason[] = [];
+
+  if (matchingMinimumRule && quantityCandidate.value < matchingMinimumRule.minimumSets) {
+    reviewReasons.push(
+      checkReason(
+        'minimum-order',
+        '최소 주문 조건 확인',
+        '최소 주문 조건을 확인해야 합니다.',
+        {
+          field: 'quantity',
+          detail: `${unitCount}구 상품은 최소 ${matchingMinimumRule.minimumSets}세트 기준입니다. 현재 ${quantityCandidate.rawText}입니다.`,
+        },
+      ),
+    );
+  }
+
+  const realUnitCount = unitCount * quantityCandidate.value;
+
+  if (realUnitCount >= settings.quantityRules.bulkRealUnitThreshold) {
+    reviewReasons.push(
+      checkReason('bulk-real-unit', '대량 기준 가능성', '대량 기준에 해당할 수 있어 확인이 필요합니다.', {
+        field: 'quantity',
+        detail: `${unitCount}구 x ${quantityCandidate.rawText} = ${realUnitCount}구`,
+      }),
+    );
+  }
+
+  return reviewReasons;
+};
+
+const createCheckReasons = (order: CapturedOrder, settings: OrderSettings): ReviewReason[] => {
+  const reviewReasons: ReviewReason[] = [];
+
+  if (EVENT_PURPOSES.has(order.purpose)) {
+    reviewReasons.push(
+      checkReason('event-purpose', '행사/답례품 주문', '행사나 답례품 용도라 요청사항 확인이 필요합니다.', {
+        field: 'purpose',
+      }),
+    );
+  }
+
+  if (order.menuMatches.length > 1) {
+    reviewReasons.push(
+      checkReason('ambiguous-menu', '비슷한 메뉴 여러 개', '비슷한 메뉴가 여러 개라 확인이 필요합니다.', {
+        field: 'orderItems',
+      }),
+    );
+  }
+
+  if (order.quantityCandidates.length > 1) {
+    reviewReasons.push(
+      checkReason(
+        'ambiguous-quantity',
+        '수량 후보 여러 개',
+        '수량으로 볼 수 있는 표현이 여러 개라 확인이 필요합니다.',
+        {
+          field: 'quantity',
+        },
+      ),
+    );
+  }
+
+  if (order.fulfillmentType === '택배') {
+    reviewReasons.push(
+      checkReason('delivery-check', '택배 가능 여부', '택배 가능 여부를 확인해야 합니다.', {
+        field: 'fulfillmentType',
+      }),
+    );
+  }
+
+  if (order.parsedDate?.isRelative) {
+    reviewReasons.push(
+      checkReason('relative-date', '날짜 확인 필요', '날짜 표현을 확인해야 합니다.', {
+        field: 'desiredDateTime',
+        detail: `원문 표현: ${order.parsedDate.originalText}`,
+      }),
+    );
+  }
+
+  return [...reviewReasons, ...createQuantityReviewReasons(order, settings)];
+};
+
+const isDuplicateReason = (reviewReason: ReviewReason) =>
+  reviewReason.kind === '중복 가능성' || reviewReason.code === 'duplicate-raw-text';
+
+const createReviewReasons = (
+  order: CapturedOrder,
+  settings: OrderSettings,
+  missingFields: Set<OrderFieldKey>,
+): ReviewReason[] => [
+  ...order.reviewReasons.filter(isDuplicateReason).map(hydrateDuplicateReason),
+  ...[...missingFields].map(createMissingFieldReason),
+  ...createCheckReasons(order, settings),
+];
 
 export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): CapturedOrder => {
   const missingFields = new Set<OrderFieldKey>();
@@ -68,14 +200,7 @@ export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): Ca
     }
   }
 
-  const reviewReasons: ReviewReason[] = [
-    ...order.reviewReasons.filter((reason) => reason.kind === '중복 가능성'),
-    ...[...missingFields].map(createMissingFieldReason),
-  ];
-
-  if (parseQuantity(order.quantity) >= settings.quantityRules.bulkRealUnitThreshold) {
-    reviewReasons.push(createBulkQuantityReason());
-  }
+  const reviewReasons = createReviewReasons(order, settings, missingFields);
 
   const warningLevel = reviewReasons.length > 0 ? 'attention' : 'none';
 
