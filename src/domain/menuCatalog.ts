@@ -25,6 +25,12 @@ interface FamilyKeywordMatch {
   ranges: KeywordRange[];
 }
 
+interface ExactMenuMatch {
+  item: CatalogItem;
+  confidence: Extract<MenuMatch['confidence'], 'exact' | 'alias'>;
+  ranges: KeywordRange[];
+}
+
 export const MENU_CATALOG: readonly CatalogItem[] = [
   {
     menuId: 'meeting-set-a',
@@ -263,20 +269,39 @@ function hasUncoveredFamilySignal(match: FamilyKeywordMatch, matches: readonly F
   return match.ranges.some((range) => !isCoveredByLongerKeyword(range, match.keyword, matches));
 }
 
+function isCoveredByLongerExactMatch(range: KeywordRange, match: ExactMenuMatch, matches: readonly ExactMenuMatch[]): boolean {
+  const rangeLength = range.end - range.start;
+  return matches.some(
+    (otherMatch) =>
+      otherMatch !== match &&
+      otherMatch.ranges.some(
+        (otherRange) =>
+          otherRange.end - otherRange.start > rangeLength && otherRange.start <= range.start && range.end <= otherRange.end,
+      ),
+  );
+}
+
+function hasUncoveredExactSignal(match: ExactMenuMatch, matches: readonly ExactMenuMatch[]): boolean {
+  return match.ranges.some((range) => !isCoveredByLongerExactMatch(range, match, matches));
+}
+
 export function findMenuMatches(text: string): MenuMatch[] {
   const normalizedText = normalizeText(text);
   const compact = compactText(text);
   const matchableCatalog = MENU_CATALOG.filter((item) => item.matchableAsMenu !== false);
 
-  const exactMatches = matchableCatalog.flatMap((item) => {
+  const exactMatchCandidates: ExactMenuMatch[] = matchableCatalog.flatMap((item): ExactMenuMatch[] => {
     const labelMatches = includesNormalized(normalizedText, compact, item.label);
     if (labelMatches) {
-      return [toMatch(item, 'exact')];
+      return [{ item, confidence: 'exact' as const, ranges: findKeywordRanges(compact, item.label) }];
     }
 
-    const aliasMatches = item.aliases.some((alias) => includesNormalized(normalizedText, compact, alias));
-    return aliasMatches ? [toMatch(item, 'alias')] : [];
+    const alias = item.aliases.find((aliasText) => includesNormalized(normalizedText, compact, aliasText));
+    return alias ? [{ item, confidence: 'alias' as const, ranges: findKeywordRanges(compact, alias) }] : [];
   });
+  const exactMatches = exactMatchCandidates
+    .filter((match) => hasUncoveredExactSignal(match, exactMatchCandidates))
+    .map((match) => toMatch(match.item, match.confidence));
 
   if (exactMatches.length > 0) {
     return exactMatches;

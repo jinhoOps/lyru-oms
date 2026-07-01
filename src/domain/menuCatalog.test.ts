@@ -29,6 +29,14 @@ describe('findMenuMatches', () => {
     );
   });
 
+  it('keeps only the more specific exact match when compact menu names overlap', () => {
+    expect(findMenuMatches('밤화과자 9구 문의').map((match) => match.menuId)).toEqual(['chestnut-wagashi-9']);
+  });
+
+  it('uses exact or alias matches instead of adding family fallback matches', () => {
+    expect(findMenuMatches('화과자 2구 문의').map((match) => match.menuId)).toEqual(['wagashi-2']);
+  });
+
   it('returns family matches for ambiguous product text', () => {
     const matches = findMenuMatches('대추야자 2구/9구 180개 구매 의사');
     expect(matches.map((match) => match.menuId)).toEqual(['dates-wood-9', 'dates-handle-10', 'dates-premium-15']);
