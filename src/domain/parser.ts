@@ -145,6 +145,7 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
     quantityCandidates: [],
     parsedDate: null,
   };
+  const labeledFields = new Set<ParseableOrderField>();
 
   for (const line of rawText.split(/\r?\n/)) {
     const labeledLine = splitLabeledLine(line);
@@ -159,6 +160,8 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
       continue;
     }
 
+    labeledFields.add(field);
+
     if (field === 'fulfillmentType') {
       parsed.fulfillmentType = normalizeFulfillmentType(labeledLine.value);
       continue;
@@ -171,23 +174,23 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
   parsed.quantityCandidates = extractQuantityCandidates(rawText);
   parsed.parsedDate = parseExplicitDate(rawText);
 
-  if (!parsed.purpose) {
+  if (!labeledFields.has('purpose')) {
     parsed.purpose = mapPurposeFromText(rawText);
   }
 
-  if (!parsed.orderItems) {
+  if (!labeledFields.has('orderItems')) {
     parsed.orderItems = findConsultationOrderItemLine(rawText, parsed.menuMatches);
   }
 
-  if (!parsed.quantity) {
+  if (!labeledFields.has('quantity')) {
     parsed.quantity = summarizeQuantityCandidates(parsed.quantityCandidates);
   }
 
-  if (!parsed.fulfillmentType) {
+  if (!labeledFields.has('fulfillmentType')) {
     parsed.fulfillmentType = normalizeFulfillmentType(rawText);
   }
 
-  if (!parsed.desiredDateTime && parsed.parsedDate && !parsed.parsedDate.isRelative) {
+  if (!labeledFields.has('desiredDateTime') && parsed.parsedDate && !parsed.parsedDate.isRelative) {
     parsed.desiredDateTime = formatParsedDateForField(parsed.parsedDate);
   }
 

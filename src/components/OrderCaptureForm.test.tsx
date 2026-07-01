@@ -43,4 +43,34 @@ describe('OrderCaptureForm', () => {
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
     expect(onSave).toHaveBeenCalled();
   });
+
+  it('saves parsed menu, quantity, and date metadata', async () => {
+    const onSave = vi.fn();
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={onSave} />);
+
+    await userEvent.type(
+      screen.getByLabelText('주문/문의 원문'),
+      `대추야자 9구
+5세트 주문합니다
+2026-06-15 14:00`,
+    );
+    await userEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        menuMatches: expect.arrayContaining([
+          expect.objectContaining({
+            menuId: 'dates-wood-9',
+          }),
+        ]),
+        quantityCandidates: [{ value: 5, unit: '세트', rawText: '5세트' }],
+        parsedDate: {
+          isoDate: '2026-06-15',
+          timeText: '14:00',
+          originalText: '대추야자 9구\n5세트 주문합니다\n2026-06-15 14:00',
+          isRelative: false,
+        },
+      }),
+    );
+  });
 });

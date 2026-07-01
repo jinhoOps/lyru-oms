@@ -130,4 +130,44 @@ describe('mergeParsedFields', () => {
     expect(merged.phone).toBe('010-9999-9999');
     expect(merged.reparseDifferences).toEqual([{ field: 'phone', extractedValue: '010-1111-2222' }]);
   });
+
+  it('updates parser metadata on reparse even when editable fields are protected', () => {
+    const merged = mergeParsedFields(
+      order({
+        orderItems: '수동 입력 상품',
+        manuallyEditedFields: ['orderItems'],
+        menuMatches: [],
+        quantityCandidates: [],
+        parsedDate: null,
+      }),
+      {
+        orderItems: '대추야자 9구',
+        menuMatches: [
+          {
+            menuId: 'dates-wood-9',
+            label: '대추야자 오동나무 9구 세트',
+            unitCount: 9,
+            confidence: 'family',
+          },
+        ],
+        quantityCandidates: [{ value: 5, unit: '세트', rawText: '5세트' }],
+        parsedDate: {
+          isoDate: '2026-06-15',
+          timeText: '14:00',
+          originalText: '2026-06-15 14:00',
+          isRelative: false,
+        },
+      } as Parameters<typeof mergeParsedFields>[1],
+    );
+
+    expect(merged.orderItems).toBe('수동 입력 상품');
+    expect(merged.menuMatches.map((match) => match.menuId)).toEqual(['dates-wood-9']);
+    expect(merged.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5세트' }]);
+    expect(merged.parsedDate).toEqual({
+      isoDate: '2026-06-15',
+      timeText: '14:00',
+      originalText: '2026-06-15 14:00',
+      isRelative: false,
+    });
+  });
 });

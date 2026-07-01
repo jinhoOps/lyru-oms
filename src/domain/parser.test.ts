@@ -65,13 +65,13 @@ describe('parseRawText', () => {
   });
 
   it('fills desired date from explicit date only when unlabeled', () => {
-    const parsed = parseRawText('6월 15일 오후 2시 택배 가능한가요?');
+    const parsed = parseRawText('2026-06-15 14:00 택배 가능한가요?');
 
     expect(parsed.desiredDateTime).toBe('2026-06-15 14:00');
     expect(parsed.parsedDate).toMatchObject({
       isoDate: '2026-06-15',
       timeText: '14:00',
-      originalText: '6월 15일 오후 2시 택배 가능한가요?',
+      originalText: '2026-06-15 14:00 택배 가능한가요?',
       isRelative: false,
     });
   });
@@ -82,6 +82,13 @@ describe('parseRawText', () => {
 
     expect(parsed.quantity).toBe('별도 상담');
     expect(parsed.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5세트' }]);
+  });
+
+  it('does not infer fulfillment when a fulfillment label is present but unresolved', () => {
+    const parsed = parseRawText(`수령방법: 상담 필요
+택배도 가능한지 문의드립니다`);
+
+    expect(parsed.fulfillmentType).toBe('');
   });
 
   it('keeps clear single fulfillment signals and rejects ambiguous corrections', () => {

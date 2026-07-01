@@ -8,7 +8,7 @@ import {
 
 export type ParsedOrderFields = Partial<{
   [Field in OrderFieldKey]: CapturedOrder[Field];
-}>;
+} & Pick<CapturedOrder, 'menuMatches' | 'quantityCandidates' | 'parsedDate'>>;
 
 const ORDER_FIELDS = Object.keys(FIELD_DEFINITIONS) as OrderFieldKey[];
 
@@ -91,6 +91,9 @@ export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): Ca
 export const mergeParsedFields = (order: CapturedOrder, parsed: ParsedOrderFields): CapturedOrder => {
   const merged: CapturedOrder = {
     ...order,
+    menuMatches: parsed.menuMatches ?? order.menuMatches,
+    quantityCandidates: parsed.quantityCandidates ?? order.quantityCandidates,
+    parsedDate: parsed.parsedDate !== undefined ? parsed.parsedDate : order.parsedDate,
     reparseDifferences: [],
   };
 
