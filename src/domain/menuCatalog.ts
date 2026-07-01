@@ -13,7 +13,7 @@ interface PurposeRule {
   hints: readonly string[];
 }
 
-const menuCatalog = [
+export const MENU_CATALOG = [
   {
     menuId: 'meeting-set-a',
     label: '상견례세트 A',
@@ -145,7 +145,7 @@ const menuCatalog = [
     label: '오란다&모나카 올인박스',
     unitCount: null,
     aliases: ['오란다&모나카 올인박스', '오란다 모나카 올인박스'],
-    familyKeywords: ['오란다', '모나카'],
+    familyKeywords: ['오란다', '올인박스'],
   },
   {
     menuId: 'monaka-nut-chip-round-box',
@@ -221,11 +221,21 @@ function includesNormalized(text: string, compact: string, keyword: string): boo
   return text.includes(normalizedKeyword) || compact.includes(compactText(keyword));
 }
 
+function findMatchedFamilyKeywordLength(item: CatalogItem, text: string, compact: string): number {
+  return item.familyKeywords.reduce((maxLength, keyword) => {
+    if (!includesNormalized(text, compact, keyword)) {
+      return maxLength;
+    }
+
+    return Math.max(maxLength, compactText(keyword).length);
+  }, 0);
+}
+
 export function findMenuMatches(text: string): MenuMatch[] {
   const normalizedText = normalizeText(text);
   const compact = compactText(text);
 
-  const exactMatches = menuCatalog.flatMap((item) => {
+  const exactMatches = MENU_CATALOG.flatMap((item) => {
     const labelMatches = includesNormalized(normalizedText, compact, item.label);
     if (labelMatches) {
       return [toMatch(item, 'exact')];
@@ -239,11 +249,15 @@ export function findMenuMatches(text: string): MenuMatch[] {
     return exactMatches;
   }
 
-  return menuCatalog.flatMap((item) =>
-    item.familyKeywords.some((keyword) => includesNormalized(normalizedText, compact, keyword))
-      ? [toMatch(item, 'family')]
-      : [],
-  );
+  const familyMatches = MENU_CATALOG.map((item) => ({
+    item,
+    keywordLength: findMatchedFamilyKeywordLength(item, normalizedText, compact),
+  })).filter((match) => match.keywordLength > 0);
+  const maxKeywordLength = Math.max(0, ...familyMatches.map((match) => match.keywordLength));
+
+  return familyMatches
+    .filter((match) => match.keywordLength === maxKeywordLength)
+    .map((match) => toMatch(match.item, 'family'));
 }
 
 export function mapPurposeFromText(text: string): PurposeCategory | '' {
