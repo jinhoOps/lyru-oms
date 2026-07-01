@@ -91,10 +91,10 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
       </label>
       {isDuplicate ? <p className="softWarning">비슷한 원문이 이미 있어요. 그래도 저장할 수 있습니다.</p> : null}
       <div className="previewGrid" aria-label="추출 결과 미리보기">
-        <span>고객명: {parsed.customerName || '-'}</span>
-        <span>연락처: {parsed.phone || '-'}</span>
         <span>주문 내용: {parsed.orderItems || '-'}</span>
         <span>수량: {parsed.quantity || '-'}</span>
+        <span>선물 용도: {parsed.purpose || '-'}</span>
+        <span>수령 방식: {parsed.fulfillmentType || '-'}</span>
       </div>
       <button type="submit" disabled={!rawText.trim()}>
         저장

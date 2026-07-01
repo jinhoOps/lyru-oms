@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatDday } from '../domain/dateDisplay';
 import { FIELD_DEFINITIONS, type CapturedOrder } from '../domain/orderTypes';
 
 interface OrderListProps {
@@ -11,9 +12,30 @@ const fallback = (value: string, label: string) => (value.trim() ? value : label
 
 const summarizeOrder = (order: CapturedOrder) => {
   const item = fallback(order.orderItems, '주문 내용 미정');
-  const quantity = order.quantity.trim() ? `${order.quantity}개` : '수량 미정';
+  const quantity = order.quantity.trim() ? order.quantity : '수량 미정';
 
   return `${item} · ${quantity}`;
+};
+
+const summarizeReviewReasonGroups = (order: CapturedOrder) => {
+  const infoReasonFields = new Set(
+    order.reviewReasons.filter((reason) => reason.group === 'info' && reason.field).map((reason) => reason.field),
+  );
+  const supplementalMissingFields = order.missingFields.filter((field) => !infoReasonFields.has(field));
+  const infoCount =
+    order.reviewReasons.filter((reason) => reason.group === 'info').length + supplementalMissingFields.length;
+  const checkCount = order.reviewReasons.filter((reason) => reason.group === 'check').length;
+  const summaries: string[] = [];
+
+  if (infoCount > 0) {
+    summaries.push(`채워야 할 정보 ${infoCount}개`);
+  }
+
+  if (checkCount > 0) {
+    summaries.push(`확인할 내용 ${checkCount}개`);
+  }
+
+  return summaries;
 };
 
 const formatRegisteredAt = (isoDate: string) => {
@@ -23,11 +45,21 @@ const formatRegisteredAt = (isoDate: string) => {
     return '등록일 미정';
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  const year = getPart('year');
+  const month = getPart('month');
+  const day = getPart('day');
+  const hours = getPart('hour');
+  const minutes = getPart('minute');
 
   return `등록 ${year}-${month}-${day} ${hours}:${minutes}`;
 };
@@ -92,6 +124,8 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
           const isExpanded = expandedRawTextIds.includes(order.id);
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
           const hasOwnerMemo = order.ownerMemo.trim() !== '';
+          const dday = formatDday(order.parsedDate);
+          const reasonSummaries = summarizeReviewReasonGroups(order);
 
           return (
             <article
@@ -104,17 +138,32 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                 <button type="button" className="orderRowMain compactRow" onClick={() => onSelect(order.id)}>
                   <span className="compactLine">
                     <span className="statusPill">{order.status}</span>
+                    <span className="ddayBadge" title={dday.title}>
+                      {dday.label}
+                    </span>
                     <strong>{summarizeOrder(order)}</strong>
                   </span>
                   <span className="compactLine mutedText">
                     {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
                   </span>
+                  {reasonSummaries.length > 0 ? (
+                    <span className="compactLine reasonSummaryLine">
+                      {reasonSummaries.map((summary) => (
+                        <span key={summary} className="reasonSummaryPill">
+                          {summary}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
                 </button>
               ) : (
                 <button type="button" className="orderRowMain" onClick={() => onSelect(order.id)}>
                   <span className="rowTopline">
                     <span className="sourcePill">{order.source}</span>
                     <span className="statusPill">{order.status}</span>
+                    <span className="ddayBadge" title={dday.title}>
+                      {dday.label}
+                    </span>
                     <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
                   </span>
                   <strong>{fallback(order.customerName, '고객명 미정')}</strong>
@@ -123,6 +172,11 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                     {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
                   </span>
                   <span className="flagLine">
+                    {reasonSummaries.map((summary) => (
+                      <span key={summary} className="reasonSummaryPill">
+                        {summary}
+                      </span>
+                    ))}
                     {hasCustomerRequest ? <span className="flagOn">고객 요청 있음</span> : null}
                     {hasOwnerMemo ? <span className="flagOn">내부 메모 있음</span> : null}
                   </span>

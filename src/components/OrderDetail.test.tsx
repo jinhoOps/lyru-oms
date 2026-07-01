@@ -13,8 +13,15 @@ const baseOrder = (overrides: Partial<CapturedOrder> = {}): CapturedOrder => ({
   customerName: '김리루',
   orderItems: '곶감밀푀유',
   quantity: '1',
-  menuMatches: [],
-  quantityCandidates: [],
+  menuMatches: [
+    {
+      menuId: 'dates-wood-9',
+      label: '대추야자 오동나무 9구 세트',
+      unitCount: 9,
+      confidence: 'exact',
+    },
+  ],
+  quantityCandidates: [{ value: 180, unit: '개', rawText: '180개' }],
   parsedDate: null,
   manuallyEditedFields: [],
   reparseDifferences: [],
@@ -32,7 +39,7 @@ afterEach(() => {
 });
 
 describe('OrderDetail', () => {
-  it('groups missing field reasons into a concise field list', () => {
+  it('groups review reasons by info and check with concise labels and details', () => {
     const order = baseOrder({
       phone: '',
       desiredDateTime: '',
@@ -63,6 +70,14 @@ describe('OrderDetail', () => {
           label: '수령 방식',
           message: '수령 방식 정보가 비어 있어 확인이 필요합니다.',
         },
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'event-purpose',
+          label: '행사 주문',
+          message: '행사 일정은 고객에게 다시 확인해야 합니다. 반복 안내 문구입니다.',
+          detail: '상견례 용도로 보입니다.',
+        },
       ],
       warningLevel: 'attention',
     });
@@ -71,11 +86,44 @@ describe('OrderDetail', () => {
 
     const reviewBox = screen.getByLabelText('확인 필요 사유');
 
-    expect(within(reviewBox).getByText('아래 항목이 비어 있습니다.')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('채워야 할 정보가 있어요')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('확인할 내용이 있어요')).toBeInTheDocument();
     expect(within(reviewBox).getByText('연락처')).toBeInTheDocument();
     expect(within(reviewBox).getByText('희망일')).toBeInTheDocument();
     expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('행사 주문')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('상견례 용도로 보입니다.')).toHaveClass('reasonDetail');
     expect(screen.queryByText('연락처 정보가 비어 있어 확인이 필요합니다.')).not.toBeInTheDocument();
+    expect(screen.queryByText('행사 일정은 고객에게 다시 확인해야 합니다. 반복 안내 문구입니다.')).not.toBeInTheDocument();
+    expect(screen.queryByText('대추야자 오동나무 9구 세트')).not.toBeInTheDocument();
+    expect(screen.queryByText('180개')).not.toBeInTheDocument();
+  });
+
+  it('supplements missing fields that are absent from info review reasons', () => {
+    const order = baseOrder({
+      phone: '',
+      desiredDateTime: '',
+      fulfillmentType: '',
+      missingFields: ['phone', 'desiredDateTime', 'fulfillmentType'],
+      reviewReasons: [
+        {
+          kind: '정보 부족',
+          group: 'info',
+          code: 'missing-field',
+          field: 'phone',
+          label: '연락처',
+          message: '연락처 정보가 비어 있어 확인이 필요합니다.',
+        },
+      ],
+    });
+
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />);
+
+    const reviewBox = screen.getByLabelText('확인 필요 사유');
+
+    expect(within(reviewBox).getByText('연락처')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('희망일')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
   });
 
   it('keeps an order with review reasons in 확인필요 when status select tries to save 수집', async () => {

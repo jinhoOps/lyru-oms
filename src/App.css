@@ -408,8 +408,20 @@ pre {
   font-size: 11px;
 }
 
+.orderList.compact .ddayBadge,
+.orderList.compact .reasonSummaryPill {
+  min-height: 19px;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
 .orderList.compact .mutedText {
   font-size: 12px;
+}
+
+.reasonSummaryLine {
+  flex-wrap: wrap;
 }
 
 .rowTopline,
@@ -428,8 +440,10 @@ pre {
 
 .sourcePill,
 .statusPill,
+.ddayBadge,
 .flagOn,
-.flagOff {
+.flagOff,
+.reasonSummaryPill {
   display: inline-flex;
   min-height: 24px;
   align-items: center;
@@ -449,9 +463,20 @@ pre {
   color: #fffaf2;
 }
 
+.ddayBadge {
+  border: 1px solid #d6c5a7;
+  background: #fff8ea;
+  color: #684514;
+}
+
 .flagOn {
   background: #eadcc1;
   color: #513913;
+}
+
+.reasonSummaryPill {
+  background: #f1e8d9;
+  color: #5f4620;
 }
 
 .flagOff {
@@ -524,12 +549,14 @@ pre {
   color: #684514;
 }
 
-.reviewReasonBox p {
-  margin: 0;
+.reasonGroup + .reasonGroup {
+  margin-top: 10px;
 }
 
-.reviewReasonBox p + p {
-  margin-top: 6px;
+.reasonGroup h3 {
+  margin: 0;
+  color: #4c3513;
+  font-size: 14px;
 }
 
 .reviewReasonBox ul {
@@ -539,6 +566,14 @@ pre {
 
 .reviewReasonBox li + li {
   margin-top: 3px;
+}
+
+.reasonDetail {
+  display: block;
+  margin-top: 2px;
+  color: #7a6b58;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .fieldGrid {

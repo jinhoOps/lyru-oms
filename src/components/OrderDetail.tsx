@@ -5,6 +5,7 @@ import {
   type OrderFieldKey,
   type OrderSettings,
   type OrderStatus,
+  type ReviewReason,
 } from '../domain/orderTypes';
 import { parseRawText } from '../domain/parser';
 import { evaluateOrder, mergeParsedFields } from '../domain/reviewRules';
@@ -34,6 +35,23 @@ const editableFields: OrderFieldKey[] = [
 ];
 
 const multilineFields = new Set<OrderFieldKey>(['orderItems', 'options', 'customerRequestNote', 'ownerMemo', 'address']);
+
+const buildFallbackMissingReasons = (fields: OrderFieldKey[]): ReviewReason[] =>
+  fields.map((field) => ({
+    kind: '정보 부족',
+    group: 'info',
+    code: 'missing-field',
+    field,
+    label: FIELD_DEFINITIONS[field].label,
+    message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어요.`,
+  }));
+
+const mergeInfoReasonsWithMissingFields = (infoReasons: ReviewReason[], missingFields: OrderFieldKey[]) => {
+  const infoReasonFields = new Set(infoReasons.filter((reason) => reason.field).map((reason) => reason.field));
+  const supplementalMissingFields = missingFields.filter((field) => !infoReasonFields.has(field));
+
+  return [...infoReasons, ...buildFallbackMissingReasons(supplementalMissingFields)];
+};
 
 export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailProps) {
   if (!order) {
@@ -78,11 +96,9 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
   }
 
   const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
-  const missingReasonFields = order.reviewReasons
-    .filter((reason) => reason.kind === '정보 부족' && reason.field)
-    .map((reason) => reason.field as OrderFieldKey);
-  const missingFieldsToShow = order.missingFields.length > 0 ? order.missingFields : missingReasonFields;
-  const otherReviewReasons = order.reviewReasons.filter((reason) => reason.kind !== '정보 부족');
+  const infoReasons = order.reviewReasons.filter((reason) => reason.group === 'info');
+  const checkReasons = order.reviewReasons.filter((reason) => reason.group === 'check');
+  const infoReasonsToShow = mergeInfoReasonsWithMissingFields(infoReasons, order.missingFields);
   const visibleEditableFields = editableFields.filter((field) => {
     if (order.fulfillmentType === '픽업') {
       return field !== 'address';
@@ -126,21 +142,34 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       </div>
 
       <div className="detailModalBody">
-      {order.reviewReasons.length > 0 ? (
+      {infoReasonsToShow.length > 0 || checkReasons.length > 0 ? (
         <div className="reviewReasonBox" aria-label="확인 필요 사유">
-          {missingFieldsToShow.length > 0 ? (
-            <div>
-              <p>아래 항목이 비어 있습니다.</p>
+          {infoReasonsToShow.length > 0 ? (
+            <section className="reasonGroup">
+              <h3>채워야 할 정보가 있어요</h3>
               <ul>
-                {missingFieldsToShow.map((field) => (
-                  <li key={field}>{FIELD_DEFINITIONS[field].label}</li>
+                {infoReasonsToShow.map((reason) => (
+                  <li key={`${reason.group}-${reason.code}-${reason.field ?? reason.label}`}>
+                    {reason.label}
+                    {reason.detail ? <span className="reasonDetail">{reason.detail}</span> : null}
+                  </li>
                 ))}
               </ul>
-            </div>
+            </section>
           ) : null}
-          {otherReviewReasons.map((reason) => (
-            <p key={`${reason.kind}-${reason.field ?? reason.message}`}>{reason.message}</p>
-          ))}
+          {checkReasons.length > 0 ? (
+            <section className="reasonGroup">
+              <h3>확인할 내용이 있어요</h3>
+              <ul>
+                {checkReasons.map((reason) => (
+                  <li key={`${reason.group}-${reason.code}-${reason.field ?? reason.label}`}>
+                    {reason.label}
+                    {reason.detail ? <span className="reasonDetail">{reason.detail}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </div>
       ) : null}
 

@@ -44,6 +44,29 @@ describe('OrderCaptureForm', () => {
     expect(onSave).toHaveBeenCalled();
   });
 
+  it('keeps the extraction preview focused on order content fields', async () => {
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={vi.fn()} />);
+
+    await userEvent.type(
+      screen.getByLabelText('주문/문의 원문'),
+      `성함: 김리루
+연락처: 010-1111-2222
+주문 내용: 대추야자 9구
+수량: 5세트
+선물 용도: 답례품
+수령 방식: 택배`,
+    );
+
+    const preview = screen.getByLabelText('추출 결과 미리보기');
+
+    expect(preview).toHaveTextContent('주문 내용: 대추야자 9구');
+    expect(preview).toHaveTextContent('수량: 5세트');
+    expect(preview).toHaveTextContent('선물 용도: 답례품');
+    expect(preview).toHaveTextContent('수령 방식: 택배');
+    expect(preview).not.toHaveTextContent('고객명');
+    expect(preview).not.toHaveTextContent('연락처');
+  });
+
   it('saves parsed menu, quantity, and date metadata', async () => {
     const onSave = vi.fn();
     render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={onSave} />);
