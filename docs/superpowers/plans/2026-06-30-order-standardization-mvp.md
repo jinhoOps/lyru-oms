@@ -51,7 +51,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "preview": "vite preview --host 127.0.0.1"
   },
@@ -66,8 +66,11 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^26.0.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "jsdom": "^25.0.1",
-    "vitest": "^2.1.8"
+    "vitest": "^3.2.6"
   }
 }
 ```
@@ -106,7 +109,7 @@
     "strict": true,
     "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
@@ -123,9 +126,12 @@
 {
   "compilerOptions": {
     "composite": true,
+    "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "Node",
-    "allowSyntheticDefaultImports": true
+    "moduleResolution": "Bundler",
+    "allowSyntheticDefaultImports": true,
+    "outDir": "node_modules/.tmp/tsconfig-node",
+    "tsBuildInfoFile": "node_modules/.tmp/tsconfig.node.tsbuildinfo"
   },
   "include": ["vite.config.ts"]
 }
@@ -135,7 +141,7 @@
 
 ```ts
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react()],
@@ -247,7 +253,7 @@ Expected: `package-lock.json` is created and install completes without errors.
 
 Run: `npm run test`
 
-Expected: Vitest exits successfully with no tests or a no-test warning depending on Vitest version.
+Expected: Vitest exits successfully with no tests because `--passWithNoTests` is enabled.
 
 Run: `npm run build`
 
