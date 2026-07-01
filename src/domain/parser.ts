@@ -56,11 +56,11 @@ const splitLabeledLine = (line: string): { label: string; value: string } | unde
   return { label, value };
 };
 
-const normalizeFulfillmentType = (value: string): FulfillmentType => {
+const normalizeFulfillmentType = (value: string, isGlobal = false): FulfillmentType => {
   const normalizedValue = value.normalize('NFKC').trim().toLowerCase();
   const hasDeliverySignal = normalizedValue.includes('택배');
   const hasPickupSignal = normalizedValue.includes('픽업') || normalizedValue.includes('방문');
-  const hasCorrectionSignal = /아니|아님|x|취소/.test(normalizedValue);
+  const hasCorrectionSignal = !isGlobal && /아니|아님|x|취소/.test(normalizedValue);
 
   if (hasCorrectionSignal || (hasDeliverySignal && hasPickupSignal)) {
     return '';
@@ -187,7 +187,7 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
   }
 
   if (!labeledFields.has('fulfillmentType')) {
-    parsed.fulfillmentType = normalizeFulfillmentType(rawText);
+    parsed.fulfillmentType = normalizeFulfillmentType(rawText, true);
   }
 
   if (!labeledFields.has('desiredDateTime') && parsed.parsedDate && !parsed.parsedDate.isRelative) {

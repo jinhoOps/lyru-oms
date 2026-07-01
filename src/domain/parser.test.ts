@@ -100,6 +100,14 @@ describe('parseRawText', () => {
     expect(parseRawText('수령방법: 택배X 방문').fulfillmentType).toBe('');
     expect(parseRawText('수령방법: 택배 취소').fulfillmentType).toBe('');
   });
+
+  it('infers fulfillment from global text even when unrelated fields contain correction-like values', () => {
+    const parsed = parseRawText(`택배 가능할까요?
+견과류 알레르기 유무: x`);
+
+    expect(parsed.fulfillmentType).toBe('택배');
+    expect(parsed.allergyNote).toBe('x');
+  });
 });
 
 describe('hasSimilarRawText', () => {

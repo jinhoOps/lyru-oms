@@ -84,8 +84,8 @@ const isOrderFieldKey = (value: unknown): value is OrderFieldKey =>
 const isOrderFieldKeyArray = (value: unknown): value is OrderFieldKey[] =>
   Array.isArray(value) && value.every(isOrderFieldKey);
 
-const hasRequiredStringOrderFields = (value: Record<string, unknown>): boolean =>
-  Object.keys(EMPTY_ORDER_FIELDS).every((field) => typeof value[field] === 'string');
+const hasValidStringOrderFields = (value: Record<string, unknown>): boolean =>
+  Object.keys(EMPTY_ORDER_FIELDS).every((field) => value[field] === undefined || typeof value[field] === 'string');
 
 const isReparseDifferenceArray = (value: unknown): value is CapturedOrder['reparseDifferences'] =>
   Array.isArray(value) &&
@@ -208,8 +208,8 @@ const isStoredOrderBase = (value: unknown): value is CapturedOrder =>
   isPlainObject(value) &&
   typeof value.id === 'string' &&
   typeof value.rawText === 'string' &&
-  hasRequiredStringOrderFields(value) &&
-  FULFILLMENT_TYPE_VALUES.has(String(value.fulfillmentType)) &&
+  hasValidStringOrderFields(value) &&
+  (value.fulfillmentType === undefined || FULFILLMENT_TYPE_VALUES.has(String(value.fulfillmentType))) &&
   ORDER_SOURCE_VALUES.has(String(value.source)) &&
   ORDER_STATUS_VALUES.has(String(value.status)) &&
   WARNING_LEVELS.has(String(value.warningLevel)) &&
@@ -224,6 +224,7 @@ const hydrateStoredOrder = (value: CapturedOrder): CapturedOrder => {
   const storedValue = value as unknown as Record<string, unknown>;
 
   return {
+    ...EMPTY_ORDER_FIELDS,
     ...value,
     menuMatches: isMenuMatchArray(storedValue.menuMatches) ? (storedValue.menuMatches as MenuMatch[]) : [],
     quantityCandidates: isQuantityCandidateArray(storedValue.quantityCandidates)

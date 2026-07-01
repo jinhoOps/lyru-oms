@@ -83,6 +83,31 @@ describe('storage', () => {
     ]);
   });
 
+  it('hydrates legacy orders with missing editable fields from empty defaults', () => {
+    const legacyOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: 'missing-field',
+      source: '카카오톡 채널',
+      rawText: '성함: 김리루',
+      status: '수집',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+    const { ownerMemo: _ownerMemo, ...storedLegacyOrder } = legacyOrder;
+
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([storedLegacyOrder]));
+
+    expect(loadOrders()).toEqual([legacyOrder]);
+  });
+
   it('loads stored orders with new-shape review reasons', () => {
     const order: CapturedOrder = {
       ...EMPTY_ORDER_FIELDS,
