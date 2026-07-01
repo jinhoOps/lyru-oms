@@ -217,6 +217,8 @@ const parseQuantityRules = (value: unknown): QuantityRules => {
         isPlainObject(rule) &&
         typeof rule.unitCount === 'number' &&
         typeof rule.minimumSets === 'number' &&
+        Number.isFinite(rule.unitCount) &&
+        Number.isFinite(rule.minimumSets) &&
         rule.unitCount > 0 &&
         rule.minimumSets > 0,
     )

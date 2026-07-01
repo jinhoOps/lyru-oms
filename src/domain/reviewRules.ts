@@ -29,6 +29,24 @@ const setOrderField = <Field extends OrderFieldKey>(
   order[field] = value;
 };
 
+const createMissingFieldReason = (field: OrderFieldKey): ReviewReason => ({
+  kind: '정보 부족',
+  group: 'info',
+  code: 'missing-field',
+  field,
+  label: FIELD_DEFINITIONS[field].label,
+  message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어 확인이 필요합니다.`,
+});
+
+const createBulkQuantityReason = (): ReviewReason => ({
+  kind: '확인필요',
+  group: 'check',
+  code: 'bulk-real-unit',
+  field: 'quantity',
+  label: '대량 주문',
+  message: '대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.',
+});
+
 export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): CapturedOrder => {
   const missingFields = new Set<OrderFieldKey>();
 
@@ -52,19 +70,11 @@ export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): Ca
 
   const reviewReasons: ReviewReason[] = [
     ...order.reviewReasons.filter((reason) => reason.kind === '중복 가능성'),
-    ...[...missingFields].map((field) => ({
-      kind: '정보 부족' as const,
-      field,
-      message: `${FIELD_DEFINITIONS[field].label} 정보가 비어 있어 확인이 필요합니다.`,
-    })),
+    ...[...missingFields].map(createMissingFieldReason),
   ];
 
-  if (parseQuantity(order.quantity) >= settings.bulkQuantityThreshold) {
-    reviewReasons.push({
-      kind: '확인필요',
-      field: 'quantity',
-      message: `대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.`,
-    });
+  if (parseQuantity(order.quantity) >= settings.quantityRules.bulkRealUnitThreshold) {
+    reviewReasons.push(createBulkQuantityReason());
   }
 
   const warningLevel = reviewReasons.length > 0 ? 'attention' : 'none';

@@ -49,15 +49,20 @@ describe('SettingsModal', () => {
     const onClose = vi.fn();
     render(<SettingsModal open settings={DEFAULT_SETTINGS} onClose={onClose} onSave={onSave} />);
 
-    await userEvent.click(screen.getByLabelText('연락처'));
+    await userEvent.click(screen.getByLabelText('주문 내용'));
     await userEvent.clear(screen.getByLabelText('대량 주문 기준 수량'));
     await userEvent.type(screen.getByLabelText('대량 주문 기준 수량'), '8');
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        requiredFields: expect.not.arrayContaining(['phone']),
-        bulkQuantityThreshold: 8,
+        requiredFields: expect.not.arrayContaining(['orderItems']),
+        conditionalRequiredFields: {
+          address: { field: 'fulfillmentType', equals: '택배' },
+        },
+        quantityRules: expect.objectContaining({
+          bulkRealUnitThreshold: 8,
+        }),
       }),
     );
     expect(onClose).toHaveBeenCalledTimes(1);
@@ -77,7 +82,13 @@ describe('SettingsModal', () => {
 
   it('keeps the previous valid bulk quantity when invalid input is saved', async () => {
     const onSave = vi.fn();
-    const settings = { ...DEFAULT_SETTINGS, bulkQuantityThreshold: 7 };
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      quantityRules: {
+        ...DEFAULT_SETTINGS.quantityRules,
+        bulkRealUnitThreshold: 7,
+      },
+    };
     render(<SettingsModal open settings={settings} onClose={vi.fn()} onSave={onSave} />);
 
     await userEvent.clear(screen.getByLabelText('대량 주문 기준 수량'));
@@ -86,7 +97,9 @@ describe('SettingsModal', () => {
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
-        bulkQuantityThreshold: 7,
+        quantityRules: expect.objectContaining({
+          bulkRealUnitThreshold: 7,
+        }),
       }),
     );
   });

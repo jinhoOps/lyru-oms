@@ -302,6 +302,35 @@ describe('storage', () => {
     });
   });
 
+  it('falls back to default quantity rules for non-finite minimum order values', () => {
+    localStorage.setItem(
+      'lyru-oms.settings.v1',
+      `{
+        "requiredFields": ["orderItems", "quantity"],
+        "conditionalRequiredFields": {
+          "address": { "field": "fulfillmentType", "equals": "택배" }
+        },
+        "quantityRules": {
+          "bulkRealUnitThreshold": 64,
+          "minimumOrderRules": [
+            { "unitCount": 1e999, "minimumSets": 2 }
+          ]
+        }
+      }`,
+    );
+
+    expect(loadSettings()).toEqual({
+      requiredFields: ['orderItems', 'quantity'],
+      conditionalRequiredFields: {
+        address: { field: 'fulfillmentType', equals: '택배' },
+      },
+      quantityRules: {
+        bulkRealUnitThreshold: 64,
+        minimumOrderRules: DEFAULT_SETTINGS.quantityRules.minimumOrderRules,
+      },
+    });
+  });
+
   it('returns fresh default settings objects', () => {
     const settings = loadSettings();
 

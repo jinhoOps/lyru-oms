@@ -44,6 +44,9 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
       rawText,
       ...EMPTY_ORDER_FIELDS,
       ...parsed,
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
       manuallyEditedFields: [],
       reparseDifferences: [],
       missingFields: [],
@@ -51,7 +54,11 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
         ? [
             {
               kind: '중복 가능성',
+              group: 'check',
+              code: 'duplicate-raw-text',
+              label: '중복 가능성',
               message: '비슷한 원문이 이미 있어요.',
+              detail: '저장된 주문/문의 원문과 비슷합니다.',
             },
           ]
         : [],

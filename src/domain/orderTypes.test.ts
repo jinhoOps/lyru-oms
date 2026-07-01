@@ -13,8 +13,6 @@ describe('orderTypes defaults', () => {
 
   it('keeps Phase 1 default required fields and conditional fields', () => {
     expect(DEFAULT_SETTINGS.requiredFields).toEqual([
-      'customerName',
-      'phone',
       'orderItems',
       'quantity',
       'desiredDateTime',
@@ -22,9 +20,14 @@ describe('orderTypes defaults', () => {
     ]);
     expect(DEFAULT_SETTINGS.conditionalRequiredFields).toEqual({
       address: { field: 'fulfillmentType', equals: '택배' },
-      pickupTime: { field: 'fulfillmentType', equals: '픽업' },
     });
-    expect(DEFAULT_SETTINGS.bulkQuantityThreshold).toBe(5);
+    expect(DEFAULT_SETTINGS.quantityRules).toEqual({
+      bulkRealUnitThreshold: 40,
+      minimumOrderRules: [
+        { unitCount: 2, minimumSets: 5 },
+        { unitCount: 4, minimumSets: 2 },
+      ],
+    });
   });
 
   it('contains source and field labels shown to the owner', () => {

@@ -8,6 +8,9 @@ function order(overrides: Partial<CapturedOrder>): CapturedOrder {
     source: '카카오톡 채널',
     rawText: '성함: 김리루',
     ...EMPTY_ORDER_FIELDS,
+    menuMatches: [],
+    quantityCandidates: [],
+    parsedDate: null,
     manuallyEditedFields: [],
     reparseDifferences: [],
     missingFields: [],
@@ -25,10 +28,10 @@ describe('evaluateOrder', () => {
     const evaluated = evaluateOrder(order({ customerName: '김리루' }), DEFAULT_SETTINGS);
     expect(evaluated.status).toBe('확인필요');
     expect(evaluated.warningLevel).toBe('attention');
-    expect(evaluated.missingFields).toContain('phone');
+    expect(evaluated.missingFields).toContain('orderItems');
   });
 
-  it('requires address only for 택배 and pickup time only for 픽업', () => {
+  it('requires address only for 택배', () => {
     const delivery = evaluateOrder(
       order({
         customerName: '김리루',
@@ -54,18 +57,27 @@ describe('evaluateOrder', () => {
       }),
       DEFAULT_SETTINGS,
     );
-    expect(pickup.missingFields).toContain('pickupTime');
+    expect(pickup.missingFields).not.toContain('pickupTime');
     expect(pickup.missingFields).not.toContain('address');
   });
 
   it('does not revert 정리 완료 even when settings would flag it', () => {
-    const evaluated = evaluateOrder(order({ status: '정리 완료', quantity: '10' }), DEFAULT_SETTINGS);
+    const evaluated = evaluateOrder(
+      order({ status: '정리 완료', quantity: '10' }),
+      { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 5 } },
+    );
     expect(evaluated.status).toBe('정리 완료');
     expect(evaluated.reviewReasons.some((reason) => reason.message.includes('대량'))).toBe(true);
   });
 
   it('preserves existing duplicate review reasons while recalculating derived reasons', () => {
-    const duplicateReason = { kind: '중복 가능성' as const, message: '비슷한 원문이 이미 있어요.' };
+    const duplicateReason = {
+      kind: '중복 가능성' as const,
+      group: 'check' as const,
+      code: 'duplicate-raw-text' as const,
+      label: '중복 가능성',
+      message: '비슷한 원문이 이미 있어요.',
+    };
 
     const evaluated = evaluateOrder(
       order({
@@ -92,12 +104,15 @@ describe('evaluateOrder', () => {
           fulfillmentType: '픽업',
           pickupTime: '14:00',
         }),
-        DEFAULT_SETTINGS,
+        { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 5 } },
       );
 
       expect(evaluated.reviewReasons).toContainEqual({
         kind: '확인필요',
+        group: 'check',
+        code: 'bulk-real-unit',
         field: 'quantity',
+        label: '대량 주문',
         message: '대량 주문 수량이라 생산 가능 여부 확인이 필요합니다.',
       });
       expect(evaluated.status).toBe('확인필요');

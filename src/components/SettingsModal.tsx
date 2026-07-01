@@ -28,7 +28,9 @@ const configurableRequiredFields: OrderFieldKey[] = [
 
 export function SettingsModal({ open, settings, onClose, onSave }: SettingsModalProps) {
   const [requiredFields, setRequiredFields] = useState<OrderFieldKey[]>([...settings.requiredFields]);
-  const [bulkQuantityThreshold, setBulkQuantityThreshold] = useState(String(settings.bulkQuantityThreshold));
+  const [bulkQuantityThreshold, setBulkQuantityThreshold] = useState(
+    String(settings.quantityRules.bulkRealUnitThreshold),
+  );
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -40,7 +42,7 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
 
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setRequiredFields([...settings.requiredFields]);
-    setBulkQuantityThreshold(String(settings.bulkQuantityThreshold));
+    setBulkQuantityThreshold(String(settings.quantityRules.bulkRealUnitThreshold));
     closeButtonRef.current?.focus();
 
     return () => {
@@ -65,12 +67,14 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
       requiredFields: [...requiredFields],
       conditionalRequiredFields: {
         address: { ...DEFAULT_SETTINGS.conditionalRequiredFields.address },
-        pickupTime: { ...DEFAULT_SETTINGS.conditionalRequiredFields.pickupTime },
       },
-      bulkQuantityThreshold:
-        Number.isFinite(parsedThreshold) && parsedThreshold > 0
-          ? Math.floor(parsedThreshold)
-          : settings.bulkQuantityThreshold,
+      quantityRules: {
+        ...settings.quantityRules,
+        bulkRealUnitThreshold:
+          Number.isFinite(parsedThreshold) && parsedThreshold > 0
+            ? Math.floor(parsedThreshold)
+            : settings.quantityRules.bulkRealUnitThreshold,
+      },
     };
 
     onSave(nextSettings);
