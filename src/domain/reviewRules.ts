@@ -44,10 +44,10 @@ const createMissingFieldReason = (field: OrderFieldKey): ReviewReason =>
   });
 
 const hydrateDuplicateReason = (existingReason: ReviewReason): ReviewReason => ({
-  kind: existingReason.kind,
-  group: existingReason.group ?? 'check',
-  code: existingReason.code ?? 'duplicate-raw-text',
-  label: existingReason.label ?? '중복 가능성',
+  kind: '중복 가능성',
+  group: 'check',
+  code: 'duplicate-raw-text',
+  label: '중복 가능성',
   message: existingReason.message,
   ...(existingReason.field ? { field: existingReason.field } : {}),
   ...(existingReason.detail ? { detail: existingReason.detail } : {}),
@@ -65,18 +65,16 @@ const checkReason = (
     ...options,
   });
 
-const getUniqueKnownUnitCount = (order: CapturedOrder) => {
-  const unitCounts = new Set(
-    order.menuMatches
-      .map((match) => match.unitCount)
-      .filter((unitCount): unitCount is number => unitCount !== null),
-  );
+const getSingleKnownUnitCount = (order: CapturedOrder) => {
+  if (order.menuMatches.length !== 1) {
+    return null;
+  }
 
-  return unitCounts.size === 1 ? [...unitCounts][0] : null;
+  return order.menuMatches[0].unitCount;
 };
 
 const createQuantityReviewReasons = (order: CapturedOrder, settings: OrderSettings): ReviewReason[] => {
-  const unitCount = getUniqueKnownUnitCount(order);
+  const unitCount = getSingleKnownUnitCount(order);
 
   if (unitCount === null || order.quantityCandidates.length !== 1) {
     return [];

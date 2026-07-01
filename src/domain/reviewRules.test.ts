@@ -80,6 +80,31 @@ describe('evaluateOrder', () => {
     expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
   });
 
+  it('does not revert 정리 완료 when a check reason exists', () => {
+    const evaluated = evaluateOrder(
+      order({
+        status: '정리 완료',
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '곶감밀푀유',
+        quantity: '1세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '택배',
+        address: '서울시 중구',
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'delivery-check',
+        }),
+      ]),
+    );
+    expect(evaluated.status).toBe('정리 완료');
+  });
+
   it('preserves existing duplicate review reasons while recalculating derived reasons', () => {
     const duplicateReason = {
       kind: '중복 가능성' as const,
@@ -102,6 +127,36 @@ describe('evaluateOrder', () => {
       message: '비슷한 원문이 이미 있어요.',
     });
     expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
+  });
+
+  it('canonicalizes stored duplicate reasons with conflicting shape', () => {
+    const duplicateReason = {
+      kind: '확인필요',
+      group: 'info',
+      code: 'duplicate-raw-text',
+      label: '이전 라벨',
+      field: 'orderItems',
+      detail: '저장된 상세',
+      message: '이미 비슷한 원문이 있습니다.',
+    } satisfies CapturedOrder['reviewReasons'][number];
+
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        reviewReasons: [duplicateReason],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toContainEqual({
+      kind: '중복 가능성',
+      group: 'check',
+      code: 'duplicate-raw-text',
+      label: '중복 가능성',
+      field: 'orderItems',
+      detail: '저장된 상세',
+      message: '이미 비슷한 원문이 있습니다.',
+    });
   });
 
   it('flags real-unit bulk orders at 40구 or more', () => {
@@ -304,6 +359,110 @@ describe('evaluateOrder', () => {
           label: '수량 후보 여러 개',
           message: '수량으로 볼 수 있는 표현이 여러 개라 확인이 필요합니다.',
         },
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+  });
+
+  it('skips minimum and bulk checks when multiple menu matches include unknown units', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자',
+        quantity: '5세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-9',
+            label: '화과자 9구',
+            unitCount: 9,
+            confidence: 'family',
+          },
+          {
+            menuId: 'wagashi-custom',
+            label: '화과자 맞춤 구성',
+            unitCount: null,
+            confidence: 'family',
+          },
+        ],
+        quantityCandidates: [{ value: 5, unit: '세트', rawText: '5세트' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'ambiguous-menu',
+          label: '비슷한 메뉴 여러 개',
+        }),
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'minimum-order',
+        }),
+      ]),
+    );
+  });
+
+  it('skips minimum checks when multiple menu matches share one known unit count', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 2구',
+        quantity: '3세트',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-2-a',
+            label: '화과자 2구 기본',
+            unitCount: 2,
+            confidence: 'family',
+          },
+          {
+            menuId: 'wagashi-2-b',
+            label: '화과자 2구 보자기',
+            unitCount: 2,
+            confidence: 'family',
+          },
+        ],
+        quantityCandidates: [{ value: 3, unit: '세트', rawText: '3세트' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'ambiguous-menu',
+          label: '비슷한 메뉴 여러 개',
+        }),
+      ]),
+    );
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'minimum-order',
+        }),
       ]),
     );
     expect(evaluated.reviewReasons).not.toEqual(
