@@ -20,11 +20,68 @@ describe('parseRawText', () => {
     expect(parsed.customerRequestNote).toBe('선물이라 예쁘게 부탁드려요');
   });
 
-  it('does not infer values from free sentences', () => {
-    const parsed = parseRawText('김리루 고객님이 내일 픽업하고 싶다고 하심');
-    expect(parsed.customerName).toBe('');
+  it('extracts consultation-style purpose, menu matches, quantity candidates, and delivery signal', () => {
+    const parsed = parseRawText(`결혼식 답례품
+대추야자 2구/9구
+180개 / 20개 구매 의사 먼저 밝히려고 합니다!!!
+택배 가능할까요?`);
+
+    expect(parsed.purpose).toBe('답례품');
+    expect(parsed.orderItems).toBe('대추야자 2구/9구');
+    expect(parsed.quantity).toBe('180개 / 20개 후보');
+    expect(parsed.quantityCandidates).toEqual([
+      { value: 180, unit: '개', rawText: '180개' },
+      { value: 20, unit: '개', rawText: '20개' },
+    ]);
+    expect(parsed.menuMatches.map((match) => match.menuId)).toEqual([
+      'dates-wood-9',
+      'dates-handle-10',
+      'dates-premium-15',
+    ]);
+    expect(parsed.fulfillmentType).toBe('택배');
+  });
+
+  it('does not treat product unit counts, prices, delivery fees, or phone numbers as quantity candidates', () => {
+    const parsed = parseRawText(`연락처: 010-1111-2222
+화과자 9구
+45,000원
+배송비 5,000원
+5세트 주문합니다`);
+
+    expect(parsed.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5세트' }]);
+    expect(parsed.quantity).toBe('5세트');
+  });
+
+  it('keeps relative dates as parsed date metadata without filling desired date', () => {
+    const parsed = parseRawText('이번 주 금요일 픽업하고 싶어요');
+
     expect(parsed.desiredDateTime).toBe('');
-    expect(parsed.fulfillmentType).toBe('');
+    expect(parsed.parsedDate).toEqual({
+      isoDate: '',
+      timeText: '',
+      originalText: '이번 주 금요일',
+      isRelative: true,
+    });
+  });
+
+  it('fills desired date from explicit date only when unlabeled', () => {
+    const parsed = parseRawText('6월 15일 오후 2시 택배 가능한가요?');
+
+    expect(parsed.desiredDateTime).toBe('2026-06-15 14:00');
+    expect(parsed.parsedDate).toMatchObject({
+      isoDate: '2026-06-15',
+      timeText: '14:00',
+      originalText: '6월 15일 오후 2시 택배 가능한가요?',
+      isRelative: false,
+    });
+  });
+
+  it('does not overwrite labeled quantity with inferred quantity candidates', () => {
+    const parsed = parseRawText(`수량: 별도 상담
+5세트 주문 가능할까요?`);
+
+    expect(parsed.quantity).toBe('별도 상담');
+    expect(parsed.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5세트' }]);
   });
 
   it('keeps clear single fulfillment signals and rejects ambiguous corrections', () => {
