@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
+import { AccessGate } from './components/AccessGate';
 import { OrderDetail } from './components/OrderDetail';
 import { OrderList } from './components/OrderList';
 import { QuestionNote } from './components/QuestionNote';
@@ -42,47 +43,49 @@ export default function App() {
   }
 
   return (
-    <main className="appShell">
-      <header className="appHeader">
-        <div>
-          <p className="eyebrow">Lyru OMS</p>
-          <h1>주문 표준화 작업실</h1>
-        </div>
-        <button type="button" className="secondaryButton" onClick={() => setSettingsOpen(true)}>
-          관리 설정
-        </button>
-      </header>
-
-      <div className="workspaceLayout">
-        <section className="capturePanel" aria-label="주문 수집">
-          <div className="sectionHeader">
-            <h2>주문 수집</h2>
-            <p>원문을 붙여넣고 저장합니다.</p>
+    <AccessGate>
+      <main className="appShell">
+        <header className="appHeader">
+          <div>
+            <p className="eyebrow">Lyru OMS</p>
+            <h1>주문 표준화 작업실</h1>
           </div>
-          <QuestionNote />
-          <OrderCaptureForm
-            existingRawTexts={orders.map((order) => order.rawText)}
+          <button type="button" className="secondaryButton" onClick={() => setSettingsOpen(true)}>
+            관리 설정
+          </button>
+        </header>
+
+        <div className="workspaceLayout">
+          <section className="capturePanel" aria-label="주문 수집">
+            <div className="sectionHeader">
+              <h2>주문 수집</h2>
+              <p>원문을 붙여넣고 저장합니다.</p>
+            </div>
+            <QuestionNote />
+            <OrderCaptureForm
+              existingRawTexts={orders.map((order) => order.rawText)}
+              settings={settings}
+              onSave={handleSaveOrder}
+            />
+          </section>
+
+          <OrderList orders={orders} selectedId={selectedId} onSelect={setSelectedId} />
+
+          <OrderDetail
+            order={selectedOrder}
             settings={settings}
-            onSave={handleSaveOrder}
+            onChange={handleChangeOrder}
+            onClose={() => setSelectedId(null)}
           />
-        </section>
+        </div>
 
-        <OrderList orders={orders} selectedId={selectedId} onSelect={setSelectedId} />
-
-        <OrderDetail
-          order={selectedOrder}
+        <SettingsModal
+          open={settingsOpen}
           settings={settings}
-          onChange={handleChangeOrder}
-          onClose={() => setSelectedId(null)}
+          onClose={() => setSettingsOpen(false)}
+          onSave={handleSaveSettings}
         />
-      </div>
-
-      <SettingsModal
-        open={settingsOpen}
-        settings={settings}
-        onClose={() => setSettingsOpen(false)}
-        onSave={handleSaveSettings}
-      />
-    </main>
+      </main>
+    </AccessGate>
   );
 }

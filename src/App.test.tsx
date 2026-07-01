@@ -3,9 +3,11 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import App from './App';
+import { ACCESS_GRANTED_KEY } from './components/AccessGate';
 
 beforeEach(() => {
   localStorage.clear();
+  localStorage.setItem(ACCESS_GRANTED_KEY, 'true');
 });
 
 afterEach(() => {
