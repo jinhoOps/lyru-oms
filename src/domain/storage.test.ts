@@ -83,6 +83,70 @@ describe('storage', () => {
     ]);
   });
 
+  it('loads stored orders with new-shape review reasons', () => {
+    const order: CapturedOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: 'review-reason',
+      source: '카카오톡 채널',
+      rawText: '배송 요청 확인 필요',
+      status: '확인필요',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'delivery-check',
+          field: 'address',
+          label: '배송 확인',
+          detail: '주소 확인 필요',
+          message: '배송 정보 확인이 필요합니다.',
+        },
+      ],
+      warningLevel: 'attention',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([order]));
+
+    expect(loadOrders()).toEqual([order]);
+  });
+
+  it('discards stored orders with malformed review reason metadata', () => {
+    const malformedOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: 'malformed-review-reason',
+      source: '카카오톡 채널',
+      rawText: '연락처 없음',
+      status: '확인필요',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: ['phone'],
+      reviewReasons: [
+        {
+          kind: '정보 부족',
+          field: 'phone',
+          message: '연락처 정보가 비어 있어요.',
+        },
+      ],
+      warningLevel: 'attention',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([malformedOrder]));
+
+    expect(loadOrders()).toEqual([]);
+  });
+
   it('discards malformed order entries from stored arrays', () => {
     const validOrder: CapturedOrder = {
       ...EMPTY_ORDER_FIELDS,

@@ -22,6 +22,18 @@ const ORDER_SOURCE_VALUES = new Set<string>(ORDER_SOURCES);
 const ORDER_STATUS_VALUES = new Set<string>(ORDER_STATUSES);
 const FULFILLMENT_TYPE_VALUES = new Set<string>(['', '픽업', '택배']);
 const REVIEW_REASON_KINDS = new Set<string>(['정보 부족', '확인필요', '중복 가능성']);
+const REVIEW_REASON_GROUPS = new Set<string>(['info', 'check']);
+const REVIEW_REASON_CODES = new Set<string>([
+  'missing-field',
+  'duplicate-raw-text',
+  'event-purpose',
+  'ambiguous-menu',
+  'ambiguous-quantity',
+  'bulk-real-unit',
+  'minimum-order',
+  'delivery-check',
+  'relative-date',
+]);
 const WARNING_LEVELS = new Set<string>(['none', 'attention']);
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -91,7 +103,13 @@ const isReviewReasonArray = (value: unknown): value is CapturedOrder['reviewReas
       isPlainObject(reason) &&
       typeof reason.kind === 'string' &&
       REVIEW_REASON_KINDS.has(reason.kind) &&
+      typeof reason.group === 'string' &&
+      REVIEW_REASON_GROUPS.has(reason.group) &&
+      typeof reason.code === 'string' &&
+      REVIEW_REASON_CODES.has(reason.code) &&
+      typeof reason.label === 'string' &&
       typeof reason.message === 'string' &&
+      (reason.detail === undefined || typeof reason.detail === 'string') &&
       (reason.field === undefined || isOrderFieldKey(reason.field)),
   );
 
