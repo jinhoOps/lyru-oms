@@ -6,6 +6,11 @@ describe('findMenuMatches', () => {
     expect(MENU_CATALOG.length).toBeGreaterThan(0);
   });
 
+  it('keeps packaging option data represented outside menu matching', () => {
+    expect(MENU_CATALOG).toContainEqual(expect.objectContaining({ menuId: 'bojagi-wrap', matchableAsMenu: false }));
+    expect(MENU_CATALOG).toContainEqual(expect.objectContaining({ menuId: 'norigae-deco-wrap', matchableAsMenu: false }));
+  });
+
   it('matches concrete menu names and keeps unit counts', () => {
     expect(findMenuMatches('대추야자 오동나무 9구 세트 5세트')).toContainEqual({
       menuId: 'dates-wood-9',
@@ -34,8 +39,23 @@ describe('findMenuMatches', () => {
     expect(findMenuMatches('화과자 4구 1세트')).toContainEqual(expect.objectContaining({ menuId: 'wagashi-4', unitCount: 4 }));
   });
 
+  it('returns no matches for text without menu signals', () => {
+    expect(findMenuMatches('문의드립니다')).toEqual([]);
+  });
+
+  it('keeps packaging options out of product menu matches', () => {
+    expect(findMenuMatches('보자기 포장')).toEqual([]);
+    expect(findMenuMatches('노리개 데코 포장')).toEqual([]);
+  });
+
   it('prefers specific chestnut wagashi text over generic wagashi family matches', () => {
     expect(findMenuMatches('밤화과자 문의').map((match) => match.menuId)).toEqual(['chestnut-wagashi-9']);
+  });
+
+  it('keeps generic wagashi matches when generic text appears separately from chestnut wagashi', () => {
+    const menuIds = findMenuMatches('밤화과자와 화과자 문의').map((match) => match.menuId);
+    expect(menuIds).toContain('chestnut-wagashi-9');
+    expect(menuIds).toEqual(expect.arrayContaining(['wagashi-2', 'wagashi-4', 'wagashi-6', 'wagashi-8', 'wagashi-9']));
   });
 
   it('does not match the mixed oranda box from monaka nut chip text', () => {
@@ -46,6 +66,10 @@ describe('findMenuMatches', () => {
 });
 
 describe('mapPurposeFromText', () => {
+  it('returns an empty purpose for text without purpose hints', () => {
+    expect(mapPurposeFromText('일반 문의')).toBe('');
+  });
+
   it.each([
     ['결혼식 답례품 문의', '답례품'],
     ['기업답례품 견적 부탁드립니다', '답례품'],

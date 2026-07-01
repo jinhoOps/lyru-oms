@@ -1,11 +1,12 @@
 import type { MenuMatch, PurposeCategory } from './orderTypes';
 
-interface CatalogItem {
+export interface CatalogItem {
   menuId: string;
   label: string;
   unitCount: number | null;
   aliases: readonly string[];
   familyKeywords: readonly string[];
+  matchableAsMenu?: boolean;
 }
 
 interface PurposeRule {
@@ -13,7 +14,18 @@ interface PurposeRule {
   hints: readonly string[];
 }
 
-export const MENU_CATALOG = [
+interface KeywordRange {
+  start: number;
+  end: number;
+}
+
+interface FamilyKeywordMatch {
+  item: CatalogItem;
+  keyword: string;
+  ranges: KeywordRange[];
+}
+
+export const MENU_CATALOG: readonly CatalogItem[] = [
   {
     menuId: 'meeting-set-a',
     label: '상견례세트 A',
@@ -181,6 +193,7 @@ export const MENU_CATALOG = [
     unitCount: null,
     aliases: ['보자기 포장', '보자기포장'],
     familyKeywords: ['보자기'],
+    matchableAsMenu: false,
   },
   {
     menuId: 'norigae-deco-wrap',
@@ -188,8 +201,9 @@ export const MENU_CATALOG = [
     unitCount: null,
     aliases: ['노리개 데코 포장', '노리개데코포장'],
     familyKeywords: ['노리개'],
+    matchableAsMenu: false,
   },
-] as const satisfies readonly CatalogItem[];
+];
 
 const purposeRules = [
   { category: '답례품', hints: ['답례품', '기업답례품', '결혼식', '송파답례품'] },
@@ -221,21 +235,40 @@ function includesNormalized(text: string, compact: string, keyword: string): boo
   return text.includes(normalizedKeyword) || compact.includes(compactText(keyword));
 }
 
-function findMatchedFamilyKeywordLength(item: CatalogItem, text: string, compact: string): number {
-  return item.familyKeywords.reduce((maxLength, keyword) => {
-    if (!includesNormalized(text, compact, keyword)) {
-      return maxLength;
-    }
+function findKeywordRanges(compact: string, keyword: string): KeywordRange[] {
+  const compactKeyword = compactText(keyword);
+  const ranges: KeywordRange[] = [];
+  let start = compact.indexOf(compactKeyword);
 
-    return Math.max(maxLength, compactText(keyword).length);
-  }, 0);
+  while (start !== -1) {
+    ranges.push({ start, end: start + compactKeyword.length });
+    start = compact.indexOf(compactKeyword, start + 1);
+  }
+
+  return ranges;
+}
+
+function isCoveredByLongerKeyword(range: KeywordRange, keyword: string, matches: readonly FamilyKeywordMatch[]): boolean {
+  const keywordLength = compactText(keyword).length;
+  return matches.some((match) => {
+    const matchedKeywordLength = compactText(match.keyword).length;
+    return (
+      matchedKeywordLength > keywordLength &&
+      match.ranges.some((matchedRange) => matchedRange.start <= range.start && range.end <= matchedRange.end)
+    );
+  });
+}
+
+function hasUncoveredFamilySignal(match: FamilyKeywordMatch, matches: readonly FamilyKeywordMatch[]): boolean {
+  return match.ranges.some((range) => !isCoveredByLongerKeyword(range, match.keyword, matches));
 }
 
 export function findMenuMatches(text: string): MenuMatch[] {
   const normalizedText = normalizeText(text);
   const compact = compactText(text);
+  const matchableCatalog = MENU_CATALOG.filter((item) => item.matchableAsMenu !== false);
 
-  const exactMatches = MENU_CATALOG.flatMap((item) => {
+  const exactMatches = matchableCatalog.flatMap((item) => {
     const labelMatches = includesNormalized(normalizedText, compact, item.label);
     if (labelMatches) {
       return [toMatch(item, 'exact')];
@@ -249,15 +282,21 @@ export function findMenuMatches(text: string): MenuMatch[] {
     return exactMatches;
   }
 
-  const familyMatches = MENU_CATALOG.map((item) => ({
-    item,
-    keywordLength: findMatchedFamilyKeywordLength(item, normalizedText, compact),
-  })).filter((match) => match.keywordLength > 0);
-  const maxKeywordLength = Math.max(0, ...familyMatches.map((match) => match.keywordLength));
+  const familyKeywordMatches = matchableCatalog.flatMap((item) =>
+    item.familyKeywords.flatMap((keyword) => {
+      const ranges = findKeywordRanges(compact, keyword);
+      return ranges.length > 0 ? [{ item, keyword, ranges }] : [];
+    }),
+  );
+  const matchedItems = new Set<CatalogItem>();
 
-  return familyMatches
-    .filter((match) => match.keywordLength === maxKeywordLength)
-    .map((match) => toMatch(match.item, 'family'));
+  familyKeywordMatches.forEach((match) => {
+    if (hasUncoveredFamilySignal(match, familyKeywordMatches)) {
+      matchedItems.add(match.item);
+    }
+  });
+
+  return matchableCatalog.filter((item) => matchedItems.has(item)).map((item) => toMatch(item, 'family'));
 }
 
 export function mapPurposeFromText(text: string): PurposeCategory | '' {
