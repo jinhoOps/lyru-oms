@@ -6,10 +6,33 @@ const pad2 = (value: number) => String(value).padStart(2, '0');
 
 const toIsoDate = (year: number, month: number, day: number) => `${year}-${pad2(month)}-${pad2(day)}`;
 
+const getKoreaDateParts = (value: Date) => {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+
+  return {
+    year: Number(parts.find((part) => part.type === 'year')?.value),
+    month: Number(parts.find((part) => part.type === 'month')?.value),
+    day: Number(parts.find((part) => part.type === 'day')?.value),
+  };
+};
+
 const isValidDate = (year: number, month: number, day: number) => {
   const date = new Date(year, month - 1, day);
 
   return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+};
+
+const formatValidTime = (hour: number, minute: number) => {
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+    return '';
+  }
+
+  return `${pad2(hour)}:${pad2(minute)}`;
 };
 
 const parseKoreanTime = (period: string | undefined, hourText: string | undefined, minuteText: string | undefined) => {
@@ -20,6 +43,10 @@ const parseKoreanTime = (period: string | undefined, hourText: string | undefine
   let hour = Number(hourText);
   const minute = minuteText ? Number(minuteText) : 0;
 
+  if (period && (hour < 1 || hour > 12)) {
+    return '';
+  }
+
   if (period === '오후' && hour < 12) {
     hour += 12;
   }
@@ -28,7 +55,7 @@ const parseKoreanTime = (period: string | undefined, hourText: string | undefine
     hour = 0;
   }
 
-  return `${pad2(hour)}:${pad2(minute)}`;
+  return formatValidTime(hour, minute);
 };
 
 const buildParsedDate = (
@@ -57,29 +84,31 @@ export const parseExplicitDate = (text: string, today = new Date()): ParsedDateV
     return null;
   }
 
-  const isoMatch = /(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/.exec(trimmedText);
+  const isoMatch = /(^|[^\dA-Za-z가-힣])(\d{4})-(\d{1,2})-(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?(?=$|[^\dA-Za-z가-힣])/.exec(
+    trimmedText,
+  );
 
   if (isoMatch) {
     return buildParsedDate(
-      Number(isoMatch[1]),
       Number(isoMatch[2]),
       Number(isoMatch[3]),
-      isoMatch[4] ? `${pad2(Number(isoMatch[4]))}:${isoMatch[5]}` : '',
+      Number(isoMatch[4]),
+      isoMatch[5] ? formatValidTime(Number(isoMatch[5]), Number(isoMatch[6])) : '',
       trimmedText,
     );
   }
 
-  const slashMatch = /(\d{1,2})\/(\d{1,2})/.exec(trimmedText);
+  const slashMatch = /(^|[^\dA-Za-z가-힣])(\d{1,2})\/(\d{1,2})(?=$|[^\dA-Za-z가-힣])/.exec(trimmedText);
 
   if (slashMatch) {
-    return buildParsedDate(today.getFullYear(), Number(slashMatch[1]), Number(slashMatch[2]), '', trimmedText);
+    return buildParsedDate(getKoreaDateParts(today).year, Number(slashMatch[2]), Number(slashMatch[3]), '', trimmedText);
   }
 
   const koreanMatch = /(\d{1,2})월\s*(\d{1,2})일(?:\s*(오전|오후)?\s*(\d{1,2})시(?:\s*(\d{1,2})분)?)?/.exec(trimmedText);
 
   if (koreanMatch) {
     return buildParsedDate(
-      today.getFullYear(),
+      getKoreaDateParts(today).year,
       Number(koreanMatch[1]),
       Number(koreanMatch[2]),
       parseKoreanTime(koreanMatch[3], koreanMatch[4], koreanMatch[5]),
@@ -101,7 +130,7 @@ export const parseExplicitDate = (text: string, today = new Date()): ParsedDateV
   return null;
 };
 
-const toDateOnly = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate());
+const toUtcDateOnlyTime = (year: number, month: number, day: number) => Date.UTC(year, month - 1, day);
 
 export const formatDday = (value: ParsedDateValue | null, today = new Date()) => {
   if (!value) {
@@ -113,8 +142,11 @@ export const formatDday = (value: ParsedDateValue | null, today = new Date()) =>
   }
 
   const [year, month, day] = value.isoDate.split('-').map(Number);
-  const targetDate = new Date(year, month - 1, day);
-  const dayDifference = Math.round((targetDate.getTime() - toDateOnly(today).getTime()) / 86_400_000);
+  const koreaToday = getKoreaDateParts(today);
+  const dayDifference = Math.round(
+    (toUtcDateOnlyTime(year, month, day) - toUtcDateOnlyTime(koreaToday.year, koreaToday.month, koreaToday.day)) /
+      86_400_000,
+  );
   const title = `${year}년 ${month}월 ${day}일${value.timeText ? ` ${value.timeText}` : ''}`;
 
   if (dayDifference === 0) {
