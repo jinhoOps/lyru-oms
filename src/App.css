@@ -659,9 +659,15 @@ pre {
 }
 
 @media (max-width: 720px) {
+  .listHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
   .listHeaderActions {
     align-items: stretch;
     flex-wrap: wrap;
+    width: 100%;
   }
 
   .sortControl {
