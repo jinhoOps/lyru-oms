@@ -237,8 +237,7 @@ pre {
 }
 
 .capturePanel,
-.orderListPanel,
-.questionNote {
+.orderListPanel {
   border: 1px solid #eee5d6;
   border-radius: 8px;
   background: #fffaf2;
@@ -248,37 +247,6 @@ pre {
 .capturePanel,
 .orderListPanel {
   padding: 14px;
-}
-
-.questionNote {
-  margin-bottom: 12px;
-  border-color: #efe6d8;
-  background: #fffdf8;
-  box-shadow: none;
-}
-
-.noteToggle {
-  width: 100%;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #5b4322;
-  text-align: left;
-}
-
-.noteBody {
-  padding: 0 14px 12px;
-  color: #463928;
-  font-size: 14px;
-}
-
-.noteBody p {
-  margin: 0 0 8px;
-}
-
-.noteBody ul {
-  margin: 0;
-  padding-left: 20px;
 }
 
 .sectionHeader {
@@ -334,6 +302,51 @@ pre {
 .secondaryButton {
   background: #fffaf2;
   color: #172033;
+}
+
+.headerActions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.questionNote {
+  position: relative;
+}
+
+.noteButton {
+  border-color: #d7c8ad;
+  background: #fffaf2;
+  color: #5b4322;
+}
+
+.notePopover {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(320px, calc(100vw - 36px));
+  border: 1px solid #e1d5c2;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 12px;
+  color: #463928;
+  font-size: 13px;
+  box-shadow: 0 14px 30px rgba(22, 32, 51, 0.14);
+}
+
+.notePopover p {
+  margin: 0 0 8px;
+}
+
+.notePopover ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.notePopover li + li {
+  margin-top: 6px;
 }
 
 .iconButton {

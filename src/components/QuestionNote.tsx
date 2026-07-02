@@ -10,12 +10,18 @@ export function QuestionNote() {
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="questionNote" aria-label="확인 질문 쪽지">
-      <button type="button" className="noteToggle" onClick={() => setOpen((value) => !value)}>
-        사장님께 확인할 질문 {open ? '접기' : '보기'}
+    <div className="questionNote">
+      <button
+        type="button"
+        className="iconButton noteButton"
+        aria-label="사장님께 확인할 질문"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        ✉
       </button>
       {open ? (
-        <div className="noteBody">
+        <div className="notePopover" role="region" aria-label="확인 질문 쪽지">
           <p>아래 질문을 보시고 편하실 때 직접 연락으로 알려주세요.</p>
           <ul>
             {questions.map((question) => (
@@ -24,6 +30,6 @@ export function QuestionNote() {
           </ul>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }
