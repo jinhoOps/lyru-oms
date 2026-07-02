@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
 import { FIELD_DEFINITIONS, type CapturedOrder } from '../domain/orderTypes';
+import type { OrderSortMode } from '../domain/orderSorting';
 
 interface OrderListProps {
   orders: CapturedOrder[];
   selectedId: string | null;
+  sortMode: OrderSortMode;
+  onSortModeChange: (mode: OrderSortMode) => void;
   onSelect: (orderId: string) => void;
 }
 
@@ -70,7 +73,7 @@ const getDisplayDate = (order: CapturedOrder) => {
   return parsedDesiredDate ?? order.parsedDate;
 };
 
-export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
+export function OrderList({ orders, selectedId, sortMode, onSortModeChange, onSelect }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
@@ -101,6 +104,14 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
         </div>
         <div className="listHeaderActions">
           <span>{orders.length}건</span>
+          <label className="sortControl">
+            정렬
+            <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as OrderSortMode)}>
+              <option value="desiredDate">희망일 빠른 순</option>
+              <option value="recent">최근 등록순</option>
+              <option value="quantityDesc">수량 많은 순</option>
+            </select>
+          </label>
           <div className="viewToggle" aria-label="주문 목록 보기 방식">
             <button
               type="button"
@@ -130,6 +141,9 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
           const isExpanded = expandedRawTextIds.includes(order.id);
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
           const hasOwnerMemo = order.ownerMemo.trim() !== '';
+          const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
+          const needsAttention =
+            order.warningLevel === 'attention' || order.reviewReasons.length > 0 || order.missingFields.length > 0;
           const dday = formatDday(getDisplayDate(order));
           const reasonSummaries = summarizeReviewReasonGroups(order);
 
@@ -154,6 +168,8 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                   </span>
                   {reasonSummaries.length > 0 ? (
                     <span className="compactLine reasonSummaryLine">
+                      {needsAttention ? <span className="reasonSummaryPill">확인 필요</span> : null}
+                      {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
                       {reasonSummaries.map((summary) => (
                         <span key={summary} className="reasonSummaryPill">
                           {summary}
@@ -178,6 +194,8 @@ export function OrderList({ orders, selectedId, onSelect }: OrderListProps) {
                     {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
                   </span>
                   <span className="flagLine">
+                    {needsAttention ? <span className="reasonSummaryPill">확인 필요</span> : null}
+                    {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
                     {reasonSummaries.map((summary) => (
                       <span key={summary} className="reasonSummaryPill">
                         {summary}

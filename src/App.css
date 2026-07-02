@@ -390,6 +390,24 @@ pre {
   gap: 8px;
 }
 
+.sortControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #56463a;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.sortControl select {
+  min-height: 36px;
+  border: 1px solid #d8c8aa;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #2d2a32;
+  padding: 0 10px;
+}
+
 .viewToggle {
   display: inline-flex;
   gap: 2px;
@@ -527,7 +545,8 @@ pre {
 }
 
 .orderList.compact .ddayBadge,
-.orderList.compact .reasonSummaryPill {
+.orderList.compact .reasonSummaryPill,
+.orderList.compact .changeRequestPill {
   min-height: 19px;
   flex: 0 0 auto;
   padding: 2px 6px;
@@ -597,8 +616,36 @@ pre {
   color: #5f4620;
 }
 
+.changeRequestPill {
+  display: inline-flex;
+  min-height: 26px;
+  align-items: center;
+  border-radius: 999px;
+  background: #2f4a5f;
+  color: #fffdf8;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .flagOff {
   background: #f3eee5;
+}
+
+@media (max-width: 720px) {
+  .listHeaderActions {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .sortControl {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sortControl select {
+    flex: 1;
+  }
 }
 
 .rawTextArea {

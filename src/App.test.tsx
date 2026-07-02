@@ -54,4 +54,30 @@ describe('App', () => {
 
     expect(screen.queryByText('확인할 내용 1개')).not.toBeInTheDocument();
   });
+
+  it('changes displayed order when sort mode changes', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 작은주문\n곶감 2세트\n2026-07-05\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+
+    await user.clear(screen.getByLabelText('주문/문의 원문'));
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 큰주문\n곶감 20세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+
+    expect(screen.getByText('작은주문')).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('정렬'), 'quantityDesc');
+
+    const orderButtons = screen
+      .getAllByRole('button')
+      .map((button) => button.textContent ?? '')
+      .join('\n');
+
+    expect(orderButtons.indexOf('큰주문')).toBeLessThan(orderButtons.indexOf('작은주문'));
+  });
 });
