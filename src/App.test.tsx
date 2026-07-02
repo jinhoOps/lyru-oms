@@ -69,16 +69,17 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    expect(screen.getByText('작은주문')).toBeInTheDocument();
+    expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('정렬'), 'quantityDesc');
+    await user.click(screen.getByRole('button', { name: '정렬 방식' }));
+    await user.click(screen.getByRole('radio', { name: '수량 많은 순' }));
 
     const orderButtons = screen
       .getAllByRole('button')
       .map((button) => button.textContent ?? '')
       .join('\n');
 
-    expect(orderButtons.indexOf('큰주문')).toBeLessThan(orderButtons.indexOf('작은주문'));
+    expect(orderButtons.indexOf('주문 내용 미정 · 20세트')).toBeLessThan(orderButtons.indexOf('주문 내용 미정 · 2세트'));
   });
 
   it('saves orders with the source selected from the capture header and filters the order list by source', async () => {
@@ -98,8 +99,8 @@ describe('App', () => {
 
     await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
 
-    expect(screen.getByText('스마트고객')).toBeInTheDocument();
-    expect(screen.queryByText('카카오고객')).not.toBeInTheDocument();
+    expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
+    expect(screen.queryByText('주문 내용 미정 · 1세트')).not.toBeInTheDocument();
     expect(screen.getByText('1건')).toBeInTheDocument();
   });
 

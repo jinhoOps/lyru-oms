@@ -4,6 +4,7 @@ import { FIELD_DEFINITIONS, ORDER_SOURCES, type CapturedOrder, type OrderSource 
 import type { OrderSortMode } from '../domain/orderSorting';
 
 export type OrderSourceFilter = '전체' | OrderSource;
+type OrderListViewMode = 'card' | 'list';
 
 interface OrderListProps {
   orders: CapturedOrder[];
@@ -16,7 +17,40 @@ interface OrderListProps {
   onSelect: (orderId: string) => void;
 }
 
+const ORDER_LIST_VIEW_MODE_KEY = 'lyru-oms.orderList.viewMode.v1';
+
+const sortOptions: Array<{ mode: OrderSortMode; label: string }> = [
+  { mode: 'desiredDate', label: '희망일 빠른 순' },
+  { mode: 'recent', label: '최근 등록순' },
+  { mode: 'quantityDesc', label: '수량 많은 순' },
+];
+
 const fallback = (value: string, label: string) => (value.trim() ? value : label);
+
+const loadOrderListViewMode = (): OrderListViewMode => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return 'list';
+    }
+
+    const stored = localStorage.getItem(ORDER_LIST_VIEW_MODE_KEY);
+    return stored === 'card' || stored === 'list' ? stored : 'list';
+  } catch {
+    return 'list';
+  }
+};
+
+const saveOrderListViewMode = (mode: OrderListViewMode) => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.setItem(ORDER_LIST_VIEW_MODE_KEY, mode);
+  } catch {
+    // Ignore blocked storage; the in-memory state still updates.
+  }
+};
 
 const summarizeOrder = (order: CapturedOrder) => {
   const item = fallback(order.orderItems, '주문 내용 미정');
@@ -89,12 +123,23 @@ export function OrderList({
   onSelect,
 }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
-  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
+  const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+
+  function setViewMode(mode: OrderListViewMode) {
+    setViewModeState(mode);
+    saveOrderListViewMode(mode);
+  }
 
   function toggleRawText(orderId: string) {
     setExpandedRawTextIds((current) =>
       current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId],
     );
+  }
+
+  function chooseSortMode(mode: OrderSortMode) {
+    onSortModeChange(mode);
+    setSortMenuOpen(false);
   }
 
   const header = (
@@ -117,14 +162,51 @@ export function OrderList({
               ))}
             </select>
           </label>
-          <label className="sortControl">
-            정렬
-            <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as OrderSortMode)}>
-              <option value="desiredDate">희망일 빠른 순</option>
-              <option value="recent">최근 등록순</option>
-              <option value="quantityDesc">수량 많은 순</option>
-            </select>
-          </label>
+          <div
+            className="sortMenuWrap"
+            onBlur={(event) => {
+              const nextFocus = event.relatedTarget;
+
+              if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
+                setSortMenuOpen(false);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setSortMenuOpen(false);
+              }
+            }}
+          >
+            <button
+              type="button"
+              className="iconButton sortButton"
+              aria-label="정렬 방식"
+              aria-expanded={sortMenuOpen}
+              onClick={() => setSortMenuOpen((open) => !open)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setSortMenuOpen(false);
+                }
+              }}
+            >
+              ↕
+            </button>
+            {sortMenuOpen ? (
+              <div className="sortMenu" role="radiogroup" aria-label="정렬 방식">
+                {sortOptions.map((option) => (
+                  <label key={option.mode} className="sortMenuOption">
+                    <input
+                      type="radio"
+                      name="order-sort-mode"
+                      checked={sortMode === option.mode}
+                      onChange={() => chooseSortMode(option.mode)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
+          </div>
           <div className="viewToggle" aria-label="주문 목록 보기 방식">
             <button
               type="button"

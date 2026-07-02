@@ -78,32 +78,81 @@ const renderOrderList = (overrides: Partial<ComponentProps<typeof OrderList>> = 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-07-01T03:00:00.000Z'));
+  localStorage.clear();
 });
 
 describe('OrderList', () => {
   it('does not show full raw text until expanded for information shortage', () => {
     renderOrderList();
+    fireEvent.click(screen.getByRole('button', { name: '카드형 보기' }));
+
     expect(screen.queryByText('성함: 김리루')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '원문 보기' }));
     expect(screen.getByText('성함: 김리루')).toBeInTheDocument();
   });
 
-  it('switches to compact list mode and hides raw text expansion', () => {
+  it('defaults to compact list mode and hides raw text expansion', () => {
     renderOrderList();
-
-    fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
     expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('persists card and list view mode changes', () => {
+    renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '카드형 보기' }));
+    expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('card');
+    expect(screen.getByRole('button', { name: '카드형 보기' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
+    expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('list');
+    expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('hydrates invalid stored view mode to compact list mode', () => {
+    localStorage.setItem('lyru-oms.orderList.viewMode.v1', 'table');
+
+    renderOrderList();
+
+    expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('falls back to list mode when stored view mode cannot be read', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    try {
+      renderOrderList();
+
+      expect(screen.getByRole('button', { name: '목록형 보기' })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
+  it('still switches view mode when storing the preference fails', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError');
+    });
+
+    try {
+      renderOrderList();
+      fireEvent.click(screen.getByRole('button', { name: '카드형 보기' }));
+
+      expect(screen.getByRole('button', { name: '카드형 보기' })).toHaveAttribute('aria-pressed', 'true');
+    } finally {
+      setItem.mockRestore();
+    }
   });
 
   it('shows only essential fields in compact list mode', () => {
     renderOrderList({
       orders: [{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }],
     });
-
-    fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
     expect(screen.getAllByText('확인 필요')).toHaveLength(2);
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
@@ -130,14 +179,18 @@ describe('OrderList', () => {
     expect(screen.getByText('희망일 미정 · 수령 방식 없음')).toBeInTheDocument();
   });
 
-  it('shows registered date up to the minute', () => {
+  it('shows registered date up to the minute in card mode', () => {
     renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '카드형 보기' }));
 
     expect(screen.getByText('등록 2026-06-30 09:00')).toBeInTheDocument();
   });
 
   it('shows D-Day badge and review reason counts in card mode', () => {
     renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '카드형 보기' }));
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
@@ -160,16 +213,72 @@ describe('OrderList', () => {
     expect(screen.getByText('채워야 할 정보 2개')).toBeInTheDocument();
   });
 
-  it('shows sort controls separately from view controls', () => {
+  it('opens sort menu, chooses a sort mode, and closes the menu', () => {
     const onSortModeChange = vi.fn();
 
-    renderOrderList({ onSortModeChange });
+    renderOrderList({ onSortModeChange, sortMode: 'desiredDate' });
 
-    fireEvent.change(screen.getByLabelText('정렬'), { target: { value: 'quantityDesc' } });
+    fireEvent.click(screen.getByRole('button', { name: '정렬 방식' }));
+    const sortGroup = screen.getByRole('radiogroup', { name: '정렬 방식' });
+
+    expect(within(sortGroup).getByRole('radio', { name: '희망일 빠른 순' })).toBeChecked();
+
+    fireEvent.click(within(sortGroup).getByRole('radio', { name: '수량 많은 순' }));
 
     expect(onSortModeChange).toHaveBeenCalledWith('quantityDesc');
+    expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: '카드형 보기' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '목록형 보기' })).toBeInTheDocument();
+  });
+
+  it('uses native radio controls in the sort menu', () => {
+    renderOrderList({ sortMode: 'quantityDesc' });
+
+    fireEvent.click(screen.getByRole('button', { name: '정렬 방식' }));
+    const sortGroup = screen.getByRole('radiogroup', { name: '정렬 방식' });
+    const quantitySort = within(sortGroup).getByRole('radio', { name: '수량 많은 순' });
+
+    expect(quantitySort).toBeInstanceOf(HTMLInputElement);
+    expect(quantitySort).toHaveAttribute('type', 'radio');
+    expect(quantitySort).toBeChecked();
+  });
+
+  it('closes sort menu on Escape', () => {
+    renderOrderList();
+
+    const sortButton = screen.getByRole('button', { name: '정렬 방식' });
+    fireEvent.click(sortButton);
+    expect(screen.getByRole('radiogroup', { name: '정렬 방식' })).toBeInTheDocument();
+
+    fireEvent.keyDown(sortButton, { key: 'Escape' });
+
+    expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
+  });
+
+  it('closes sort menu on Escape from a radio inside the panel', () => {
+    renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '정렬 방식' }));
+    const sortGroup = screen.getByRole('radiogroup', { name: '정렬 방식' });
+    const quantitySort = within(sortGroup).getByRole('radio', { name: '수량 많은 순' });
+    quantitySort.focus();
+
+    fireEvent.keyDown(quantitySort, { key: 'Escape' });
+
+    expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
+  });
+
+  it('closes sort menu when focus leaves the menu area', () => {
+    renderOrderList();
+
+    const sortButton = screen.getByRole('button', { name: '정렬 방식' });
+    const listViewButton = screen.getByRole('button', { name: '목록형 보기' });
+    fireEvent.click(sortButton);
+    expect(screen.getByRole('radiogroup', { name: '정렬 방식' })).toBeInTheDocument();
+
+    fireEvent.blur(sortButton.parentElement as HTMLElement, { relatedTarget: listViewButton });
+
+    expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
   });
 
   it('renders visible count and emits source filter changes', () => {
