@@ -29,6 +29,16 @@ If there is no `.codegraph/` directory, skip CodeGraph entirely.
 - For UI work, prioritize mobile web, readable Korean labels, fast order lookup, and low cognitive load.
 - Avoid introducing complex collaboration, automation, or analytics features before the core order and request workflow is reliable.
 
+## Workflow Source of Truth
+
+- GSD `.planning` documents are the product charter, requirements, roadmap, and long-term context store.
+- Superpowers skills are the source of truth for current work execution: design, planning, implementation, and verification.
+- Before substantial work, read `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`, `.planning/ROADMAP.md`, and `.planning/STATE.md` for product context, then continue through the relevant Superpowers skill.
+- Start new feature, behavior-change, or workflow-design work with `$superpowers:brainstorming` unless the user explicitly requests a different skill.
+- After an approved design, move to `$superpowers:writing-plans` before implementation.
+- Run `$gsd-*` commands only when the user explicitly asks for a GSD workflow.
+- Do not interpret `.planning/STATE.md` as a GSD execution queue when it conflicts with this section.
+
 ## Product Principles
 
 - The system acts like a reliable operations assistant, not a generic dashboard.

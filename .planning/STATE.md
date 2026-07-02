@@ -9,10 +9,14 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 
 ## Workflow State
 
-- **Status:** initialized
+- **Status:** active-superpowers-workflow
 - **Language:** Korean
-- **Planning mode:** MVP
-- **Next command:** `$gsd-discuss-phase 1`
+- **Planning mode:** Superpowers execution; GSD documents retained as roadmap context
+- **Next command:** `$superpowers:brainstorming` for new feature/design work
+
+GSD `.planning` documents remain the product charter, requirements, roadmap, and long-term context store. Superpowers skills are the source of truth for current work execution.
+
+Run `$gsd-*` commands only when the user explicitly asks for a GSD workflow.
 
 ## Active Phase
 
@@ -21,6 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 **Goal:** 사장님이 여러 채널의 주문/문의 원문을 붙여넣고, 가능한 항목을 구조화해 정보 부족과 확인 필요 주문을 빠르게 볼 수 있다.
 
 **Requirements:** ORD-03, ORD-04, ORD-05, ORD-06, REQ-05, REQ-06, REQ-07, REQ-08, REQ-09, REQ-10, REQ-11, REQ-12, REQ-13, DATA-03, DATA-04, DATA-05
+
+**Current implementation note:** Recent commits indicate Phase 1 order standardization and parser refinement work has been implemented. The next product decision should be Phase 1 verification/closeout or Phase 2 design kickoff.
 
 ## Notes for Agents
 
