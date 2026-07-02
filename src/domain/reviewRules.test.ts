@@ -277,7 +277,7 @@ describe('evaluateOrder', () => {
         expect.objectContaining({
           group: 'check',
           code: 'ambiguous-quantity',
-          label: '수량 후보 여러 개',
+          label: '수량 예측 여러 개',
         }),
       ]),
     );
@@ -356,7 +356,7 @@ describe('evaluateOrder', () => {
           group: 'check',
           code: 'ambiguous-quantity',
           field: 'quantity',
-          label: '수량 후보 여러 개',
+          label: '수량 예측 여러 개',
           message: '수량으로 볼 수 있는 표현이 여러 개라 확인이 필요합니다.',
         },
       ]),

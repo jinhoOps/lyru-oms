@@ -105,7 +105,7 @@ const summarizeQuantityCandidates = (candidates: readonly QuantityCandidate[]) =
     return candidates[0].rawText;
   }
 
-  return `${candidates.map((candidate) => candidate.rawText).join(' / ')} 후보`;
+  return `${candidates.map((candidate) => candidate.rawText).join(' / ')} (예측)`;
 };
 
 const isQuantityOnlyLine = (line: string) => {

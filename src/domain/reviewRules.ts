@@ -135,7 +135,7 @@ const createCheckReasons = (order: CapturedOrder, settings: OrderSettings): Revi
     reviewReasons.push(
       checkReason(
         'ambiguous-quantity',
-        '수량 후보 여러 개',
+        '수량 예측 여러 개',
         '수량으로 볼 수 있는 표현이 여러 개라 확인이 필요합니다.',
         {
           field: 'quantity',

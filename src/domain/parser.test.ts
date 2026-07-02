@@ -28,7 +28,7 @@ describe('parseRawText', () => {
 
     expect(parsed.purpose).toBe('답례품');
     expect(parsed.orderItems).toBe('대추야자 2구/9구');
-    expect(parsed.quantity).toBe('180개 / 20개 후보');
+    expect(parsed.quantity).toBe('180개 / 20개 (예측)');
     expect(parsed.quantityCandidates).toEqual([
       { value: 180, unit: '개', rawText: '180개' },
       { value: 20, unit: '개', rawText: '20개' },
