@@ -35,6 +35,24 @@ describe('orderSorting', () => {
     expect(ids(sortOrders(orders, 'desiredDate'))).toEqual(['earlier', 'later', 'unknown-new', 'unknown-old']);
   });
 
+  it('falls back to midnight when parsed desired date time text is invalid', () => {
+    const orders = [
+      order({ id: 'later', desiredDateTime: '2026-07-04' }),
+      order({
+        id: 'invalid-time-text',
+        parsedDate: {
+          isoDate: '2026-07-03',
+          timeText: '오후 2시',
+          originalText: '7월 3일 오후 2시',
+          isRelative: false,
+        },
+      }),
+      order({ id: 'earlier', desiredDateTime: '2026-07-02' }),
+    ];
+
+    expect(ids(sortOrders(orders, 'desiredDate'))).toEqual(['earlier', 'invalid-time-text', 'later']);
+  });
+
   it('sorts by recent registration', () => {
     const orders = [
       order({ id: 'old', createdAt: '2026-07-01T00:00:00.000Z' }),

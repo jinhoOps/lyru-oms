@@ -105,7 +105,8 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     publish({
       ...order,
       changeRequestNote,
-      changeRequestConfirmed: changeRequestNote.trim() ? order.changeRequestConfirmed : false,
+      changeRequestConfirmed:
+        changeRequestNote.trim() !== order.changeRequestNote.trim() ? false : order.changeRequestConfirmed,
     });
   }
 

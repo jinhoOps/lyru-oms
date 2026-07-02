@@ -6,8 +6,12 @@ export type OrderSortMode = 'desiredDate' | 'recent' | 'quantityDesc';
 const toTime = (isoDate: string) => {
   const time = new Date(isoDate).getTime();
 
-  return Number.isFinite(time) ? time : 0;
+  return Number.isFinite(time) ? time : null;
 };
+
+const getRecentTime = (order: CapturedOrder) => toTime(order.createdAt) ?? 0;
+
+const getSafeTimeText = (timeText: string) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(timeText) ? timeText : '00:00');
 
 const getDesiredDateTime = (order: CapturedOrder) => {
   const parsed = order.desiredDateTime.trim() ? parseExplicitDate(order.desiredDateTime) : order.parsedDate;
@@ -16,7 +20,7 @@ const getDesiredDateTime = (order: CapturedOrder) => {
     return null;
   }
 
-  return toTime(`${parsed.isoDate}T${parsed.timeText || '00:00'}:00.000+09:00`);
+  return toTime(`${parsed.isoDate}T${getSafeTimeText(parsed.timeText)}:00.000+09:00`);
 };
 
 export const getComparableQuantity = (order: CapturedOrder): number | null => {
@@ -33,55 +37,46 @@ export const getComparableQuantity = (order: CapturedOrder): number | null => {
   return Math.max(...numericMatches);
 };
 
-const compareRecent = (a: CapturedOrder, b: CapturedOrder) => toTime(b.createdAt) - toTime(a.createdAt);
+const compareRecent = (a: CapturedOrder, b: CapturedOrder) => getRecentTime(b) - getRecentTime(a);
 
-const compareDesiredDate = (a: CapturedOrder, b: CapturedOrder) => {
-  const aDate = getDesiredDateTime(a);
-  const bDate = getDesiredDateTime(b);
+type SortKey = number | null;
 
-  if (aDate !== null && bDate !== null && aDate !== bDate) {
-    return aDate - bDate;
+const compareNullableKeys = (aKey: SortKey, bKey: SortKey, direction: 'asc' | 'desc') => {
+  if (aKey !== null && bKey !== null && aKey !== bKey) {
+    return direction === 'asc' ? aKey - bKey : bKey - aKey;
   }
 
-  if (aDate !== null && bDate === null) {
+  if (aKey !== null && bKey === null) {
     return -1;
   }
 
-  if (aDate === null && bDate !== null) {
+  if (aKey === null && bKey !== null) {
     return 1;
   }
 
-  return compareRecent(a, b);
+  return 0;
 };
 
-const compareQuantityDesc = (a: CapturedOrder, b: CapturedOrder) => {
-  const aQuantity = getComparableQuantity(a);
-  const bQuantity = getComparableQuantity(b);
-
-  if (aQuantity !== null && bQuantity !== null && aQuantity !== bQuantity) {
-    return bQuantity - aQuantity;
+const getSortKey = (order: CapturedOrder, mode: Exclude<OrderSortMode, 'recent'>) => {
+  if (mode === 'quantityDesc') {
+    return getComparableQuantity(order);
   }
 
-  if (aQuantity !== null && bQuantity === null) {
-    return -1;
-  }
-
-  if (aQuantity === null && bQuantity !== null) {
-    return 1;
-  }
-
-  return compareRecent(a, b);
+  return getDesiredDateTime(order);
 };
 
-export const sortOrders = (orders: CapturedOrder[], mode: OrderSortMode): CapturedOrder[] =>
-  [...orders].sort((a, b) => {
-    if (mode === 'recent') {
-      return compareRecent(a, b);
-    }
+export const sortOrders = (orders: CapturedOrder[], mode: OrderSortMode): CapturedOrder[] => {
+  if (mode === 'recent') {
+    return [...orders].sort(compareRecent);
+  }
 
-    if (mode === 'quantityDesc') {
-      return compareQuantityDesc(a, b);
-    }
+  const direction = mode === 'quantityDesc' ? 'desc' : 'asc';
+  const keyedOrders = orders.map((order) => ({
+    order,
+    key: getSortKey(order, mode),
+  }));
 
-    return compareDesiredDate(a, b);
-  });
+  keyedOrders.sort((a, b) => compareNullableKeys(a.key, b.key, direction) || compareRecent(a.order, b.order));
+
+  return keyedOrders.map((item) => item.order);
+};
