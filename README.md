@@ -3,6 +3,7 @@
 Lyru OMS(Order Management System)
 
 이 프로젝트는 Vite + React 19 + TypeScript 기반으로 구성되어 있으며, 빌드 후 생성되는 정적 파일들을 통해 쉽게 웹 호스팅 서비스에 배포할 수 있습니다.
+https://jinhoops.github.io/lyru-oms/
 
 ---
 
@@ -24,10 +25,6 @@ npm run dev
 npm run build
 ```
 빌드가 완료되면 루트 디렉토리에 `dist` 폴더가 생성됩니다. 이 `dist` 폴더 내의 정적 파일들을 GitHub Pages, Vercel, Netlify, Cloudflare Pages 등의 서비스에 배포할 수 있습니다.
-
-> 💡 **배포 경로 설정 팁 (vite.config.ts)**
-> - **GitHub Pages** 등으로 하위 경로(`https://<유저명>.github.io/lyru-oms/`)에 배포할 경우: `vite.config.ts` 파일의 `base` 설정이 `'/lyru-oms/'`로 유지되어야 합니다.
-> - **Vercel, Netlify** 또는 커스텀 도메인을 사용해 루트 경로(`https://<도메인>/`)에 배포할 경우: `vite.config.ts` 파일의 `base` 설정을 `'/'`로 변경한 후 빌드해야 리소스가 올바르게 로드됩니다.
 
 ### 4. 빌드 결과물 미리보기
 ```bash
