@@ -28,7 +28,7 @@ const baseOrder = (overrides: Partial<CapturedOrder> = {}): CapturedOrder => ({
   missingFields: [],
   reviewReasons: [],
   warningLevel: 'none',
-  status: '확인필요',
+  status: '확인 필요',
   createdAt: '2026-06-30T00:00:00.000Z',
   updatedAt: '2026-06-30T00:00:00.000Z',
   ...overrides,
@@ -126,7 +126,110 @@ describe('OrderDetail', () => {
     expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
   });
 
-  it('keeps an order with review reasons in 확인필요 when status select tries to save 수집', async () => {
+  it('shows unconfirmed change request in the confirmation summary', () => {
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '수령 시간을 오후 3시로 변경', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const reviewBox = screen.getByLabelText('확인 필요 사유');
+
+    expect(within(reviewBox).getByText('변경 요청 확인 필요')).toBeInTheDocument();
+  });
+
+  it('edits change request note and confirmation state', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '픽업 시간을 오후 3시로 변경',
+        changeRequestConfirmed: false,
+      }),
+    );
+  });
+
+  it('allows confirming an existing change request', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('checkbox', { name: '변경 요청 확인됨' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '픽업 시간을 오후 3시로 변경',
+        changeRequestConfirmed: true,
+      }),
+    );
+  });
+
+  it('resets change request confirmation when confirmed note text changes', () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '픽업 시간을 오후 4시로 변경' } });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '픽업 시간을 오후 4시로 변경',
+        changeRequestConfirmed: false,
+      }),
+    );
+  });
+
+  it('preserves change request confirmation when only surrounding spaces change', () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '  픽업 시간을 오후 3시로 변경  ',
+        changeRequestConfirmed: true,
+      }),
+    );
+  });
+
+  it('keeps an order with review reasons in 확인 필요 when status select tries to save 신규', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
       phone: '',
@@ -143,22 +246,22 @@ describe('OrderDetail', () => {
         },
       ],
       warningLevel: 'attention',
-      status: '확인필요',
+      status: '확인 필요',
     });
 
     render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
-    await userEvent.selectOptions(screen.getByLabelText('상태'), '수집');
+    await userEvent.selectOptions(screen.getByLabelText('상태'), '신규');
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: '확인필요',
+        status: '확인 필요',
         warningLevel: 'attention',
       }),
     );
   });
 
-  it('allows 정리 완료 even when review reasons remain', async () => {
+  it('allows 제작 준비 even when review reasons remain', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
       phone: '',
@@ -175,16 +278,16 @@ describe('OrderDetail', () => {
         },
       ],
       warningLevel: 'attention',
-      status: '확인필요',
+      status: '확인 필요',
     });
 
     render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
-    await userEvent.selectOptions(screen.getByLabelText('상태'), '정리 완료');
+    await userEvent.selectOptions(screen.getByLabelText('상태'), '제작 준비');
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: '정리 완료',
+        status: '제작 준비',
         warningLevel: 'attention',
       }),
     );

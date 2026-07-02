@@ -7,12 +7,14 @@ import { QuestionNote } from './components/QuestionNote';
 import { SettingsModal } from './components/SettingsModal';
 import { type CapturedOrder, type OrderSettings } from './domain/orderTypes';
 import { evaluateOrder } from './domain/reviewRules';
+import { sortOrders, type OrderSortMode } from './domain/orderSorting';
 import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/storage';
 
 export default function App() {
   const [orders, setOrders] = useState<CapturedOrder[]>(() => loadOrders());
   const [settings, setSettings] = useState<OrderSettings>(() => loadSettings());
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<OrderSortMode>('desiredDate');
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function App() {
     () => orders.find((order) => order.id === selectedId) ?? null,
     [orders, selectedId],
   );
+  const displayOrders = useMemo(() => sortOrders(orders, sortMode), [orders, sortMode]);
 
   function handleSaveOrder(order: CapturedOrder) {
     setOrders((current) => [order, ...current]);
@@ -71,7 +74,13 @@ export default function App() {
             />
           </section>
 
-          <OrderList orders={orders} selectedId={selectedId} onSelect={setSelectedId} />
+          <OrderList
+            orders={displayOrders}
+            selectedId={selectedId}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            onSelect={setSelectedId}
+          />
 
           <OrderDetail
             order={selectedOrder}

@@ -22,7 +22,7 @@ describe('storage', () => {
       id: '1',
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
-      status: '수집',
+      status: '신규',
       menuMatches: [],
       quantityCandidates: [],
       parsedDate: null,
@@ -76,6 +76,7 @@ describe('storage', () => {
     expect(loadOrders()).toEqual([
       {
         ...legacyOrder,
+        status: '신규',
         menuMatches: [],
         quantityCandidates: [],
         parsedDate: null,
@@ -105,7 +106,106 @@ describe('storage', () => {
 
     localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([storedLegacyOrder]));
 
-    expect(loadOrders()).toEqual([legacyOrder]);
+    expect(loadOrders()).toEqual([{ ...legacyOrder, status: '신규' }]);
+  });
+
+  it('hydrates legacy order statuses into operating statuses', () => {
+    localStorage.setItem(
+      'lyru-oms.orders.v1',
+      JSON.stringify([
+        {
+          ...EMPTY_ORDER_FIELDS,
+          id: 'new',
+          source: '카카오톡 채널',
+          rawText: '신규 주문',
+          status: '수집',
+          menuMatches: [],
+          quantityCandidates: [],
+          parsedDate: null,
+          manuallyEditedFields: [],
+          reparseDifferences: [],
+          missingFields: [],
+          reviewReasons: [],
+          warningLevel: 'none',
+          createdAt: '2026-06-30T09:00:00.000Z',
+          updatedAt: '2026-06-30T09:00:00.000Z',
+        },
+        {
+          ...EMPTY_ORDER_FIELDS,
+          id: 'attention',
+          source: '카카오톡 채널',
+          rawText: '확인 필요 주문',
+          status: '확인필요',
+          menuMatches: [],
+          quantityCandidates: [],
+          parsedDate: null,
+          manuallyEditedFields: [],
+          reparseDifferences: [],
+          missingFields: [],
+          reviewReasons: [],
+          warningLevel: 'none',
+          createdAt: '2026-06-30T09:00:00.000Z',
+          updatedAt: '2026-06-30T09:00:00.000Z',
+        },
+        {
+          ...EMPTY_ORDER_FIELDS,
+          id: 'ready',
+          source: '카카오톡 채널',
+          rawText: '정리 완료 주문',
+          status: '정리 완료',
+          menuMatches: [],
+          quantityCandidates: [],
+          parsedDate: null,
+          manuallyEditedFields: [],
+          reparseDifferences: [],
+          missingFields: [],
+          reviewReasons: [],
+          warningLevel: 'none',
+          createdAt: '2026-06-30T09:00:00.000Z',
+          updatedAt: '2026-06-30T09:00:00.000Z',
+        },
+      ]),
+    );
+
+    expect(loadOrders().map((order) => [order.id, order.status])).toEqual([
+      ['new', '신규'],
+      ['attention', '확인 필요'],
+      ['ready', '제작 준비'],
+    ]);
+  });
+
+  it('hydrates missing change request fields with safe defaults', () => {
+    const legacyOrder = {
+      ...EMPTY_ORDER_FIELDS,
+      id: 'legacy-change',
+      source: '카카오톡 채널',
+      rawText: '성함: 김리루',
+      status: '수집',
+      menuMatches: [],
+      quantityCandidates: [],
+      parsedDate: null,
+      manuallyEditedFields: [],
+      reparseDifferences: [],
+      missingFields: [],
+      reviewReasons: [],
+      warningLevel: 'none',
+      createdAt: '2026-06-30T09:00:00.000Z',
+      updatedAt: '2026-06-30T09:00:00.000Z',
+    };
+    const {
+      changeRequestNote: _changeRequestNote,
+      changeRequestConfirmed: _changeRequestConfirmed,
+      ...storedLegacyOrder
+    } = legacyOrder;
+
+    localStorage.setItem('lyru-oms.orders.v1', JSON.stringify([storedLegacyOrder]));
+
+    expect(loadOrders()[0]).toEqual(
+      expect.objectContaining({
+        changeRequestNote: '',
+        changeRequestConfirmed: false,
+      }),
+    );
   });
 
   it('loads stored orders with new-shape review reasons', () => {
@@ -114,7 +214,7 @@ describe('storage', () => {
       id: 'review-reason',
       source: '카카오톡 채널',
       rawText: '배송 요청 확인 필요',
-      status: '확인필요',
+      status: '확인 필요',
       menuMatches: [],
       quantityCandidates: [],
       parsedDate: null,
@@ -172,6 +272,7 @@ describe('storage', () => {
     expect(loadOrders()).toEqual([
       {
         ...legacyReviewReasonOrder,
+        status: '확인 필요',
         reviewReasons: [
           {
             kind: '정보 부족',
@@ -192,7 +293,7 @@ describe('storage', () => {
       id: '1',
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
-      status: '수집',
+      status: '신규',
       menuMatches: [],
       quantityCandidates: [],
       parsedDate: null,
@@ -237,7 +338,7 @@ describe('storage', () => {
       id: '1',
       source: '카카오톡 채널',
       rawText: '성함: 김리루',
-      status: '수집',
+      status: '신규',
       menuMatches: [],
       quantityCandidates: [],
       parsedDate: null,

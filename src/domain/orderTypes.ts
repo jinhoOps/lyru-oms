@@ -7,7 +7,7 @@ export const ORDER_SOURCES = [
   '기타',
 ] as const;
 
-export const ORDER_STATUSES = ['수집', '확인필요', '정리 완료'] as const;
+export const ORDER_STATUSES = ['신규', '확인 필요', '제작 준비', '발송 완료'] as const;
 
 export type OrderSource = (typeof ORDER_SOURCES)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
@@ -118,6 +118,8 @@ export interface CapturedOrder {
   options: string;
   customerRequestNote: string;
   ownerMemo: string;
+  changeRequestNote: string;
+  changeRequestConfirmed: boolean;
   menuMatches: MenuMatch[];
   quantityCandidates: QuantityCandidate[];
   parsedDate: ParsedDateValue | null;
@@ -175,4 +177,9 @@ export const EMPTY_ORDER_FIELDS = {
   options: '',
   customerRequestNote: '',
   ownerMemo: '',
-} as const satisfies Record<OrderFieldKey, string>;
+  changeRequestNote: '',
+  changeRequestConfirmed: false,
+} as const satisfies Record<OrderFieldKey, string> & {
+  changeRequestNote: string;
+  changeRequestConfirmed: boolean;
+};

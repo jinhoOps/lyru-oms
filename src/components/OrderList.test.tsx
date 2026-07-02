@@ -53,7 +53,7 @@ const order: CapturedOrder = {
     },
   ],
   warningLevel: 'attention',
-  status: '확인필요',
+  status: '확인 필요',
   createdAt: '2026-06-30T00:00:00.000Z',
   updatedAt: '2026-06-30T00:00:00.000Z',
 };
@@ -65,7 +65,15 @@ beforeEach(() => {
 
 describe('OrderList', () => {
   it('does not show full raw text until expanded for information shortage', () => {
-    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[order]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
     expect(screen.queryByText('성함: 김리루')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '원문 보기' }));
@@ -73,7 +81,15 @@ describe('OrderList', () => {
   });
 
   it('switches to compact list mode and hides raw text expansion', () => {
-    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[order]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
 
     fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
@@ -86,13 +102,15 @@ describe('OrderList', () => {
       <OrderList
         orders={[{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }]}
         selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
-    expect(screen.getByText('확인필요')).toBeInTheDocument();
+    expect(screen.getAllByText('확인 필요')).toHaveLength(2);
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
     expect(screen.queryByText('곶감밀푀유 · 5개')).not.toBeInTheDocument();
@@ -105,25 +123,57 @@ describe('OrderList', () => {
   });
 
   it('shows fulfillment type in the primary list fields', () => {
-    render(<OrderList orders={[{ ...order, fulfillmentType: '픽업' }]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[{ ...order, fulfillmentType: '픽업' }]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('희망일 미정 · 픽업')).toBeInTheDocument();
   });
 
   it('shows fallback when fulfillment type is empty', () => {
-    render(<OrderList orders={[{ ...order, fulfillmentType: '' }]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[{ ...order, fulfillmentType: '' }]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('희망일 미정 · 수령 방식 없음')).toBeInTheDocument();
   });
 
   it('shows registered date up to the minute', () => {
-    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[order]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('등록 2026-06-30 09:00')).toBeInTheDocument();
   });
 
   it('shows D-Day badge and review reason counts in card mode', () => {
-    render(<OrderList orders={[order]} selectedId={null} onSelect={vi.fn()} />);
+    render(
+      <OrderList
+        orders={[order]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
@@ -138,6 +188,8 @@ describe('OrderList', () => {
       <OrderList
         orders={[{ ...order, desiredDateTime: '2026-07-03', parsedDate: null }]}
         selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
@@ -151,11 +203,61 @@ describe('OrderList', () => {
       <OrderList
         orders={[{ ...order, missingFields: ['phone', 'fulfillmentType'], reviewReasons: [] }]}
         selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
 
     expect(screen.getByText('채워야 할 정보 2개')).toBeInTheDocument();
+  });
+
+  it('shows sort controls separately from view controls', () => {
+    const onSortModeChange = vi.fn();
+
+    render(
+      <OrderList
+        orders={[order]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={onSortModeChange}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('정렬'), { target: { value: 'quantityDesc' } });
+
+    expect(onSortModeChange).toHaveBeenCalledWith('quantityDesc');
+    expect(screen.getByRole('button', { name: '카드형 보기' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '목록형 보기' })).toBeInTheDocument();
+  });
+
+  it('shows change confirmation badge for unconfirmed change requests', () => {
+    render(
+      <OrderList
+        orders={[{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: false }]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('변경 확인 필요')).toBeInTheDocument();
+  });
+
+  it('hides change confirmation badge after change request is confirmed', () => {
+    render(
+      <OrderList
+        orders={[{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true }]}
+        selectedId={null}
+        sortMode="desiredDate"
+        onSortModeChange={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('변경 확인 필요')).not.toBeInTheDocument();
   });
 });
 
