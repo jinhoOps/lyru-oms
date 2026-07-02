@@ -16,7 +16,7 @@ function order(overrides: Partial<CapturedOrder>): CapturedOrder {
     missingFields: [],
     reviewReasons: [],
     warningLevel: 'none',
-    status: '수집',
+    status: '신규',
     createdAt: '2026-06-30T00:00:00.000Z',
     updatedAt: '2026-06-30T00:00:00.000Z',
     ...overrides,
@@ -24,9 +24,9 @@ function order(overrides: Partial<CapturedOrder>): CapturedOrder {
 }
 
 describe('evaluateOrder', () => {
-  it('marks missing required fields and automatically sets 확인필요', () => {
+  it('marks missing required fields and automatically sets 확인 필요', () => {
     const evaluated = evaluateOrder(order({ customerName: '김리루' }), DEFAULT_SETTINGS);
-    expect(evaluated.status).toBe('확인필요');
+    expect(evaluated.status).toBe('확인 필요');
     expect(evaluated.warningLevel).toBe('attention');
     expect(evaluated.missingFields).toContain('orderItems');
   });
@@ -71,19 +71,19 @@ describe('evaluateOrder', () => {
     expect(pickup.missingFields).not.toContain('address');
   });
 
-  it('does not revert 정리 완료 even when settings would flag it', () => {
+  it('does not revert 제작 준비 even when settings would flag it', () => {
     const evaluated = evaluateOrder(
-      order({ status: '정리 완료', quantity: '10' }),
+      order({ status: '제작 준비', quantity: '10' }),
       { ...DEFAULT_SETTINGS, quantityRules: { ...DEFAULT_SETTINGS.quantityRules, bulkRealUnitThreshold: 5 } },
     );
-    expect(evaluated.status).toBe('정리 완료');
+    expect(evaluated.status).toBe('제작 준비');
     expect(evaluated.reviewReasons.some((reason) => reason.kind === '정보 부족')).toBe(true);
   });
 
-  it('does not revert 정리 완료 when a check reason exists', () => {
+  it('does not revert 제작 준비 when a check reason exists', () => {
     const evaluated = evaluateOrder(
       order({
-        status: '정리 완료',
+        status: '제작 준비',
         customerName: '김리루',
         phone: '010',
         orderItems: '곶감밀푀유',
@@ -102,7 +102,7 @@ describe('evaluateOrder', () => {
         }),
       ]),
     );
-    expect(evaluated.status).toBe('정리 완료');
+    expect(evaluated.status).toBe('제작 준비');
   });
 
   it('preserves existing duplicate review reasons while recalculating derived reasons', () => {
@@ -192,7 +192,7 @@ describe('evaluateOrder', () => {
         }),
       ]),
     );
-    expect(evaluated.status).toBe('확인필요');
+    expect(evaluated.status).toBe('확인 필요');
   });
 
   it('flags minimum order rules for shared 2구 and 4구 products', () => {

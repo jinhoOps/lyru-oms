@@ -60,7 +60,7 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
           ]
         : [],
       warningLevel: 'none',
-      status: '수집',
+      status: '신규',
       createdAt: now,
       updatedAt: now,
     };

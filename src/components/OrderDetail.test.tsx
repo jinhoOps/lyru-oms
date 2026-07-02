@@ -28,7 +28,7 @@ const baseOrder = (overrides: Partial<CapturedOrder> = {}): CapturedOrder => ({
   missingFields: [],
   reviewReasons: [],
   warningLevel: 'none',
-  status: '확인필요',
+  status: '확인 필요',
   createdAt: '2026-06-30T00:00:00.000Z',
   updatedAt: '2026-06-30T00:00:00.000Z',
   ...overrides,
@@ -126,7 +126,7 @@ describe('OrderDetail', () => {
     expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
   });
 
-  it('keeps an order with review reasons in 확인필요 when status select tries to save 수집', async () => {
+  it('keeps an order with review reasons in 확인 필요 when status select tries to save 신규', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
       phone: '',
@@ -143,22 +143,22 @@ describe('OrderDetail', () => {
         },
       ],
       warningLevel: 'attention',
-      status: '확인필요',
+      status: '확인 필요',
     });
 
     render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
-    await userEvent.selectOptions(screen.getByLabelText('상태'), '수집');
+    await userEvent.selectOptions(screen.getByLabelText('상태'), '신규');
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: '확인필요',
+        status: '확인 필요',
         warningLevel: 'attention',
       }),
     );
   });
 
-  it('allows 정리 완료 even when review reasons remain', async () => {
+  it('allows 제작 준비 even when review reasons remain', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
       phone: '',
@@ -175,16 +175,16 @@ describe('OrderDetail', () => {
         },
       ],
       warningLevel: 'attention',
-      status: '확인필요',
+      status: '확인 필요',
     });
 
     render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
-    await userEvent.selectOptions(screen.getByLabelText('상태'), '정리 완료');
+    await userEvent.selectOptions(screen.getByLabelText('상태'), '제작 준비');
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: '정리 완료',
+        status: '제작 준비',
         warningLevel: 'attention',
       }),
     );

@@ -28,7 +28,7 @@ describe('OrderCaptureForm', () => {
       expect.objectContaining({
         rawText: '성함: 김리루',
         customerName: '김리루',
-        status: '확인필요',
+        status: '확인 필요',
       }),
     );
   });

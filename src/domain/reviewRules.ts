@@ -202,12 +202,14 @@ export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): Ca
 
   const warningLevel = reviewReasons.length > 0 ? 'attention' : 'none';
 
+  const shouldKeepManualStatus = order.status === '제작 준비' || order.status === '발송 완료' || warningLevel === 'none';
+
   return {
     ...order,
     missingFields: [...missingFields],
     reviewReasons,
     warningLevel,
-    status: order.status === '정리 완료' || warningLevel === 'none' ? order.status : '확인필요',
+    status: shouldKeepManualStatus ? order.status : '확인 필요',
   };
 };
 

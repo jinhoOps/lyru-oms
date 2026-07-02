@@ -19,7 +19,8 @@ const SETTINGS_STORAGE_KEY = 'lyru-oms.settings.v1';
 
 const ORDER_FIELD_KEYS = new Set<OrderFieldKey>(Object.keys(FIELD_DEFINITIONS) as OrderFieldKey[]);
 const ORDER_SOURCE_VALUES = new Set<string>(ORDER_SOURCES);
-const ORDER_STATUS_VALUES = new Set<string>(ORDER_STATUSES);
+const LEGACY_ORDER_STATUSES = new Set<string>(['수집', '확인필요', '정리 완료']);
+const ORDER_STATUS_VALUES = new Set<string>([...ORDER_STATUSES, ...LEGACY_ORDER_STATUSES]);
 const FULFILLMENT_TYPE_VALUES = new Set<string>(['', '픽업', '택배']);
 const REVIEW_REASON_KINDS = new Set<string>(['정보 부족', '확인필요', '중복 가능성']);
 const REVIEW_REASON_GROUPS = new Set<string>(['info', 'check']);
@@ -85,7 +86,7 @@ const isOrderFieldKeyArray = (value: unknown): value is OrderFieldKey[] =>
   Array.isArray(value) && value.every(isOrderFieldKey);
 
 const hasValidStringOrderFields = (value: Record<string, unknown>): boolean =>
-  Object.keys(EMPTY_ORDER_FIELDS).every((field) => value[field] === undefined || typeof value[field] === 'string');
+  Object.keys(FIELD_DEFINITIONS).every((field) => value[field] === undefined || typeof value[field] === 'string');
 
 const isReparseDifferenceArray = (value: unknown): value is CapturedOrder['reparseDifferences'] =>
   Array.isArray(value) &&
@@ -204,6 +205,22 @@ const isParsedDateValue = (value: unknown): value is ParsedDateValue | null =>
     typeof value.originalText === 'string' &&
     typeof value.isRelative === 'boolean');
 
+const hydrateOrderStatus = (status: CapturedOrder['status'] | string): CapturedOrder['status'] => {
+  if (status === '수집') {
+    return '신규';
+  }
+
+  if (status === '확인필요') {
+    return '확인 필요';
+  }
+
+  if (status === '정리 완료') {
+    return '제작 준비';
+  }
+
+  return status as CapturedOrder['status'];
+};
+
 const isStoredOrderBase = (value: unknown): value is CapturedOrder =>
   isPlainObject(value) &&
   typeof value.id === 'string' &&
@@ -226,6 +243,10 @@ const hydrateStoredOrder = (value: CapturedOrder): CapturedOrder => {
   return {
     ...EMPTY_ORDER_FIELDS,
     ...value,
+    status: hydrateOrderStatus(value.status),
+    changeRequestNote: typeof storedValue.changeRequestNote === 'string' ? storedValue.changeRequestNote : '',
+    changeRequestConfirmed:
+      typeof storedValue.changeRequestConfirmed === 'boolean' ? storedValue.changeRequestConfirmed : false,
     menuMatches: isMenuMatchArray(storedValue.menuMatches) ? (storedValue.menuMatches as MenuMatch[]) : [],
     quantityCandidates: isQuantityCandidateArray(storedValue.quantityCandidates)
       ? (storedValue.quantityCandidates as QuantityCandidate[])

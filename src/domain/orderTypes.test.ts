@@ -7,8 +7,8 @@ import {
 } from './orderTypes';
 
 describe('orderTypes defaults', () => {
-  it('uses the confirmed three capture statuses', () => {
-    expect(ORDER_STATUSES).toEqual(['수집', '확인필요', '정리 완료']);
+  it('uses the confirmed operating statuses', () => {
+    expect(ORDER_STATUSES).toEqual(['신규', '확인 필요', '제작 준비', '발송 완료']);
   });
 
   it('keeps Phase 1 default required fields and conditional fields', () => {

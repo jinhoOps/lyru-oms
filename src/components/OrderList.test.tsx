@@ -53,7 +53,7 @@ const order: CapturedOrder = {
     },
   ],
   warningLevel: 'attention',
-  status: '확인필요',
+  status: '확인 필요',
   createdAt: '2026-06-30T00:00:00.000Z',
   updatedAt: '2026-06-30T00:00:00.000Z',
 };
@@ -92,7 +92,7 @@ describe('OrderList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
-    expect(screen.getByText('확인필요')).toBeInTheDocument();
+    expect(screen.getByText('확인 필요')).toBeInTheDocument();
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
     expect(screen.queryByText('곶감밀푀유 · 5개')).not.toBeInTheDocument();
