@@ -57,9 +57,11 @@ const mergeInfoReasonsWithMissingFields = (infoReasons: ReviewReason[], missingF
 export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailProps) {
   const customerNameInputRef = useRef<HTMLInputElement | null>(null);
   const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(() => Boolean(order?.changeRequestNote.trim()));
+  const [rawTextCopied, setRawTextCopied] = useState(false);
 
   useEffect(() => {
     setIsChangeRequestOpen(Boolean(order?.changeRequestNote.trim()));
+    setRawTextCopied(false);
   }, [order?.id]);
 
   if (!order) {
@@ -123,7 +125,18 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
   }
 
   async function handleRawTextCopy() {
-    await navigator.clipboard?.writeText(order.rawText);
+    const rawText = order?.rawText;
+
+    if (rawText === undefined) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard?.writeText(rawText);
+      setRawTextCopied(true);
+    } catch {
+      setRawTextCopied(false);
+    }
   }
 
   const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
@@ -171,11 +184,12 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
         <div className="detailHeaderActions">
           <button
             type="button"
-            className="secondaryButton"
+            className={`changeRequestButton ${hasUnconfirmedChangeRequest ? 'attention' : ''}`}
             aria-expanded={isChangeRequestOpen}
             onClick={() => setIsChangeRequestOpen((current) => !current)}
           >
-            변경 요청{hasUnconfirmedChangeRequest ? ' 확인 필요' : ''}
+            변경 요청
+            {hasUnconfirmedChangeRequest ? <span>확인 필요</span> : null}
           </button>
           <label className="statusSelect">
             상태
@@ -234,7 +248,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       {isChangeRequestOpen ? (
         <section className="changeRequestSection" aria-label="변경 요청 편집">
           <label className="fieldBlock spanAll">
-            변경 요청
+            <span>변경 요청</span>
             <textarea
               aria-label="변경 요청 내용"
               value={order.changeRequestNote}
@@ -289,11 +303,11 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
         })}
       </div>
 
-      <section className="rawTextDetail">
+      <section className="rawTextCopySection" aria-label="주문 원문 보관">
         <div className="rawTextDetailHeader">
           <h3>주문/문의 원문</h3>
           <button type="button" className="secondaryButton" aria-label="주문/문의 원문 복사" onClick={handleRawTextCopy}>
-            복사
+            {rawTextCopied ? '복사됨' : '복사'}
           </button>
         </div>
         <textarea value={order.rawText} rows={7} readOnly aria-label="주문/문의 원문" />
