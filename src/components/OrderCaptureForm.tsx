@@ -1,7 +1,6 @@
 import { type FormEvent, useMemo, useState } from 'react';
 import {
   EMPTY_ORDER_FIELDS,
-  ORDER_SOURCES,
   type CapturedOrder,
   type OrderSettings,
   type OrderSource,
@@ -12,6 +11,7 @@ import { evaluateOrder } from '../domain/reviewRules';
 interface OrderCaptureFormProps {
   existingRawTexts: string[];
   settings: OrderSettings;
+  source: OrderSource;
   onSave: (order: CapturedOrder) => void;
 }
 
@@ -23,8 +23,7 @@ const createOrderId = () => {
   return `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 };
 
-export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCaptureFormProps) {
-  const [source, setSource] = useState<OrderSource>('카카오톡 채널');
+export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }: OrderCaptureFormProps) {
   const [rawText, setRawText] = useState('');
 
   const parsed = useMemo(() => parseRawText(rawText), [rawText]);
@@ -71,14 +70,6 @@ export function OrderCaptureForm({ existingRawTexts, settings, onSave }: OrderCa
 
   return (
     <form className="captureForm" onSubmit={handleSubmit}>
-      <label>
-        출처
-        <select value={source} onChange={(event) => setSource(event.target.value as OrderSource)}>
-          {ORDER_SOURCES.map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
-      </label>
       <label>
         주문/문의 원문
         <span className="inputHelp">네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.</span>

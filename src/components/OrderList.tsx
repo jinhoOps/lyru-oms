@@ -1,13 +1,18 @@
 import { useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
-import { FIELD_DEFINITIONS, type CapturedOrder } from '../domain/orderTypes';
+import { FIELD_DEFINITIONS, ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
 import type { OrderSortMode } from '../domain/orderSorting';
+
+export type OrderSourceFilter = '전체' | OrderSource;
 
 interface OrderListProps {
   orders: CapturedOrder[];
+  totalOrderCount: number;
   selectedId: string | null;
   sortMode: OrderSortMode;
+  sourceFilter: OrderSourceFilter;
   onSortModeChange: (mode: OrderSortMode) => void;
+  onSourceFilterChange: (source: OrderSourceFilter) => void;
   onSelect: (orderId: string) => void;
 }
 
@@ -73,7 +78,16 @@ const getDisplayDate = (order: CapturedOrder) => {
   return parsedDesiredDate ?? order.parsedDate;
 };
 
-export function OrderList({ orders, selectedId, sortMode, onSortModeChange, onSelect }: OrderListProps) {
+export function OrderList({
+  orders,
+  totalOrderCount,
+  selectedId,
+  sortMode,
+  sourceFilter,
+  onSortModeChange,
+  onSourceFilterChange,
+  onSelect,
+}: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
 
@@ -83,27 +97,26 @@ export function OrderList({ orders, selectedId, sortMode, onSortModeChange, onSe
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <section className="orderListPanel" aria-label="주문 목록">
-        <div className="sectionHeader">
+  const header = (
+    <div className="listHeader">
+      <div className="sectionHeader">
+        <div>
           <h2>주문 목록</h2>
           <p>주문을 빠르게 훑고 선택합니다.</p>
         </div>
-        <p className="emptyState">아직 저장된 주문이 없습니다.</p>
-      </section>
-    );
-  }
-
-  return (
-    <section className="orderListPanel" aria-label="주문 목록">
-      <div className="listHeader">
-        <div className="sectionHeader">
-          <h2>주문 목록</h2>
-          <p>주문을 빠르게 훑고 선택합니다.</p>
-        </div>
-        <div className="listHeaderActions">
-          <span>{orders.length}건</span>
+        <div className="sectionHeaderActions listHeaderActions">
+          <span className="orderCount">{orders.length}건</span>
+          <label className="headerSelectControl">
+            주문 목록 출처
+            <select value={sourceFilter} onChange={(event) => onSourceFilterChange(event.target.value as OrderSourceFilter)}>
+              <option value="전체">전체</option>
+              {ORDER_SOURCES.map((source) => (
+                <option key={source} value={source}>
+                  {source}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="sortControl">
             정렬
             <select value={sortMode} onChange={(event) => onSortModeChange(event.target.value as OrderSortMode)}>
@@ -136,6 +149,23 @@ export function OrderList({ orders, selectedId, sortMode, onSortModeChange, onSe
           </div>
         </div>
       </div>
+    </div>
+  );
+
+  if (orders.length === 0) {
+    return (
+      <section className="orderListPanel" aria-label="주문 목록">
+        {header}
+        <p className="emptyState">
+          {totalOrderCount === 0 ? '아직 저장된 주문이 없습니다.' : '선택한 출처의 주문이 없습니다.'}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="orderListPanel" aria-label="주문 목록">
+      {header}
       <div className={viewMode === 'list' ? 'orderList compact' : 'orderList'}>
         {orders.map((order) => {
           const isExpanded = expandedRawTextIds.includes(order.id);

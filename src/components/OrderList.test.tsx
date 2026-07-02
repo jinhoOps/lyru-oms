@@ -1,4 +1,5 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_ORDER_FIELDS, type CapturedOrder } from '../domain/orderTypes';
 import { OrderList } from './OrderList';
@@ -58,6 +59,22 @@ const order: CapturedOrder = {
   updatedAt: '2026-06-30T00:00:00.000Z',
 };
 
+const renderOrderList = (overrides: Partial<ComponentProps<typeof OrderList>> = {}) => {
+  const props: ComponentProps<typeof OrderList> = {
+    orders: [order],
+    totalOrderCount: 1,
+    selectedId: null,
+    sortMode: 'desiredDate',
+    sourceFilter: '전체',
+    onSortModeChange: vi.fn(),
+    onSourceFilterChange: vi.fn(),
+    onSelect: vi.fn(),
+    ...overrides,
+  };
+
+  return render(<OrderList {...props} />);
+};
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-07-01T03:00:00.000Z'));
@@ -65,15 +82,7 @@ beforeEach(() => {
 
 describe('OrderList', () => {
   it('does not show full raw text until expanded for information shortage', () => {
-    render(
-      <OrderList
-        orders={[order]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList();
     expect(screen.queryByText('성함: 김리루')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '원문 보기' }));
@@ -81,15 +90,7 @@ describe('OrderList', () => {
   });
 
   it('switches to compact list mode and hides raw text expansion', () => {
-    render(
-      <OrderList
-        orders={[order]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
@@ -98,15 +99,9 @@ describe('OrderList', () => {
   });
 
   it('shows only essential fields in compact list mode', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({
+      orders: [{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }],
+    });
 
     fireEvent.click(screen.getByRole('button', { name: '목록형 보기' }));
 
@@ -117,63 +112,32 @@ describe('OrderList', () => {
     expect(screen.getByText('채워야 할 정보 1개')).toBeInTheDocument();
     expect(screen.getByText('확인할 내용 1개')).toBeInTheDocument();
     expect(screen.getByText('7월 3일 · 픽업')).toBeInTheDocument();
-    expect(screen.queryByText('카카오톡 채널')).not.toBeInTheDocument();
-    expect(screen.queryByText('김리루')).not.toBeInTheDocument();
-    expect(screen.queryByText('고객 요청 있음')).not.toBeInTheDocument();
+    const compactOrderButton = screen.getByRole('button', { name: /곶감밀푀유 · 5/ });
+    expect(within(compactOrderButton).queryByText('카카오톡 채널')).not.toBeInTheDocument();
+    expect(within(compactOrderButton).queryByText('김리루')).not.toBeInTheDocument();
+    expect(within(compactOrderButton).queryByText('고객 요청 있음')).not.toBeInTheDocument();
   });
 
   it('shows fulfillment type in the primary list fields', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, fulfillmentType: '픽업' }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({ orders: [{ ...order, fulfillmentType: '픽업' }] });
 
     expect(screen.getByText('희망일 미정 · 픽업')).toBeInTheDocument();
   });
 
   it('shows fallback when fulfillment type is empty', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, fulfillmentType: '' }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({ orders: [{ ...order, fulfillmentType: '' }] });
 
     expect(screen.getByText('희망일 미정 · 수령 방식 없음')).toBeInTheDocument();
   });
 
   it('shows registered date up to the minute', () => {
-    render(
-      <OrderList
-        orders={[order]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList();
 
     expect(screen.getByText('등록 2026-06-30 09:00')).toBeInTheDocument();
   });
 
   it('shows D-Day badge and review reason counts in card mode', () => {
-    render(
-      <OrderList
-        orders={[order]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList();
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
@@ -184,30 +148,14 @@ describe('OrderList', () => {
   });
 
   it('uses desired date text for D-Day when parsed metadata is missing', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, desiredDateTime: '2026-07-03', parsedDate: null }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({ orders: [{ ...order, desiredDateTime: '2026-07-03', parsedDate: null }] });
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('2026-07-03 · 수령 방식 없음')).toBeInTheDocument();
   });
 
   it('uses missing fields as a fallback when info review reasons are missing', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, missingFields: ['phone', 'fulfillmentType'], reviewReasons: [] }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({ orders: [{ ...order, missingFields: ['phone', 'fulfillmentType'], reviewReasons: [] }] });
 
     expect(screen.getByText('채워야 할 정보 2개')).toBeInTheDocument();
   });
@@ -215,15 +163,7 @@ describe('OrderList', () => {
   it('shows sort controls separately from view controls', () => {
     const onSortModeChange = vi.fn();
 
-    render(
-      <OrderList
-        orders={[order]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={onSortModeChange}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({ onSortModeChange });
 
     fireEvent.change(screen.getByLabelText('정렬'), { target: { value: 'quantityDesc' } });
 
@@ -232,30 +172,51 @@ describe('OrderList', () => {
     expect(screen.getByRole('button', { name: '목록형 보기' })).toBeInTheDocument();
   });
 
-  it('shows change confirmation badge for unconfirmed change requests', () => {
-    render(
+  it('renders visible count and emits source filter changes', () => {
+    const onSourceFilterChange = vi.fn();
+    const naverOrder = { ...order, source: '네이버 스마트스토어' as const };
+
+    renderOrderList({ orders: [naverOrder], sourceFilter: '네이버 스마트스토어', onSourceFilterChange });
+
+    expect(screen.getByText('1건')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('주문 목록 출처'), { target: { value: '카카오톡 채널' } });
+
+    expect(onSourceFilterChange).toHaveBeenCalledWith('카카오톡 채널');
+  });
+
+  it('distinguishes no saved orders from filtered-out orders', () => {
+    const { rerender } = renderOrderList({ orders: [], totalOrderCount: 0 });
+
+    expect(screen.getByText('아직 저장된 주문이 없습니다.')).toBeInTheDocument();
+
+    rerender(
       <OrderList
-        orders={[{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: false }]}
+        orders={[]}
+        totalOrderCount={1}
         selectedId={null}
         sortMode="desiredDate"
+        sourceFilter="네이버 스마트스토어"
         onSortModeChange={vi.fn()}
+        onSourceFilterChange={vi.fn()}
         onSelect={vi.fn()}
       />,
     );
+
+    expect(screen.getByText('선택한 출처의 주문이 없습니다.')).toBeInTheDocument();
+  });
+
+  it('shows change confirmation badge for unconfirmed change requests', () => {
+    renderOrderList({
+      orders: [{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: false }],
+    });
 
     expect(screen.getByText('변경 확인 필요')).toBeInTheDocument();
   });
 
   it('hides change confirmation badge after change request is confirmed', () => {
-    render(
-      <OrderList
-        orders={[{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true }]}
-        selectedId={null}
-        sortMode="desiredDate"
-        onSortModeChange={vi.fn()}
-        onSelect={vi.fn()}
-      />,
-    );
+    renderOrderList({
+      orders: [{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true }],
+    });
 
     expect(screen.queryByText('변경 확인 필요')).not.toBeInTheDocument();
   });

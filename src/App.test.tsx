@@ -80,4 +80,59 @@ describe('App', () => {
 
     expect(orderButtons.indexOf('큰주문')).toBeLessThan(orderButtons.indexOf('작은주문'));
   });
+
+  it('saves orders with the source selected from the capture header and filters the order list by source', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText('출처'), '네이버 스마트스토어');
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 스마트고객\n곶감 2세트\n2026-07-05\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+
+    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+
+    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
+
+    expect(screen.getByText('스마트고객')).toBeInTheDocument();
+    expect(screen.queryByText('카카오고객')).not.toBeInTheDocument();
+    expect(screen.getByText('1건')).toBeInTheDocument();
+  });
+
+  it('keeps newly saved orders visible by moving the source filter to the saved source', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
+    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(screen.getByLabelText('주문 목록 출처')).toHaveValue('카카오톡 채널');
+    const detailDialog = screen.getByRole('dialog', { name: '주문 상세' });
+    expect(detailDialog).toBeInTheDocument();
+    expect(within(detailDialog).getByText('카카오고객')).toBeInTheDocument();
+  });
+
+  it('closes detail when source filter excludes the selected order', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(screen.getByRole('dialog', { name: '주문 상세' })).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
+
+    expect(screen.queryByRole('dialog', { name: '주문 상세' })).not.toBeInTheDocument();
+    expect(screen.getByText('선택한 출처의 주문이 없습니다.')).toBeInTheDocument();
+  });
 });

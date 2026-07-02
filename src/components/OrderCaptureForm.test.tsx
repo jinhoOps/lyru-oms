@@ -11,21 +11,23 @@ afterEach(() => {
 
 describe('OrderCaptureForm', () => {
   it('shows future smart store API automation guidance above raw input', () => {
-    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={vi.fn()} />);
+    render(
+      <OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={vi.fn()} />,
+    );
 
     expect(screen.getByText('네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.')).toBeInTheDocument();
   });
 
   it('saves raw text even when required fields are missing', async () => {
     const onSave = vi.fn();
-    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={onSave} />);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="네이버 스마트스토어" onSave={onSave} />);
 
-    await userEvent.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
     await userEvent.type(screen.getByLabelText('주문/문의 원문'), '성함: 김리루');
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
 
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
+        source: '네이버 스마트스토어',
         rawText: '성함: 김리루',
         customerName: '김리루',
         status: '확인 필요',
@@ -35,7 +37,14 @@ describe('OrderCaptureForm', () => {
 
   it('shows duplicate possibility but still allows save', async () => {
     const onSave = vi.fn();
-    render(<OrderCaptureForm existingRawTexts={['성함: 김리루']} settings={DEFAULT_SETTINGS} onSave={onSave} />);
+    render(
+      <OrderCaptureForm
+        existingRawTexts={['성함: 김리루']}
+        settings={DEFAULT_SETTINGS}
+        source="카카오톡 채널"
+        onSave={onSave}
+      />,
+    );
 
     await userEvent.type(screen.getByLabelText('주문/문의 원문'), '성함: 김리루');
     expect(screen.getByText('비슷한 원문이 이미 있어요. 그래도 저장할 수 있습니다.')).toBeInTheDocument();
@@ -45,7 +54,9 @@ describe('OrderCaptureForm', () => {
   });
 
   it('keeps the extraction preview focused on order content fields', async () => {
-    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={vi.fn()} />);
+    render(
+      <OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={vi.fn()} />,
+    );
 
     await userEvent.type(
       screen.getByLabelText('주문/문의 원문'),
@@ -69,7 +80,7 @@ describe('OrderCaptureForm', () => {
 
   it('saves parsed menu, quantity, and date metadata', async () => {
     const onSave = vi.fn();
-    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} onSave={onSave} />);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
 
     await userEvent.type(
       screen.getByLabelText('주문/문의 원문'),
