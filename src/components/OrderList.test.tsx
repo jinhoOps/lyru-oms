@@ -322,6 +322,23 @@ describe('OrderList', () => {
     expect(screen.getByText('변경 확인 필요')).toBeInTheDocument();
   });
 
+  it('shows change confirmation badge in list mode even without other review reasons', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          changeRequestNote: '픽업 시간을 오후 3시로 변경',
+          changeRequestConfirmed: false,
+          missingFields: [],
+          reviewReasons: [],
+          warningLevel: 'none',
+        },
+      ],
+    });
+
+    expect(screen.getByText('변경 확인 필요')).toBeInTheDocument();
+  });
+
   it('hides change confirmation badge after change request is confirmed', () => {
     renderOrderList({
       orders: [{ ...order, changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true }],

@@ -278,7 +278,7 @@ export function OrderList({
                   <span className="compactLine mutedText">
                     {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
                   </span>
-                  {reasonSummaries.length > 0 ? (
+                  {reasonSummaries.length > 0 || hasUnconfirmedChangeRequest ? (
                     <span className="compactLine reasonSummaryLine">
                       {needsAttention ? <span className="reasonSummaryPill">확인 필요</span> : null}
                       {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
