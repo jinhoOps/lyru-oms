@@ -102,11 +102,13 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       return;
     }
 
+    const nextNote = changeRequestNote.trim();
+    const currentNote = order.changeRequestNote.trim();
+
     publish({
       ...order,
       changeRequestNote,
-      changeRequestConfirmed:
-        changeRequestNote.trim() !== order.changeRequestNote.trim() ? false : order.changeRequestConfirmed,
+      changeRequestConfirmed: nextNote !== '' && nextNote === currentNote ? order.changeRequestConfirmed : false,
     });
   }
 

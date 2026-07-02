@@ -207,6 +207,28 @@ describe('OrderDetail', () => {
     );
   });
 
+  it('preserves change request confirmation when only surrounding spaces change', () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: true })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '  픽업 시간을 오후 3시로 변경  ',
+        changeRequestConfirmed: true,
+      }),
+    );
+  });
+
   it('keeps an order with review reasons in 확인 필요 when status select tries to save 신규', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
