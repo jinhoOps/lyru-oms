@@ -97,10 +97,32 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     publish(reparsed);
   }
 
+  function handleChangeRequestNoteChange(changeRequestNote: string) {
+    if (!order) {
+      return;
+    }
+
+    publish({
+      ...order,
+      changeRequestNote,
+      changeRequestConfirmed: changeRequestNote.trim() ? order.changeRequestConfirmed : false,
+    });
+  }
+
+  function handleChangeRequestConfirmedChange(changeRequestConfirmed: boolean) {
+    if (!order || !order.changeRequestNote.trim()) {
+      return;
+    }
+
+    publish({ ...order, changeRequestConfirmed });
+  }
+
   const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
   const infoReasons = order.reviewReasons.filter((reason) => reason.group === 'info');
   const checkReasons = order.reviewReasons.filter((reason) => reason.group === 'check');
   const infoReasonsToShow = mergeInfoReasonsWithMissingFields(infoReasons, order.missingFields);
+  const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
+  const shouldShowReviewBox = infoReasonsToShow.length > 0 || checkReasons.length > 0 || hasUnconfirmedChangeRequest;
   const visibleEditableFields = editableFields.filter((field) => {
     if (order.fulfillmentType === '픽업') {
       return field !== 'address';
@@ -144,7 +166,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       </div>
 
       <div className="detailModalBody">
-      {infoReasonsToShow.length > 0 || checkReasons.length > 0 ? (
+      {shouldShowReviewBox ? (
         <div className="reviewReasonBox" aria-label="확인 필요 사유">
           {infoReasonsToShow.length > 0 ? (
             <section className="reasonGroup">
@@ -172,13 +194,36 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
               </ul>
             </section>
           ) : null}
+          {hasUnconfirmedChangeRequest ? (
+            <section className="reasonGroup">
+              <h3>변경 요청 확인 필요</h3>
+              <ul>
+                <li>변경 요청</li>
+              </ul>
+            </section>
+          ) : null}
         </div>
       ) : null}
 
-      <label className="fieldBlock">
-        주문/문의 원문
-        <textarea value={order.rawText} rows={7} onChange={(event) => handleRawTextChange(event.target.value)} />
-      </label>
+      <section className="changeRequestSection" aria-label="변경 요청 편집">
+        <label className="fieldBlock spanAll">
+          변경 요청
+          <textarea
+            value={order.changeRequestNote}
+            rows={3}
+            onChange={(event) => handleChangeRequestNoteChange(event.target.value)}
+          />
+        </label>
+        <label className={`checkLine ${order.changeRequestNote.trim() ? '' : 'disabled'}`}>
+          <input
+            type="checkbox"
+            checked={order.changeRequestConfirmed}
+            disabled={!order.changeRequestNote.trim()}
+            onChange={(event) => handleChangeRequestConfirmedChange(event.target.checked)}
+          />
+          변경 요청 확인됨
+        </label>
+      </section>
 
       <div className="fieldGrid">
         {visibleEditableFields.map((field) => {
@@ -210,6 +255,11 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
           );
         })}
       </div>
+
+      <label className="fieldBlock">
+        주문/문의 원문
+        <textarea value={order.rawText} rows={7} onChange={(event) => handleRawTextChange(event.target.value)} />
+      </label>
       </div>
       </section>
     </div>

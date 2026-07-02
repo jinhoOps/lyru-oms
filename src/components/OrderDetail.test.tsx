@@ -126,6 +126,65 @@ describe('OrderDetail', () => {
     expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
   });
 
+  it('shows unconfirmed change request in the confirmation summary', () => {
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '수령 시간을 오후 3시로 변경', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const reviewBox = screen.getByLabelText('확인 필요 사유');
+
+    expect(within(reviewBox).getByText('변경 요청 확인 필요')).toBeInTheDocument();
+  });
+
+  it('edits change request note and confirmation state', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '픽업 시간을 오후 3시로 변경',
+        changeRequestConfirmed: false,
+      }),
+    );
+  });
+
+  it('allows confirming an existing change request', async () => {
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '픽업 시간을 오후 3시로 변경', changeRequestConfirmed: false })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('checkbox', { name: '변경 요청 확인됨' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        changeRequestNote: '픽업 시간을 오후 3시로 변경',
+        changeRequestConfirmed: true,
+      }),
+    );
+  });
+
   it('keeps an order with review reasons in 확인 필요 when status select tries to save 신규', async () => {
     const onChange = vi.fn();
     const order = baseOrder({
