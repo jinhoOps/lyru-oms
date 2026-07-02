@@ -11,7 +11,7 @@ import {
 } from './orderTypes';
 
 type ParsedOrderBaseFields = {
-  -readonly [Field in keyof typeof EMPTY_ORDER_FIELDS]: Field extends 'fulfillmentType' ? FulfillmentType : string;
+  -readonly [Field in OrderFieldKey]: Field extends 'fulfillmentType' ? FulfillmentType : string;
 };
 
 type ParsedOrderFields = ParsedOrderBaseFields & {
