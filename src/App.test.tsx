@@ -15,6 +15,20 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('keeps owner questions hidden behind the header note control', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
+    expect(screen.queryByText('아래 질문을 보시고 편하실 때 직접 연락으로 알려주세요.')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '사장님께 확인할 질문' }));
+
+    expect(screen.getByRole('region', { name: '확인 질문 쪽지' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '관리 설정' })).toBeInTheDocument();
+  });
+
   it('re-evaluates existing orders when quantity settings change', async () => {
     const user = userEvent.setup();
 

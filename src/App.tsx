@@ -50,9 +50,12 @@ export default function App() {
             <p className="eyebrow">Lyru OMS</p>
             <h1>주문 표준화 작업실</h1>
           </div>
-          <button type="button" className="secondaryButton" onClick={() => setSettingsOpen(true)}>
-            관리 설정
-          </button>
+          <div className="headerActions">
+            <QuestionNote />
+            <button type="button" className="secondaryButton" onClick={() => setSettingsOpen(true)}>
+              관리 설정
+            </button>
+          </div>
         </header>
 
         <div className="workspaceLayout">
@@ -61,7 +64,6 @@ export default function App() {
               <h2>주문 수집</h2>
               <p>원문을 붙여넣고 저장합니다.</p>
             </div>
-            <QuestionNote />
             <OrderCaptureForm
               existingRawTexts={orders.map((order) => order.rawText)}
               settings={settings}
