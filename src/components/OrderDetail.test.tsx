@@ -35,6 +35,7 @@ const baseOrder = (overrides: Partial<CapturedOrder> = {}): CapturedOrder => ({
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   cleanup();
 });
 
@@ -141,7 +142,68 @@ describe('OrderDetail', () => {
     expect(within(reviewBox).getByText('변경 요청 확인 필요')).toBeInTheDocument();
   });
 
+  it('focuses customer name input from the detail title when customer name is missing', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ customerName: '' })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '고객명 입력으로 이동' }));
+
+    expect(screen.getByLabelText('고객명')).toHaveFocus();
+  });
+
+  it('keeps raw text read-only and copies it from the detail view', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    render(
+      <OrderDetail
+        order={baseOrder({ rawText: '성함: 김리루\n곶감 1세트' })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('주문/문의 원문')).toHaveAttribute('readonly');
+
+    await user.click(screen.getByRole('button', { name: '주문/문의 원문 복사' }));
+
+    expect(writeText).toHaveBeenCalledWith('성함: 김리루\n곶감 1세트');
+  });
+
+  it('opens change request editor from the header button', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <OrderDetail
+        order={baseOrder({ changeRequestNote: '' })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByLabelText('변경 요청 내용')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '변경 요청' }));
+
+    expect(screen.getByLabelText('변경 요청 내용')).toBeInTheDocument();
+  });
+
   it('edits change request note and confirmation state', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
 
     render(
@@ -153,7 +215,9 @@ describe('OrderDetail', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
+    await user.click(screen.getByRole('button', { name: '변경 요청' }));
+
+    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
 
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -197,7 +261,7 @@ describe('OrderDetail', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '픽업 시간을 오후 4시로 변경' } });
+    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '픽업 시간을 오후 4시로 변경' } });
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -219,7 +283,7 @@ describe('OrderDetail', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('변경 요청'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
+    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   FIELD_DEFINITIONS,
   ORDER_STATUSES,
@@ -8,8 +9,7 @@ import {
   type ReviewReason,
 } from '../domain/orderTypes';
 import { parseExplicitDate } from '../domain/dateDisplay';
-import { parseRawText } from '../domain/parser';
-import { evaluateOrder, mergeParsedFields } from '../domain/reviewRules';
+import { evaluateOrder } from '../domain/reviewRules';
 import { ReparseHint } from './ReparseHint';
 
 interface OrderDetailProps {
@@ -55,6 +55,13 @@ const mergeInfoReasonsWithMissingFields = (infoReasons: ReviewReason[], missingF
 };
 
 export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailProps) {
+  const customerNameInputRef = useRef<HTMLInputElement | null>(null);
+  const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(() => Boolean(order?.changeRequestNote.trim()));
+
+  useEffect(() => {
+    setIsChangeRequestOpen(Boolean(order?.changeRequestNote.trim()));
+  }, [order?.id]);
+
   if (!order) {
     return null;
   }
@@ -88,15 +95,6 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     publish({ ...order, status });
   }
 
-  function handleRawTextChange(rawText: string) {
-    if (!order) {
-      return;
-    }
-
-    const reparsed = mergeParsedFields({ ...order, rawText }, parseRawText(rawText));
-    publish(reparsed);
-  }
-
   function handleChangeRequestNoteChange(changeRequestNote: string) {
     if (!order) {
       return;
@@ -118,6 +116,14 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     }
 
     publish({ ...order, changeRequestConfirmed });
+  }
+
+  function handleCustomerTitleClick() {
+    customerNameInputRef.current?.focus();
+  }
+
+  async function handleRawTextCopy() {
+    await navigator.clipboard?.writeText(order.rawText);
   }
 
   const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
@@ -150,10 +156,27 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       <div className="detailHeader">
         <div>
           <p className="eyebrow">{order.source}</p>
-          <h2>{order.customerName || '고객명 미정'}</h2>
+          <h2>
+            <button
+              type="button"
+              className="detailTitleButton"
+              aria-label="고객명 입력으로 이동"
+              onClick={handleCustomerTitleClick}
+            >
+              {order.customerName || '고객명 미정'}
+            </button>
+          </h2>
           <p className="sectionHelp">추출된 값을 확인하고 수정합니다.</p>
         </div>
         <div className="detailHeaderActions">
+          <button
+            type="button"
+            className="secondaryButton"
+            aria-expanded={isChangeRequestOpen}
+            onClick={() => setIsChangeRequestOpen((current) => !current)}
+          >
+            변경 요청{hasUnconfirmedChangeRequest ? ' 확인 필요' : ''}
+          </button>
           <label className="statusSelect">
             상태
             <select value={order.status} onChange={(event) => handleStatusChange(event.target.value as OrderStatus)}>
@@ -208,25 +231,28 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
         </div>
       ) : null}
 
-      <section className="changeRequestSection" aria-label="변경 요청 편집">
-        <label className="fieldBlock spanAll">
-          변경 요청
-          <textarea
-            value={order.changeRequestNote}
-            rows={3}
-            onChange={(event) => handleChangeRequestNoteChange(event.target.value)}
-          />
-        </label>
-        <label className={`checkLine ${order.changeRequestNote.trim() ? '' : 'disabled'}`}>
-          <input
-            type="checkbox"
-            checked={order.changeRequestConfirmed}
-            disabled={!order.changeRequestNote.trim()}
-            onChange={(event) => handleChangeRequestConfirmedChange(event.target.checked)}
-          />
-          변경 요청 확인됨
-        </label>
-      </section>
+      {isChangeRequestOpen ? (
+        <section className="changeRequestSection" aria-label="변경 요청 편집">
+          <label className="fieldBlock spanAll">
+            변경 요청
+            <textarea
+              aria-label="변경 요청 내용"
+              value={order.changeRequestNote}
+              rows={3}
+              onChange={(event) => handleChangeRequestNoteChange(event.target.value)}
+            />
+          </label>
+          <label className={`checkLine ${order.changeRequestNote.trim() ? '' : 'disabled'}`}>
+            <input
+              type="checkbox"
+              checked={order.changeRequestConfirmed}
+              disabled={!order.changeRequestNote.trim()}
+              onChange={(event) => handleChangeRequestConfirmedChange(event.target.checked)}
+            />
+            변경 요청 확인됨
+          </label>
+        </section>
+      ) : null}
 
       <div className="fieldGrid">
         {visibleEditableFields.map((field) => {
@@ -252,17 +278,26 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
                   onChange={(event) => handleFieldChange(field, event.target.value)}
                 />
               ) : (
-                <input value={order[field]} onChange={(event) => handleFieldChange(field, event.target.value)} />
+                <input
+                  ref={field === 'customerName' ? customerNameInputRef : undefined}
+                  value={order[field]}
+                  onChange={(event) => handleFieldChange(field, event.target.value)}
+                />
               )}
             </label>
           );
         })}
       </div>
 
-      <label className="fieldBlock">
-        주문/문의 원문
-        <textarea value={order.rawText} rows={7} onChange={(event) => handleRawTextChange(event.target.value)} />
-      </label>
+      <section className="rawTextDetail">
+        <div className="rawTextDetailHeader">
+          <h3>주문/문의 원문</h3>
+          <button type="button" className="secondaryButton" aria-label="주문/문의 원문 복사" onClick={handleRawTextCopy}>
+            복사
+          </button>
+        </div>
+        <textarea value={order.rawText} rows={7} readOnly aria-label="주문/문의 원문" />
+      </section>
       </div>
       </section>
     </div>
