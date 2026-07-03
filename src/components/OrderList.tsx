@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type FocusEvent, useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
 import { FIELD_DEFINITIONS, ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
 import type { OrderSortMode } from '../domain/orderSorting';
@@ -62,6 +62,27 @@ const summarizeOrder = (order: CapturedOrder) => {
   const quantity = order.quantity.trim() ? order.quantity : '수량 미정';
 
   return `${item} · ${quantity}`;
+};
+
+const closeMenuAfterFocusLeaves = (event: FocusEvent<HTMLDivElement>, closeMenu: () => void) => {
+  const menuWrap = event.currentTarget;
+  const nextFocus = event.relatedTarget;
+
+  if (nextFocus instanceof Node) {
+    if (!menuWrap.contains(nextFocus)) {
+      closeMenu();
+    }
+
+    return;
+  }
+
+  window.setTimeout(() => {
+    const activeElement = document.activeElement;
+
+    if (!(activeElement instanceof Node) || !menuWrap.contains(activeElement)) {
+      closeMenu();
+    }
+  }, 0);
 };
 
 const getOrderStatusClass = (status: CapturedOrder['status']) => {
@@ -187,13 +208,7 @@ export function OrderList({
           </label>
           <div
             className="sortMenuWrap"
-            onBlur={(event) => {
-              const nextFocus = event.relatedTarget;
-
-              if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
-                setSortMenuOpen(false);
-              }
-            }}
+            onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSortMenuOpen(false))}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setSortMenuOpen(false);
@@ -234,13 +249,7 @@ export function OrderList({
           </div>
           <div
             className="viewMenuWrap"
-            onBlur={(event) => {
-              const nextFocus = event.relatedTarget;
-
-              if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
-                setViewMenuOpen(false);
-              }
-            }}
+            onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setViewMenuOpen(false))}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setViewMenuOpen(false);

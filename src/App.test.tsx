@@ -16,7 +16,7 @@ afterEach(() => {
 
 async function renderUnlockedApp() {
   render(<App />);
-  await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+  await screen.findByRole('heading', { name: '주문 표준화 작업실' }, { timeout: 2000 });
 }
 
 describe('App', () => {
@@ -69,7 +69,7 @@ describe('App', () => {
 
     expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('채널')).not.toBeInTheDocument();
-    expect(screen.getByText('▸')).toBeInTheDocument();
+    expect(screen.getByText('◂')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '주문 수집 펼치기' }));
 

@@ -185,7 +185,7 @@ export default function App() {
                 >
                   <h2>주문 수집</h2>
                   <span className="captureToggleIcon" aria-hidden="true">
-                    {captureCollapsed ? '▸' : '▾'}
+                    {captureCollapsed ? '◂' : '▾'}
                   </span>
                 </div>
                 <p>원문을 붙여넣고 저장합니다.</p>

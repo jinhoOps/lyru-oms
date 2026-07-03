@@ -292,8 +292,38 @@ describe('OrderList', () => {
     expect(screen.getByRole('radiogroup', { name: '정렬 방식' })).toBeInTheDocument();
 
     fireEvent.blur(sortButton.parentElement as HTMLElement, { relatedTarget: viewButton });
+    vi.runOnlyPendingTimers();
 
     expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
+  });
+
+  it('keeps sort choice clickable when blur fires before the radio change', () => {
+    const onSortModeChange = vi.fn();
+    renderOrderList({ onSortModeChange });
+
+    const sortButton = screen.getByRole('button', { name: '정렬' });
+    fireEvent.click(sortButton);
+    fireEvent.blur(sortButton, { relatedTarget: null });
+
+    fireEvent.click(screen.getByRole('radio', { name: '수량 많은 순' }));
+    vi.runOnlyPendingTimers();
+
+    expect(onSortModeChange).toHaveBeenCalledWith('quantityDesc');
+    expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
+  });
+
+  it('keeps view choice clickable when blur fires before the radio change', () => {
+    renderOrderList();
+
+    const viewButton = screen.getByRole('button', { name: '보기' });
+    fireEvent.click(viewButton);
+    fireEvent.blur(viewButton, { relatedTarget: null });
+
+    fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+    vi.runOnlyPendingTimers();
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    expect(screen.getByRole('radio', { name: '카드형 보기' })).toBeChecked();
   });
 
   it('keeps only one toolbar menu open at a time', () => {

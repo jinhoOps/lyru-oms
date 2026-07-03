@@ -40,7 +40,7 @@ describe('AccessGate', () => {
 
     expect(await screen.findByText('작업실 준비 중')).toBeInTheDocument();
     expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
-    expect(await screen.findByText('주문 표준화 작업실')).toBeInTheDocument();
+    expect(await screen.findByText('주문 표준화 작업실', undefined, { timeout: 2000 })).toBeInTheDocument();
     expect(screen.queryByLabelText('패스코드')).not.toBeInTheDocument();
     expect(localStorage.getItem(ACCESS_GRANTED_KEY)).toBe('true');
   });
@@ -62,7 +62,7 @@ describe('AccessGate', () => {
     expect(localStorage.getItem(ACCESS_GRANTED_KEY)).toBeNull();
   });
 
-  it('shows the app immediately when access was already cached', async () => {
+  it('shows the cached app after the 1.2 second preparation beat', async () => {
     vi.useFakeTimers();
     localStorage.setItem(ACCESS_GRANTED_KEY, 'true');
 
@@ -76,7 +76,14 @@ describe('AccessGate', () => {
     expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(700);
+      await vi.advanceTimersByTimeAsync(1199);
+    });
+
+    expect(screen.getByText('작업실 준비 중')).toBeInTheDocument();
+    expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
     });
 
     expect(screen.getByText('주문 표준화 작업실')).toBeInTheDocument();

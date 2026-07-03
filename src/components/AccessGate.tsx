@@ -3,7 +3,7 @@ import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 export const ACCESS_GRANTED_KEY = 'lyru-oms:access-granted';
 
 const PASSCODE_HASH = '888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05';
-const REVEAL_DELAY_MS = 620;
+const REVEAL_DELAY_MS = 1200;
 
 async function hashPasscode(passcode: string) {
   const input = new TextEncoder().encode(passcode);
