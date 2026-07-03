@@ -38,7 +38,12 @@ describe('App', () => {
 
     expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '주문 수집 접기' }));
+    const captureToggle = screen.getByRole('button', { name: '주문 수집 접기' });
+    expect(within(captureToggle).getByRole('heading', { name: '주문 수집' })).toBeInTheDocument();
+    expect(within(captureToggle).getByText('▾')).toBeInTheDocument();
+    expect(captureToggle).not.toHaveTextContent('주문 수집 접기');
+
+    await user.click(captureToggle);
 
     expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
     expect(localStorage.getItem('lyru-oms.capturePanel.collapsed.v1')).toBe('true');
@@ -47,6 +52,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
+    expect(screen.getByText('▸')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '주문 수집 펼치기' }));
 

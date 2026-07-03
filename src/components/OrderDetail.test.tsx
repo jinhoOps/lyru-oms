@@ -139,7 +139,7 @@ describe('OrderDetail', () => {
 
     const reviewBox = screen.getByLabelText('확인 필요 사유');
 
-    expect(within(reviewBox).getByText('변경 요청 확인 필요')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('추가/변경 요청 확인 필요')).toBeInTheDocument();
   });
 
   it('focuses customer name input from the detail title when customer name is missing', async () => {
@@ -183,7 +183,7 @@ describe('OrderDetail', () => {
     expect(writeText).toHaveBeenCalledWith('성함: 김리루\n곶감 1세트');
   });
 
-  it('opens change request editor from the header button', async () => {
+  it('opens addition or change request editor from the subtle header button', async () => {
     const user = userEvent.setup();
 
     render(
@@ -195,11 +195,15 @@ describe('OrderDetail', () => {
       />,
     );
 
-    expect(screen.queryByLabelText('변경 요청 내용')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('추가/변경 요청 내용')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '변경 요청' }));
+    const requestButton = screen.getByRole('button', { name: '+ 추가/변경 요청' });
+    expect(requestButton).toHaveClass('changeRequestButton');
 
-    expect(screen.getByLabelText('변경 요청 내용')).toBeInTheDocument();
+    await user.click(requestButton);
+
+    expect(screen.getByText('고객이 나중에 추가하거나 바꿔달라고 한 내용을 적어둡니다.')).toBeInTheDocument();
+    expect(screen.getByLabelText('추가/변경 요청 내용')).toBeInTheDocument();
   });
 
   it('edits change request note and confirmation state', async () => {
@@ -215,9 +219,9 @@ describe('OrderDetail', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: '변경 요청' }));
+    await user.click(screen.getByRole('button', { name: '+ 추가/변경 요청' }));
 
-    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
+    fireEvent.change(screen.getByLabelText('추가/변경 요청 내용'), { target: { value: '픽업 시간을 오후 3시로 변경' } });
 
     expect(onChange).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -239,7 +243,7 @@ describe('OrderDetail', () => {
       />,
     );
 
-    await userEvent.click(screen.getByRole('checkbox', { name: '변경 요청 확인됨' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: '반영 확인' }));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -261,7 +265,7 @@ describe('OrderDetail', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '픽업 시간을 오후 4시로 변경' } });
+    fireEvent.change(screen.getByLabelText('추가/변경 요청 내용'), { target: { value: '픽업 시간을 오후 4시로 변경' } });
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -283,7 +287,7 @@ describe('OrderDetail', () => {
       />,
     );
 
-    fireEvent.change(screen.getByLabelText('변경 요청 내용'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
+    fireEvent.change(screen.getByLabelText('추가/변경 요청 내용'), { target: { value: '  픽업 시간을 오후 3시로 변경  ' } });
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -261,6 +261,33 @@ pre {
   margin-bottom: 4px;
 }
 
+.capturePanel .sectionHeader > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.captureTitleToggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.captureTitleToggle:focus-visible {
+  outline: 3px solid rgba(180, 138, 62, 0.32);
+  outline-offset: 3px;
+}
+
+.captureToggleIcon {
+  color: #7a6b58;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .sectionTitleLine {
   display: flex;
   align-items: baseline;
@@ -699,6 +726,29 @@ pre {
   font-weight: 700;
 }
 
+.changeRequestButton {
+  min-height: 36px;
+  border-color: #e1d6c4;
+  background: #fffaf2;
+  color: #6a5945;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.changeRequestButton.attention {
+  border-color: #d4b77f;
+  background: #fff8ea;
+  color: #6b4d1d;
+}
+
+.changeRequestButton span {
+  margin-left: 6px;
+  color: #8a6a34;
+  font-size: 12px;
+}
+
 .flagOff {
   background: #f3eee5;
 }
@@ -710,6 +760,26 @@ pre {
   border-radius: 8px;
   background: #fffaf0;
   padding: 14px;
+}
+
+.changeRequestIntro {
+  display: grid;
+  gap: 4px;
+}
+
+.changeRequestIntro h3,
+.changeRequestIntro p {
+  margin: 0;
+}
+
+.changeRequestIntro h3 {
+  color: #4c3b25;
+  font-size: 14px;
+}
+
+.changeRequestIntro p {
+  color: #746956;
+  font-size: 13px;
 }
 
 .checkLine {

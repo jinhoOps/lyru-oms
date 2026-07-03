@@ -188,8 +188,8 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
             aria-expanded={isChangeRequestOpen}
             onClick={() => setIsChangeRequestOpen((current) => !current)}
           >
-            변경 요청
-            {hasUnconfirmedChangeRequest ? <span>확인 필요</span> : null}
+            {order.changeRequestNote.trim() ? '추가/변경 요청 보기' : '+ 추가/변경 요청'}
+            {hasUnconfirmedChangeRequest ? <span>반영 확인 필요</span> : null}
           </button>
           <label className="statusSelect">
             상태
@@ -236,9 +236,9 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
           ) : null}
           {hasUnconfirmedChangeRequest ? (
             <section className="reasonGroup">
-              <h3>변경 요청 확인 필요</h3>
+              <h3>추가/변경 요청 확인 필요</h3>
               <ul>
-                <li>변경 요청</li>
+                <li>추가/변경 요청</li>
               </ul>
             </section>
           ) : null}
@@ -246,11 +246,15 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       ) : null}
 
       {isChangeRequestOpen ? (
-        <section className="changeRequestSection" aria-label="변경 요청 편집">
+        <section className="changeRequestSection" aria-label="추가/변경 요청 편집">
+          <div className="changeRequestIntro">
+            <h3>추가/변경 요청</h3>
+            <p>고객이 나중에 추가하거나 바꿔달라고 한 내용을 적어둡니다.</p>
+          </div>
           <label className="fieldBlock spanAll">
-            <span>변경 요청</span>
+            <span>요청 내용</span>
             <textarea
-              aria-label="변경 요청 내용"
+              aria-label="추가/변경 요청 내용"
               value={order.changeRequestNote}
               rows={3}
               onChange={(event) => handleChangeRequestNoteChange(event.target.value)}
@@ -263,7 +267,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
               disabled={!order.changeRequestNote.trim()}
               onChange={(event) => handleChangeRequestConfirmedChange(event.target.checked)}
             />
-            변경 요청 확인됨
+            반영 확인
           </label>
         </section>
       ) : null}

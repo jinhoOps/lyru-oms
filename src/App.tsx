@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
 import { AccessGate } from './components/AccessGate';
 import { OrderDetail } from './components/OrderDetail';
@@ -105,6 +105,13 @@ export default function App() {
     });
   }
 
+  function handleCaptureToggleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleCapturePanel();
+    }
+  }
+
   return (
     <AccessGate>
       <main className="appShell">
@@ -131,7 +138,20 @@ export default function App() {
           <section className="capturePanel" aria-label="주문 수집">
             <div className="sectionHeader">
               <div>
-                <h2>주문 수집</h2>
+                <div
+                  className="captureTitleToggle"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={captureCollapsed ? '주문 수집 펼치기' : '주문 수집 접기'}
+                  aria-expanded={!captureCollapsed}
+                  onClick={toggleCapturePanel}
+                  onKeyDown={handleCaptureToggleKeyDown}
+                >
+                  <h2>주문 수집</h2>
+                  <span className="captureToggleIcon" aria-hidden="true">
+                    {captureCollapsed ? '▸' : '▾'}
+                  </span>
+                </div>
                 <p>원문을 붙여넣고 저장합니다.</p>
               </div>
               <div className="sectionHeaderActions">
@@ -143,14 +163,6 @@ export default function App() {
                     ))}
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className="secondaryButton compactTextButton"
-                  aria-expanded={!captureCollapsed}
-                  onClick={toggleCapturePanel}
-                >
-                  {captureCollapsed ? '주문 수집 펼치기' : '주문 수집 접기'}
-                </button>
               </div>
             </div>
             {captureCollapsed ? null : (
