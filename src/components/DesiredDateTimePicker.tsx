@@ -49,6 +49,9 @@ const getInitialDate = (desiredDateTime: string) => {
   return parsedDate?.isoDate ? fromIsoDate(parsedDate.isoDate) : undefined;
 };
 
+const getInitialTime = (desiredDateTime: string, pickupTime: string) =>
+  pickupTime || parseExplicitDate(desiredDateTime)?.timeText || '';
+
 const formatDisplayDate = (isoDate: string) => {
   const date = fromIsoDate(isoDate);
 
@@ -67,7 +70,7 @@ export function DesiredDateTimePicker({
 }: DesiredDateTimePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [draftDate, setDraftDate] = useState<Date | undefined>(() => getInitialDate(desiredDateTime));
-  const [draftTime, setDraftTime] = useState(pickupTime);
+  const [draftTime, setDraftTime] = useState(() => getInitialTime(desiredDateTime, pickupTime));
   const today = useMemo(() => startOfToday(), []);
   const selectedIsoDate = draftDate ? toLocalIsoDate(draftDate) : '';
   const buttonLabel = includeTime ? '희망일/시간 선택' : '희망일 선택';
@@ -82,7 +85,7 @@ export function DesiredDateTimePicker({
   useEffect(() => {
     if (!isOpen) {
       setDraftDate(getInitialDate(desiredDateTime));
-      setDraftTime(pickupTime);
+      setDraftTime(getInitialTime(desiredDateTime, pickupTime));
     }
   }, [desiredDateTime, isOpen, pickupTime]);
 

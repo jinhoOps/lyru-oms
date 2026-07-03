@@ -421,6 +421,53 @@ describe('OrderDetail', () => {
         pickupTime: '15:00',
         parsedDate: expect.objectContaining({
           isoDate: tomorrow,
+          timeText: '15:00',
+          isRelative: false,
+        }),
+        manuallyEditedFields: expect.arrayContaining(['desiredDateTime', 'pickupTime']),
+      }),
+    );
+  });
+
+  it('preserves a parsed pickup time when the picker opens from desired date text', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    render(
+      <OrderDetail
+        order={baseOrder({
+          desiredDateTime: '2026-07-04 15:00',
+          fulfillmentType: '픽업',
+          pickupTime: '',
+          parsedDate: {
+            isoDate: '2026-07-04',
+            timeText: '15:00',
+            originalText: '2026-07-04 15:00',
+            isRelative: false,
+          },
+        })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: '희망일/시간 선택' })).toHaveTextContent('15:00');
+
+    await user.click(screen.getByRole('button', { name: '희망일/시간 선택' }));
+
+    const picker = screen.getByRole('dialog', { name: '희망일/시간 선택' });
+    expect(within(picker).getByRole('button', { name: '15:00' })).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(within(picker).getByRole('button', { name: '적용' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desiredDateTime: '2026-07-04',
+        pickupTime: '15:00',
+        parsedDate: expect.objectContaining({
+          isoDate: '2026-07-04',
+          timeText: '15:00',
           isRelative: false,
         }),
         manuallyEditedFields: expect.arrayContaining(['desiredDateTime', 'pickupTime']),

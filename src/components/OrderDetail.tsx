@@ -95,6 +95,9 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       return;
     }
 
+    const dateTextForParsing = nextValue.pickupTime
+      ? `${nextValue.desiredDateTime} ${nextValue.pickupTime}`
+      : nextValue.desiredDateTime;
     const editedFields = new Set<OrderFieldKey>(order.manuallyEditedFields);
     editedFields.add('desiredDateTime');
 
@@ -106,7 +109,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
       ...order,
       desiredDateTime: nextValue.desiredDateTime,
       pickupTime: nextValue.pickupTime,
-      parsedDate: parseExplicitDate(nextValue.desiredDateTime),
+      parsedDate: parseExplicitDate(dateTextForParsing),
       manuallyEditedFields: [...editedFields],
     });
   }
