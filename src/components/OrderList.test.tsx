@@ -122,6 +122,76 @@ describe('OrderList', () => {
     expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
   });
 
+  it('persists calendar view mode changes', () => {
+    renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    expect(screen.getByRole('radio', { name: '달력형 보기' })).toBeChecked();
+  });
+
+  it('shows an order from registration date through desired date in calendar view', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'calendar-range',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    expect(screen.getByRole('heading', { name: '7월 1일' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '7월 3일' })).toBeInTheDocument();
+    expect(screen.getByText('등록')).toBeInTheDocument();
+    expect(screen.getByText('진행 중')).toBeInTheDocument();
+    expect(screen.getByText('마감')).toBeInTheDocument();
+    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(3);
+  });
+
+  it('keeps orders with missing desired dates in the unresolved calendar group', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'calendar-unresolved',
+          customerName: '최확인',
+          orderItems: '화과자',
+          quantity: '4개',
+          desiredDateTime: '',
+          parsedDate: null,
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    expect(screen.getByRole('heading', { name: '날짜 확인 필요' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /화과자 · 4개/ })).toBeInTheDocument();
+  });
+
+  it('keeps filtered-out empty state before rendering calendar view', () => {
+    renderOrderList({ orders: [], totalOrderCount: 1, sourceFilter: '네이버 스마트스토어' });
+
+    expect(screen.getByText('선택한 채널의 주문이 없습니다.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '날짜 확인 필요' })).not.toBeInTheDocument();
+  });
+
   it('hydrates invalid stored view mode to compact list mode', () => {
     localStorage.setItem('lyru-oms.orderList.viewMode.v1', 'table');
 

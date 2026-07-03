@@ -620,6 +620,115 @@ pre {
   gap: 5px;
 }
 
+.orderCalendar {
+  display: grid;
+  gap: 8px;
+}
+
+.calendarDateRow,
+.calendarUnresolved {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #eee3d2;
+  border-radius: 8px;
+  background: #fffdf9;
+  padding: 10px;
+}
+
+.calendarDateHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #5b4322;
+}
+
+.calendarDateHeader h3,
+.calendarUnresolved h3 {
+  margin: 0;
+  color: #1b2430;
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.calendarDateHeader span {
+  flex: 0 0 auto;
+  color: #746552;
+  font-size: 12px;
+}
+
+.calendarMarkerList {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendarOrderChip {
+  display: grid;
+  min-width: min(100%, 168px);
+  max-width: 100%;
+  gap: 2px;
+  border: 1px solid #e4d7c5;
+  border-radius: 8px;
+  background: #fffaf2;
+  color: #1b2430;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.calendarOrderChip.middle {
+  background: #fbfaf7;
+  color: #4b5563;
+}
+
+.calendarOrderChip.end {
+  border-color: #c9a45f;
+  background: #fff7df;
+}
+
+.calendarOrderChip.invalid,
+.calendarOrderChip.unresolved {
+  border-color: #d2beb4;
+  background: #fff7f2;
+}
+
+.calendarOrderChip strong,
+.calendarOrderChip span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.calendarOrderChip strong {
+  font-size: 13px;
+}
+
+.calendarOrderChip > span:not(.calendarMarkerKind) {
+  color: #746552;
+  font-size: 12px;
+}
+
+.calendarMarkerKind {
+  width: fit-content;
+  border-radius: 999px;
+  background: #f0e4d2;
+  color: #5b4322;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.calendarOrderChip.end .calendarMarkerKind {
+  background: #c9a45f;
+  color: #fffaf2;
+}
+
+.calendarOrderChip.invalid .calendarMarkerKind,
+.calendarOrderChip.unresolved .calendarMarkerKind {
+  background: #7a3d2f;
+  color: #fffaf2;
+}
+
 .orderRow {
   border: 1px solid #eee3d2;
   border-radius: 8px;
@@ -935,6 +1044,15 @@ pre {
   .sourceMenu {
     right: 0;
     left: auto;
+  }
+
+  .calendarMarkerList {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .calendarOrderChip {
+    width: 100%;
   }
 }
 

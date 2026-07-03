@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "es-toolkit": "^1.49.0",
     "react": "^19.0.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.0.0",
