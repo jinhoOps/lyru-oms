@@ -19,7 +19,7 @@ import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
 
-const createSampleOrder = (): CapturedOrder => ({
+const createYuriruSampleOrder = (): CapturedOrder => ({
   ...EMPTY_ORDER_FIELDS,
   id: 'sample-yuriru',
   source: '인스타그램',
@@ -48,10 +48,53 @@ const createSampleOrder = (): CapturedOrder => ({
   updatedAt: '2026-07-03T00:00:00.000Z',
 });
 
+const createNasdaqSampleOrder = (): CapturedOrder => ({
+  ...EMPTY_ORDER_FIELDS,
+  id: 'sample-nasdaq-3x',
+  source: '네이버 스마트스토어',
+  rawText:
+    '성함: 나스닥3배\n연락처: 010-3333-7777\n상품: 화과자 4구 세트\n수량: 2세트\n선물 용도: 감사 선물\n수령 방식: 픽업\n희망일: 2026-07-05\n픽업 시간: 14:00\n알레르기: 없음\n추가 옵션: 보자기 포장\n요청사항: 선물용 쇼핑백 부탁드립니다.',
+  customerName: '나스닥3배',
+  phone: '010-3333-7777',
+  orderItems: '화과자 4구 세트',
+  quantity: '2세트',
+  purpose: '감사 선물',
+  fulfillmentType: '픽업',
+  desiredDateTime: '2026-07-05',
+  pickupTime: '14:00',
+  allergyNote: '없음',
+  options: '보자기 포장',
+  customerRequestNote: '선물용 쇼핑백 부탁드립니다.',
+  ownerMemo: '정석 입력 예시',
+  menuMatches: [
+    {
+      menuId: 'sample-wagashi-4',
+      label: '화과자 4구 세트',
+      unitCount: 4,
+      confidence: 'exact',
+    },
+  ],
+  quantityCandidates: [{ value: 2, unit: '세트', rawText: '2세트' }],
+  parsedDate: {
+    isoDate: '2026-07-05',
+    timeText: '',
+    originalText: '2026-07-05',
+    isRelative: false,
+  },
+  manuallyEditedFields: [],
+  reparseDifferences: [],
+  missingFields: [],
+  reviewReasons: [],
+  warningLevel: 'none',
+  status: '신규',
+  createdAt: '2026-07-03T00:05:00.000Z',
+  updatedAt: '2026-07-03T00:05:00.000Z',
+});
+
 const loadInitialOrders = () => {
   const storedOrders = loadOrders();
 
-  return storedOrders.length > 0 ? storedOrders : [createSampleOrder()];
+  return storedOrders.length > 0 ? storedOrders : [createNasdaqSampleOrder(), createYuriruSampleOrder()];
 };
 
 const loadCapturePanelCollapsed = () => {
@@ -110,6 +153,16 @@ export default function App() {
     setOrders((current) => [order, ...current]);
     setSourceFilter(order.source);
     setSelectedId(order.id);
+  }
+
+  function handleClearOrders() {
+    if (!window.confirm('저장된 주문을 모두 삭제할까요?')) {
+      return;
+    }
+
+    setOrders([]);
+    setSelectedId(null);
+    setSourceFilter('전체');
   }
 
   function handleSourceFilterChange(nextSourceFilter: OrderSourceFilter) {
@@ -220,6 +273,7 @@ export default function App() {
             onSortModeChange={setSortMode}
             onSourceFilterChange={handleSourceFilterChange}
             onSelect={setSelectedId}
+            onClearOrders={handleClearOrders}
           />
 
           <OrderDetail

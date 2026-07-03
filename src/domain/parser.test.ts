@@ -84,6 +84,14 @@ describe('parseRawText', () => {
     expect(parsed.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5세트' }]);
   });
 
+  it('uses labeled plain quantity numbers as set quantity candidates', () => {
+    const parsed = parseRawText(`상품: 화과자 9구
+개수: 5`);
+
+    expect(parsed.quantity).toBe('5');
+    expect(parsed.quantityCandidates).toEqual([{ value: 5, unit: '세트', rawText: '5' }]);
+  });
+
   it('does not infer fulfillment when a fulfillment label is present but unresolved', () => {
     const parsed = parseRawText(`수령방법: 상담 필요
 택배도 가능한지 문의드립니다`);

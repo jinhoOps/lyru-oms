@@ -108,6 +108,16 @@ const summarizeQuantityCandidates = (candidates: readonly QuantityCandidate[]) =
   return `${candidates.map((candidate) => candidate.rawText).join(' / ')} (예측)`;
 };
 
+const parseLabeledPlainQuantityCandidate = (value: string): QuantityCandidate | null => {
+  const normalizedValue = value.normalize('NFKC').trim();
+
+  if (!/^\d+$/.test(normalizedValue)) {
+    return null;
+  }
+
+  return { value: Number(normalizedValue), unit: '세트', rawText: normalizedValue };
+};
+
 const isQuantityOnlyLine = (line: string) => {
   const strippedLine = stripQuantityExclusions(line).trim();
 
@@ -173,6 +183,14 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
   parsed.menuMatches = findMenuMatches(rawText);
   parsed.quantityCandidates = extractQuantityCandidates(rawText);
   parsed.parsedDate = parseExplicitDate(rawText);
+
+  if (parsed.quantityCandidates.length === 0 && labeledFields.has('quantity')) {
+    const quantityCandidate = parseLabeledPlainQuantityCandidate(parsed.quantity);
+
+    if (quantityCandidate) {
+      parsed.quantityCandidates = [quantityCandidate];
+    }
+  }
 
   if (!labeledFields.has('purpose')) {
     parsed.purpose = mapPurposeFromText(rawText);

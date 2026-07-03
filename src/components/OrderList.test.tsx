@@ -69,6 +69,7 @@ const renderOrderList = (overrides: Partial<ComponentProps<typeof OrderList>> = 
     onSortModeChange: vi.fn(),
     onSourceFilterChange: vi.fn(),
     onSelect: vi.fn(),
+    onClearOrders: vi.fn(),
     ...overrides,
   };
 
@@ -380,6 +381,7 @@ describe('OrderList', () => {
         onSortModeChange={vi.fn()}
         onSourceFilterChange={vi.fn()}
         onSelect={vi.fn()}
+        onClearOrders={vi.fn()}
       />,
     );
 

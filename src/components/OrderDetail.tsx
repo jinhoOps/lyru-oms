@@ -192,30 +192,26 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
         onMouseDown={(event) => event.stopPropagation()}
       >
       <div className="detailHeader">
-        <div>
-          <p className="eyebrow">{order.source}</p>
-          <h2>
-            <button
-              type="button"
-              className="detailTitleButton"
-              aria-label="고객명 입력으로 이동"
-              onClick={handleCustomerTitleClick}
-            >
-              {order.customerName || '고객명 미정'}
-            </button>
-          </h2>
-          <p className="sectionHelp">추출된 값을 확인하고 수정합니다.</p>
-        </div>
-        <div className="detailHeaderActions">
-          <button
-            type="button"
-            className={`changeRequestButton ${hasUnconfirmedChangeRequest ? 'attention' : ''}`}
-            aria-expanded={isChangeRequestOpen}
-            onClick={() => setIsChangeRequestOpen((current) => !current)}
-          >
-            {order.changeRequestNote.trim() ? '추가/변경 요청 보기' : '+ 추가/변경 요청'}
-            {hasUnconfirmedChangeRequest ? <span>반영 확인 필요</span> : null}
+        <div className="detailHeaderTop">
+          <div>
+            <p className="eyebrow">{order.source}</p>
+            <h2>
+              <button
+                type="button"
+                className="detailTitleButton"
+                aria-label="고객명 입력으로 이동"
+                onClick={handleCustomerTitleClick}
+              >
+                {order.customerName || '고객명 미정'}
+              </button>
+            </h2>
+            <p className="sectionHelp">추출된 값을 확인하고 수정합니다.</p>
+          </div>
+          <button type="button" className="iconButton detailCloseButton" aria-label="주문 상세 닫기" onClick={onClose}>
+            ×
           </button>
+        </div>
+        <div className="detailHeaderControls">
           <label className="statusSelect">
             상태
             <select value={order.status} onChange={(event) => handleStatusChange(event.target.value as OrderStatus)}>
@@ -224,8 +220,14 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
               ))}
             </select>
           </label>
-          <button type="button" className="iconButton" aria-label="주문 상세 닫기" onClick={onClose}>
-            ×
+          <button
+            type="button"
+            className={`changeRequestButton ${hasUnconfirmedChangeRequest ? 'attention' : ''}`}
+            aria-expanded={isChangeRequestOpen}
+            onClick={() => setIsChangeRequestOpen((current) => !current)}
+          >
+            {order.changeRequestNote.trim() ? '추가/변경 요청 보기' : '+ 추가/변경 요청'}
+            {hasUnconfirmedChangeRequest ? <span>반영 확인 필요</span> : null}
           </button>
         </div>
       </div>

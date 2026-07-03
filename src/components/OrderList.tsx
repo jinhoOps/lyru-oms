@@ -15,6 +15,7 @@ interface OrderListProps {
   onSortModeChange: (mode: OrderSortMode) => void;
   onSourceFilterChange: (source: OrderSourceFilter) => void;
   onSelect: (orderId: string) => void;
+  onClearOrders: () => void;
 }
 
 const ORDER_LIST_VIEW_MODE_KEY = 'lyru-oms.orderList.viewMode.v1';
@@ -161,6 +162,7 @@ export function OrderList({
   onSortModeChange,
   onSourceFilterChange,
   onSelect,
+  onClearOrders,
 }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
@@ -206,6 +208,14 @@ export function OrderList({
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            className="secondaryButton compactTextButton clearListButton"
+            disabled={totalOrderCount === 0}
+            onClick={onClearOrders}
+          >
+            전체 삭제
+          </button>
           <div
             className="sortMenuWrap"
             onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSortMenuOpen(false))}

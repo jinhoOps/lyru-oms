@@ -570,6 +570,16 @@ pre {
   color: #5b4322;
 }
 
+.clearListButton {
+  border-color: #dfcfc0;
+  background: #fffdf8;
+  color: #7a3d2f;
+}
+
+.clearListButton:disabled {
+  opacity: 0.5;
+}
+
 .orderList {
   display: grid;
   gap: 8px;
@@ -918,17 +928,39 @@ pre {
   position: sticky;
   top: 0;
   z-index: 1;
+  display: grid;
+  align-items: stretch;
+  justify-content: stretch;
+  gap: 12px;
   border-bottom: 1px solid #eadfce;
   background: #fffaf2;
   padding: 14px;
 }
 
-.detailHeaderActions {
+.detailHeaderTop {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detailCloseButton {
+  flex: 0 0 auto;
+  border-color: transparent;
+  background: #f6eddf;
+  color: #5c4a36;
+}
+
+.detailHeaderControls {
+  width: 100%;
   display: flex;
   align-items: end;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
+  border-top: 1px solid #efe4d4;
+  padding-top: 10px;
 }
 
 .detailModalBody {
@@ -1298,11 +1330,25 @@ pre {
   }
 
   .orderDetailModal .detailHeader {
+    gap: 10px;
+  }
+
+  .detailHeaderTop {
     align-items: flex-start;
   }
 
-  .detailHeaderActions {
-    align-items: end;
+  .detailHeaderControls {
+    align-items: stretch;
+    justify-content: stretch;
+  }
+
+  .detailHeaderControls .statusSelect,
+  .detailHeaderControls .changeRequestButton {
+    width: 100%;
+  }
+
+  .detailHeaderControls .changeRequestButton {
+    justify-content: center;
   }
 
   .fieldBlock {
