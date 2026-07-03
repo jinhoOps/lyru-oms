@@ -1,10 +1,11 @@
-import { type FocusEvent, useState } from 'react';
+import { groupBy, sortBy } from 'es-toolkit';
+import { type FocusEvent, useMemo, useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
 import { FIELD_DEFINITIONS, ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
 import type { OrderSortMode } from '../domain/orderSorting';
 
 export type OrderSourceFilter = '전체' | OrderSource;
-type OrderListViewMode = 'card' | 'list';
+type OrderListViewMode = 'card' | 'list' | 'calendar';
 
 interface OrderListProps {
   orders: CapturedOrder[];
@@ -29,6 +30,7 @@ const sortOptions: Array<{ mode: OrderSortMode; label: string }> = [
 const viewOptions: Array<{ mode: OrderListViewMode; label: string }> = [
   { mode: 'list', label: '목록형 보기' },
   { mode: 'card', label: '카드형 보기' },
+  { mode: 'calendar', label: '달력형 보기' },
 ];
 
 const sourceOptions: OrderSourceFilter[] = ['전체', ...ORDER_SOURCES];
@@ -42,7 +44,7 @@ const loadOrderListViewMode = (): OrderListViewMode => {
     }
 
     const stored = localStorage.getItem(ORDER_LIST_VIEW_MODE_KEY);
-    return stored === 'card' || stored === 'list' ? stored : 'list';
+    return stored === 'card' || stored === 'list' || stored === 'calendar' ? stored : 'list';
   } catch {
     return 'list';
   }
@@ -155,6 +157,120 @@ const getDisplayDate = (order: CapturedOrder) => {
   return parsedDesiredDate ?? order.parsedDate;
 };
 
+type CalendarMarkerKind = 'start' | 'middle' | 'end' | 'invalid';
+
+interface CalendarRangeItem {
+  order: CapturedOrder;
+  startDate: string;
+  endDate: string;
+  invalidRange: boolean;
+}
+
+interface CalendarMarker {
+  order: CapturedOrder;
+  isoDate: string;
+  kind: CalendarMarkerKind;
+}
+
+const DAY_MS = 86_400_000;
+
+const getKoreaIsoDate = (isoDateTime: string) => {
+  const date = new Date(isoDateTime);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+  const getPart = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+
+  return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+};
+
+const parseIsoDateOnly = (isoDate: string) => {
+  const [year, month, day] = isoDate.split('-').map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return Date.UTC(year, month - 1, day);
+};
+
+const expandDateRange = (startDate: string, endDate: string) => {
+  const startTime = parseIsoDateOnly(startDate);
+  const endTime = parseIsoDateOnly(endDate);
+
+  if (startTime === null || endTime === null || endTime < startTime) {
+    return [startDate];
+  }
+
+  const dates: string[] = [];
+
+  for (let time = startTime; time <= endTime; time += DAY_MS) {
+    dates.push(new Date(time).toISOString().slice(0, 10));
+  }
+
+  return dates;
+};
+
+const formatCalendarDateLabel = (isoDate: string) => {
+  const [, month, day] = isoDate.split('-').map(Number);
+
+  if (!month || !day) {
+    return isoDate;
+  }
+
+  return `${month}월 ${day}일`;
+};
+
+const getDesiredIsoDate = (order: CapturedOrder) => {
+  const parsed = getDisplayDate(order);
+
+  if (!parsed || parsed.isRelative || !parsed.isoDate) {
+    return null;
+  }
+
+  return parsed.isoDate;
+};
+
+const buildCalendarRangeItem = (order: CapturedOrder): CalendarRangeItem | null => {
+  const startDate = getKoreaIsoDate(order.createdAt);
+  const endDate = getDesiredIsoDate(order);
+
+  if (!startDate || !endDate) {
+    return null;
+  }
+
+  return {
+    order,
+    startDate,
+    endDate,
+    invalidRange: endDate < startDate,
+  };
+};
+
+const getCalendarMarkerLabel = (kind: CalendarMarkerKind) => {
+  if (kind === 'start') {
+    return '등록';
+  }
+
+  if (kind === 'end') {
+    return '마감';
+  }
+
+  if (kind === 'invalid') {
+    return '날짜 확인';
+  }
+
+  return '진행 중';
+};
+
 export function OrderList({
   orders,
   totalOrderCount,
@@ -172,6 +288,42 @@ export function OrderList({
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const calendarData = useMemo(() => {
+    const rangeItems = orders.flatMap((order) => {
+      const item = buildCalendarRangeItem(order);
+
+      return item ? [item] : [];
+    });
+    const rangeOrderIds = new Set(rangeItems.map((item) => item.order.id));
+    const unresolvedOrders = orders.filter((order) => !rangeOrderIds.has(order.id));
+    const markers = rangeItems.flatMap((item) =>
+      expandDateRange(item.startDate, item.endDate).map((isoDate) => {
+        const kind: CalendarMarkerKind = item.invalidRange
+          ? 'invalid'
+          : isoDate === item.startDate
+            ? 'start'
+            : isoDate === item.endDate
+              ? 'end'
+              : 'middle';
+
+        return {
+          order: item.order,
+          isoDate,
+          kind,
+        };
+      }),
+    );
+    const markersByDate = groupBy(markers, (marker) => marker.isoDate);
+    const entries = sortBy(
+      Object.entries(markersByDate).map(([isoDate, dateMarkers]) => ({
+        isoDate,
+        markers: dateMarkers,
+      })),
+      [(entry) => entry.isoDate],
+    );
+
+    return { entries, unresolvedOrders };
+  }, [orders]);
 
   function setViewMode(mode: OrderListViewMode) {
     setViewModeState(mode);
@@ -378,6 +530,57 @@ export function OrderList({
         <p className="emptyState">
           {totalOrderCount === 0 ? '아직 저장된 주문이 없습니다.' : '선택한 채널의 주문이 없습니다.'}
         </p>
+      </section>
+    );
+  }
+
+  if (viewMode === 'calendar') {
+    return (
+      <section className="orderListPanel" aria-label="주문 목록">
+        {header}
+        <div className="orderCalendar" aria-label="등록일부터 희망일까지 주문 일정">
+          {calendarData.entries.map((entry) => (
+            <section key={entry.isoDate} className="calendarDateRow" aria-labelledby={`calendar-date-${entry.isoDate}`}>
+              <div className="calendarDateHeader">
+                <h3 id={`calendar-date-${entry.isoDate}`}>{formatCalendarDateLabel(entry.isoDate)}</h3>
+                <span>{entry.markers.length}건</span>
+              </div>
+              <div className="calendarMarkerList">
+                {entry.markers.map((marker) => (
+                  <button
+                    key={`${entry.isoDate}-${marker.order.id}-${marker.kind}`}
+                    type="button"
+                    className={`calendarOrderChip ${marker.kind}`}
+                    onClick={() => onSelect(marker.order.id)}
+                  >
+                    <span className="calendarMarkerKind">{getCalendarMarkerLabel(marker.kind)}</span>
+                    <strong>{summarizeOrder(marker.order)}</strong>
+                    <span>{fallback(marker.order.customerName, '고객명 미정')}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
+          {calendarData.unresolvedOrders.length > 0 ? (
+            <section className="calendarUnresolved" aria-labelledby="calendar-unresolved-title">
+              <h3 id="calendar-unresolved-title">날짜 확인 필요</h3>
+              <div className="calendarMarkerList">
+                {calendarData.unresolvedOrders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    className="calendarOrderChip unresolved"
+                    onClick={() => onSelect(order.id)}
+                  >
+                    <span className="calendarMarkerKind">확인</span>
+                    <strong>{summarizeOrder(order)}</strong>
+                    <span>{fallback(order.customerName, '고객명 미정')}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
       </section>
     );
   }
