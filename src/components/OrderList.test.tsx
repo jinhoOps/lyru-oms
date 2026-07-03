@@ -337,6 +337,24 @@ describe('OrderList', () => {
 
     expect(screen.queryByRole('radiogroup', { name: '정렬 방식' })).not.toBeInTheDocument();
     expect(screen.getByRole('radiogroup', { name: '보기 방식' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '작업' }));
+
+    expect(screen.queryByRole('radiogroup', { name: '보기 방식' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menu', { name: '주문 목록 작업' })).toBeInTheDocument();
+  });
+
+  it('keeps destructive list actions inside the action menu', () => {
+    const onClearOrders = vi.fn();
+    renderOrderList({ onClearOrders });
+
+    expect(screen.queryByRole('button', { name: '전체 삭제' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '작업' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
+
+    expect(onClearOrders).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu', { name: '주문 목록 작업' })).not.toBeInTheDocument();
   });
 
   it('renders visible count and emits source filter changes', () => {

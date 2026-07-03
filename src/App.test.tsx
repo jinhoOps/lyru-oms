@@ -45,13 +45,15 @@ describe('App', () => {
     expect(screen.getByText('2건')).toBeInTheDocument();
   });
 
-  it('clears all orders from the list header', async () => {
+  it('clears all orders from the list action menu', async () => {
     const user = userEvent.setup();
     window.confirm = () => true;
 
     await renderUnlockedApp();
 
-    await user.click(screen.getByRole('button', { name: '전체 삭제' }));
+    expect(screen.queryByRole('button', { name: '전체 삭제' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '작업' }));
+    await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
 
     expect(screen.getByText('아직 저장된 주문이 없습니다.')).toBeInTheDocument();
     expect(screen.queryByText(/유리루/)).not.toBeInTheDocument();

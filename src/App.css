@@ -521,7 +521,13 @@ pre {
   flex: 0 0 auto;
 }
 
-.sortButton {
+.actionMenuWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.sortButton,
+.actionButton {
   min-height: 38px;
   border-color: #d7c8ad;
   background: #fffdf8;
@@ -570,13 +576,32 @@ pre {
   color: #5b4322;
 }
 
-.clearListButton {
-  border-color: #dfcfc0;
-  background: #fffdf8;
+.actionMenuItem {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  justify-content: flex-start;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  padding: 6px 8px;
+  color: #3f3429;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.actionMenuItem:hover,
+.actionMenuItem:focus-visible {
+  background: #f7ead8;
+}
+
+.actionMenuItem.danger {
   color: #7a3d2f;
 }
 
-.clearListButton:disabled {
+.actionMenuItem:disabled {
   opacity: 0.5;
 }
 
@@ -865,7 +890,11 @@ pre {
   }
 
   .headerSelectControl {
-    flex: 1 1 160px;
+    flex: 1 0 100%;
+  }
+
+  .headerSelectControl select {
+    width: 100%;
   }
 
   .orderCount {
@@ -876,8 +905,22 @@ pre {
     margin-left: 0;
   }
 
+  .sortMenuWrap,
+  .viewMenuWrap,
+  .actionMenuWrap {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .sortButton,
+  .viewButton,
+  .actionButton {
+    width: 100%;
+  }
+
   .sortMenu,
-  .viewMenu {
+  .viewMenu,
+  .actionMenu {
     right: 0;
     left: auto;
   }

@@ -168,6 +168,7 @@ export function OrderList({
   const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   function setViewMode(mode: OrderListViewMode) {
     setViewModeState(mode);
@@ -184,6 +185,11 @@ export function OrderList({
   function chooseSortMode(mode: OrderSortMode) {
     onSortModeChange(mode);
     setSortMenuOpen(false);
+  }
+
+  function clearOrdersFromActionMenu() {
+    setActionMenuOpen(false);
+    onClearOrders();
   }
 
   const header = (
@@ -208,14 +214,6 @@ export function OrderList({
               ))}
             </select>
           </label>
-          <button
-            type="button"
-            className="secondaryButton compactTextButton clearListButton"
-            disabled={totalOrderCount === 0}
-            onClick={onClearOrders}
-          >
-            전체 삭제
-          </button>
           <div
             className="sortMenuWrap"
             onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSortMenuOpen(false))}
@@ -231,6 +229,7 @@ export function OrderList({
               aria-expanded={sortMenuOpen}
               onClick={() => {
                 setViewMenuOpen(false);
+                setActionMenuOpen(false);
                 setSortMenuOpen((open) => !open);
               }}
               onKeyDown={(event) => {
@@ -272,6 +271,7 @@ export function OrderList({
               aria-expanded={viewMenuOpen}
               onClick={() => {
                 setSortMenuOpen(false);
+                setActionMenuOpen(false);
                 setViewMenuOpen((open) => !open);
               }}
             >
@@ -290,6 +290,41 @@ export function OrderList({
                     <span>{option.label}</span>
                   </label>
                 ))}
+              </div>
+            ) : null}
+          </div>
+          <div
+            className="actionMenuWrap"
+            onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setActionMenuOpen(false))}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setActionMenuOpen(false);
+              }
+            }}
+          >
+            <button
+              type="button"
+              className="secondaryButton compactTextButton actionButton"
+              aria-expanded={actionMenuOpen}
+              onClick={() => {
+                setSortMenuOpen(false);
+                setViewMenuOpen(false);
+                setActionMenuOpen((open) => !open);
+              }}
+            >
+              작업
+            </button>
+            {actionMenuOpen ? (
+              <div className="sortMenu actionMenu" role="menu" aria-label="주문 목록 작업">
+                <button
+                  type="button"
+                  className="actionMenuItem danger"
+                  role="menuitem"
+                  disabled={totalOrderCount === 0}
+                  onClick={clearOrdersFromActionMenu}
+                >
+                  전체 삭제
+                </button>
               </div>
             ) : null}
           </div>
