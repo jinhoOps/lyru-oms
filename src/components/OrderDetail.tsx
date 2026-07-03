@@ -61,6 +61,7 @@ const mergeInfoReasonsWithMissingFields = (infoReasons: ReviewReason[], missingF
 
 export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailProps) {
   const customerNameInputRef = useRef<HTMLInputElement | null>(null);
+  const fieldControlRefs = useRef<Partial<Record<OrderFieldKey, HTMLElement | null>>>({});
   const [isChangeRequestOpen, setIsChangeRequestOpen] = useState(() => Boolean(order?.changeRequestNote.trim()));
   const [rawTextCopied, setRawTextCopied] = useState(false);
 
@@ -151,6 +152,48 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
 
   function handleCustomerTitleClick() {
     customerNameInputRef.current?.focus();
+  }
+
+  function registerFieldControl(field: OrderFieldKey) {
+    return (element: HTMLElement | null) => {
+      fieldControlRefs.current[field] = element;
+
+      if (field === 'customerName') {
+        customerNameInputRef.current = element instanceof HTMLInputElement ? element : null;
+      }
+    };
+  }
+
+  function registerDesiredDateTimeField(element: HTMLDivElement | null) {
+    fieldControlRefs.current.desiredDateTime = element?.querySelector('button') ?? null;
+  }
+
+  function focusReviewReasonField(field: OrderFieldKey) {
+    const control = fieldControlRefs.current[field];
+
+    control?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    control?.focus();
+  }
+
+  function renderReviewReason(reason: ReviewReason) {
+    const content = (
+      <>
+        {reason.label}
+        {reason.detail ? <span className="reasonDetail">{reason.detail}</span> : null}
+      </>
+    );
+
+    return (
+      <li key={`${reason.group}-${reason.code}-${reason.field ?? reason.label}`}>
+        {reason.field ? (
+          <button type="button" className="reasonJumpButton" onClick={() => focusReviewReasonField(reason.field!)}>
+            {content}
+          </button>
+        ) : (
+          content
+        )}
+      </li>
+    );
   }
 
   async function handleRawTextCopy() {
@@ -244,12 +287,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
             <section className="reasonGroup">
               <h3>채워야 할 정보가 있어요</h3>
               <ul>
-                {infoReasonsToShow.map((reason) => (
-                  <li key={`${reason.group}-${reason.code}-${reason.field ?? reason.label}`}>
-                    {reason.label}
-                    {reason.detail ? <span className="reasonDetail">{reason.detail}</span> : null}
-                  </li>
-                ))}
+                {infoReasonsToShow.map((reason) => renderReviewReason(reason))}
               </ul>
             </section>
           ) : null}
@@ -257,12 +295,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
             <section className="reasonGroup">
               <h3>확인할 내용이 있어요</h3>
               <ul>
-                {checkReasons.map((reason) => (
-                  <li key={`${reason.group}-${reason.code}-${reason.field ?? reason.label}`}>
-                    {reason.label}
-                    {reason.detail ? <span className="reasonDetail">{reason.detail}</span> : null}
-                  </li>
-                ))}
+                {checkReasons.map((reason) => renderReviewReason(reason))}
               </ul>
             </section>
           ) : null}
@@ -311,7 +344,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
 
           if (field === 'desiredDateTime') {
             return (
-              <div key={field} className="fieldBlock">
+              <div key={field} className="fieldBlock" ref={registerDesiredDateTimeField}>
                 <span>
                   {FIELD_DEFINITIONS[field].label}
                   {difference ? <ReparseHint extractedValue={difference.extractedValue} /> : null}
@@ -333,20 +366,25 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
                 {difference ? <ReparseHint extractedValue={difference.extractedValue} /> : null}
               </span>
               {field === 'fulfillmentType' ? (
-                <select value={order.fulfillmentType} onChange={(event) => handleFieldChange(field, event.target.value)}>
+                <select
+                  ref={registerFieldControl(field)}
+                  value={order.fulfillmentType}
+                  onChange={(event) => handleFieldChange(field, event.target.value)}
+                >
                   <option value="">미정</option>
                   <option value="픽업">픽업</option>
                   <option value="택배">택배</option>
                 </select>
               ) : isTextarea ? (
                 <textarea
+                  ref={registerFieldControl(field)}
                   value={order[field]}
                   rows={field === 'ownerMemo' ? 4 : 3}
                   onChange={(event) => handleFieldChange(field, event.target.value)}
                 />
               ) : (
                 <input
-                  ref={field === 'customerName' ? customerNameInputRef : undefined}
+                  ref={registerFieldControl(field)}
                   value={order[field]}
                   onChange={(event) => handleFieldChange(field, event.target.value)}
                 />

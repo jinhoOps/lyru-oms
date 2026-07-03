@@ -229,6 +229,64 @@ describe('OrderDetail', () => {
     expect(screen.getByLabelText('고객명')).toHaveFocus();
   });
 
+  it('focuses the related field when a review reason with a field is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <OrderDetail
+        order={baseOrder({
+          fulfillmentType: '',
+          reviewReasons: [
+            {
+              kind: '확인필요',
+              group: 'check',
+              code: 'delivery-check',
+              field: 'fulfillmentType',
+              label: '택배 가능 여부',
+              message: '택배 가능 여부를 확인해야 합니다.',
+            },
+          ],
+        })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '택배 가능 여부' }));
+
+    expect(screen.getByLabelText('수령 방식')).toHaveFocus();
+  });
+
+  it('focuses the desired date picker when a desired date review reason is clicked', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <OrderDetail
+        order={baseOrder({
+          desiredDateTime: '',
+          reviewReasons: [
+            {
+              kind: '정보 부족',
+              group: 'info',
+              code: 'missing-field',
+              field: 'desiredDateTime',
+              label: '희망일',
+              message: '희망일 정보가 비어 있어요.',
+            },
+          ],
+        })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '희망일' }));
+
+    expect(screen.getByRole('button', { name: '희망일 선택' })).toHaveFocus();
+  });
+
   it('keeps raw text read-only and copies it from the detail view', async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);

@@ -1165,6 +1165,24 @@ pre {
   margin-top: 3px;
 }
 
+.reasonJumpButton {
+  display: inline-grid;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-align: left;
+}
+
+.reasonJumpButton:hover,
+.reasonJumpButton:focus-visible {
+  color: #4c3513;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .reasonDetail {
   display: block;
   margin-top: 2px;
