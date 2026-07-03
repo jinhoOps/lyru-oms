@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { groupBy, keyBy } from 'es-toolkit';
 import {
   FIELD_DEFINITIONS,
   ORDER_STATUSES,
@@ -49,8 +50,11 @@ const buildFallbackMissingReasons = (fields: OrderFieldKey[]): ReviewReason[] =>
   }));
 
 const mergeInfoReasonsWithMissingFields = (infoReasons: ReviewReason[], missingFields: OrderFieldKey[]) => {
-  const infoReasonFields = new Set(infoReasons.filter((reason) => reason.field).map((reason) => reason.field));
-  const supplementalMissingFields = missingFields.filter((field) => !infoReasonFields.has(field));
+  const infoReasonsByField = keyBy(
+    infoReasons.filter((reason): reason is ReviewReason & { field: OrderFieldKey } => Boolean(reason.field)),
+    (reason) => reason.field,
+  );
+  const supplementalMissingFields = missingFields.filter((field) => !infoReasonsByField[field]);
 
   return [...infoReasons, ...buildFallbackMissingReasons(supplementalMissingFields)];
 };
@@ -164,9 +168,10 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     }
   }
 
-  const differenceByField = new Map(order.reparseDifferences.map((difference) => [difference.field, difference]));
-  const infoReasons = order.reviewReasons.filter((reason) => reason.group === 'info');
-  const checkReasons = order.reviewReasons.filter((reason) => reason.group === 'check');
+  const differenceByField = keyBy(order.reparseDifferences, (difference) => difference.field);
+  const reasonsByGroup = groupBy(order.reviewReasons, (reason) => reason.group);
+  const infoReasons = reasonsByGroup.info ?? [];
+  const checkReasons = reasonsByGroup.check ?? [];
   const infoReasonsToShow = mergeInfoReasonsWithMissingFields(infoReasons, order.missingFields);
   const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
   const shouldShowReviewBox = infoReasonsToShow.length > 0 || checkReasons.length > 0 || hasUnconfirmedChangeRequest;
@@ -301,7 +306,7 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
 
       <div className="fieldGrid">
         {visibleEditableFields.map((field) => {
-          const difference = differenceByField.get(field);
+          const difference = differenceByField[field];
           const isTextarea = multilineFields.has(field);
 
           if (field === 'desiredDateTime') {
