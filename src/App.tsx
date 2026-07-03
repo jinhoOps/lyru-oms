@@ -16,6 +16,32 @@ import { sortOrders, type OrderSortMode } from './domain/orderSorting';
 import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/storage';
 import type { OrderSourceFilter } from './components/OrderList';
 
+const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
+
+const loadCapturePanelCollapsed = () => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return false;
+    }
+
+    return localStorage.getItem(CAPTURE_PANEL_COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+const saveCapturePanelCollapsed = (collapsed: boolean) => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.setItem(CAPTURE_PANEL_COLLAPSED_KEY, String(collapsed));
+  } catch {
+    // Ignore blocked storage; the in-memory state still updates.
+  }
+};
+
 export default function App() {
   const [orders, setOrders] = useState<CapturedOrder[]>(() => loadOrders());
   const [settings, setSettings] = useState<OrderSettings>(() => loadSettings());
@@ -24,6 +50,7 @@ export default function App() {
   const [captureSource, setCaptureSource] = useState<OrderSource>('카카오톡 채널');
   const [sourceFilter, setSourceFilter] = useState<OrderSourceFilter>('전체');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
 
   useEffect(() => {
     saveOrders(orders);
@@ -70,6 +97,14 @@ export default function App() {
     setOrders((current) => current.map((order) => evaluateOrder(order, nextSettings)));
   }
 
+  function toggleCapturePanel() {
+    setCaptureCollapsed((current) => {
+      const next = !current;
+      saveCapturePanelCollapsed(next);
+      return next;
+    });
+  }
+
   return (
     <AccessGate>
       <main className="appShell">
@@ -80,8 +115,14 @@ export default function App() {
           </div>
           <div className="headerActions">
             <QuestionNote />
-            <button type="button" className="secondaryButton" onClick={() => setSettingsOpen(true)}>
-              관리 설정
+            <button
+              type="button"
+              className="secondaryButton iconButton settingsIconButton"
+              aria-label="관리 설정"
+              title="관리 설정"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <span aria-hidden="true">⚙</span>
             </button>
           </div>
         </header>
@@ -102,14 +143,24 @@ export default function App() {
                     ))}
                   </select>
                 </label>
+                <button
+                  type="button"
+                  className="secondaryButton compactTextButton"
+                  aria-expanded={!captureCollapsed}
+                  onClick={toggleCapturePanel}
+                >
+                  {captureCollapsed ? '주문 수집 펼치기' : '주문 수집 접기'}
+                </button>
               </div>
             </div>
-            <OrderCaptureForm
-              existingRawTexts={orders.map((order) => order.rawText)}
-              settings={settings}
-              source={captureSource}
-              onSave={handleSaveOrder}
-            />
+            {captureCollapsed ? null : (
+              <OrderCaptureForm
+                existingRawTexts={orders.map((order) => order.rawText)}
+                settings={settings}
+                source={captureSource}
+                onSave={handleSaveOrder}
+              />
+            )}
           </section>
 
           <OrderList

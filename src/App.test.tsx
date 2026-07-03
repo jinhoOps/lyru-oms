@@ -26,7 +26,32 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '사장님께 확인할 질문' }));
 
     expect(screen.getByRole('region', { name: '확인 질문 쪽지' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '관리 설정' })).toBeInTheDocument();
+    const settingsButton = screen.getByRole('button', { name: '관리 설정' });
+    expect(settingsButton).toBeInTheDocument();
+    expect(settingsButton).toHaveTextContent('⚙');
+  });
+
+  it('collapses order capture and restores the draft state from localStorage', async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '주문 수집 접기' }));
+
+    expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
+    expect(localStorage.getItem('lyru-oms.capturePanel.collapsed.v1')).toBe('true');
+
+    cleanup();
+    render(<App />);
+
+    expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '주문 수집 펼치기' }));
+
+    expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
+    expect(localStorage.getItem('lyru-oms.capturePanel.collapsed.v1')).toBe('false');
   });
 
   it('re-evaluates existing orders when quantity settings change', async () => {
@@ -44,7 +69,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    expect(screen.getByText('확인할 내용 1개')).toBeInTheDocument();
+    expect(screen.getByText('확인 1개')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '관리 설정' }));
     const settingsDialog = screen.getByRole('dialog', { name: '정보 부족 기준' });
@@ -52,7 +77,7 @@ describe('App', () => {
     await user.type(within(settingsDialog).getByLabelText('대량 기준 실수량'), '100');
     await user.click(within(settingsDialog).getByRole('button', { name: '저장' }));
 
-    expect(screen.queryByText('확인할 내용 1개')).not.toBeInTheDocument();
+    expect(screen.queryByText('확인 1개')).not.toBeInTheDocument();
   });
 
   it('changes displayed order when sort mode changes', async () => {
@@ -71,7 +96,7 @@ describe('App', () => {
 
     expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: '정렬 방식' }));
+    await user.click(screen.getByRole('button', { name: '정렬' }));
     await user.click(screen.getByRole('radio', { name: '수량 많은 순' }));
 
     const orderButtons = screen

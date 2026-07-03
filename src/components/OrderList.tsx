@@ -25,6 +25,11 @@ const sortOptions: Array<{ mode: OrderSortMode; label: string }> = [
   { mode: 'quantityDesc', label: '수량 많은 순' },
 ];
 
+const viewOptions: Array<{ mode: OrderListViewMode; label: string }> = [
+  { mode: 'list', label: '목록형 보기' },
+  { mode: 'card', label: '카드형 보기' },
+];
+
 const fallback = (value: string, label: string) => (value.trim() ? value : label);
 
 const loadOrderListViewMode = (): OrderListViewMode => {
@@ -59,6 +64,20 @@ const summarizeOrder = (order: CapturedOrder) => {
   return `${item} · ${quantity}`;
 };
 
+const getOrderStatusClass = (status: CapturedOrder['status']) => {
+  switch (status) {
+    case '확인 필요':
+      return 'status-needs-review';
+    case '제작 준비':
+      return 'status-production-ready';
+    case '발송 완료':
+      return 'status-shipped';
+    case '신규':
+    default:
+      return 'status-new';
+  }
+};
+
 const summarizeReviewReasonGroups = (order: CapturedOrder) => {
   const infoReasonFields = new Set(
     order.reviewReasons.filter((reason) => reason.group === 'info' && reason.field).map((reason) => reason.field),
@@ -70,11 +89,11 @@ const summarizeReviewReasonGroups = (order: CapturedOrder) => {
   const summaries: string[] = [];
 
   if (infoCount > 0) {
-    summaries.push(`채워야 할 정보 ${infoCount}개`);
+    summaries.push(`정보 ${infoCount}개`);
   }
 
   if (checkCount > 0) {
-    summaries.push(`확인할 내용 ${checkCount}개`);
+    summaries.push(`확인 ${checkCount}개`);
   }
 
   return summaries;
@@ -125,10 +144,12 @@ export function OrderList({
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
 
   function setViewMode(mode: OrderListViewMode) {
     setViewModeState(mode);
     saveOrderListViewMode(mode);
+    setViewMenuOpen(false);
   }
 
   function toggleRawText(orderId: string) {
@@ -146,11 +167,13 @@ export function OrderList({
     <div className="listHeader">
       <div className="sectionHeader">
         <div>
-          <h2>주문 목록</h2>
+          <div className="sectionTitleLine">
+            <h2>주문 목록</h2>
+            <span className="orderCount">{orders.length}건</span>
+          </div>
           <p>주문을 빠르게 훑고 선택합니다.</p>
         </div>
         <div className="sectionHeaderActions listHeaderActions">
-          <span className="orderCount">{orders.length}건</span>
           <label className="headerSelectControl">
             주문 목록 출처
             <select value={sourceFilter} onChange={(event) => onSourceFilterChange(event.target.value as OrderSourceFilter)}>
@@ -179,17 +202,19 @@ export function OrderList({
           >
             <button
               type="button"
-              className="iconButton sortButton"
-              aria-label="정렬 방식"
+              className="secondaryButton compactTextButton sortButton"
               aria-expanded={sortMenuOpen}
-              onClick={() => setSortMenuOpen((open) => !open)}
+              onClick={() => {
+                setViewMenuOpen(false);
+                setSortMenuOpen((open) => !open);
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                   setSortMenuOpen(false);
                 }
               }}
             >
-              ↕
+              정렬
             </button>
             {sortMenuOpen ? (
               <div className="sortMenu" role="radiogroup" aria-label="정렬 방식">
@@ -207,27 +232,47 @@ export function OrderList({
               </div>
             ) : null}
           </div>
-          <div className="viewToggle" aria-label="주문 목록 보기 방식">
+          <div
+            className="viewMenuWrap"
+            onBlur={(event) => {
+              const nextFocus = event.relatedTarget;
+
+              if (!(nextFocus instanceof Node) || !event.currentTarget.contains(nextFocus)) {
+                setViewMenuOpen(false);
+              }
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setViewMenuOpen(false);
+              }
+            }}
+          >
             <button
               type="button"
-              className={viewMode === 'card' ? 'active' : ''}
-              aria-label="카드형 보기"
-              title="카드형 보기"
-              aria-pressed={viewMode === 'card'}
-              onClick={() => setViewMode('card')}
+              className="secondaryButton compactTextButton viewButton"
+              aria-expanded={viewMenuOpen}
+              onClick={() => {
+                setSortMenuOpen(false);
+                setViewMenuOpen((open) => !open);
+              }}
             >
-              <span className="cardIcon" aria-hidden="true" />
+              보기
             </button>
-            <button
-              type="button"
-              className={viewMode === 'list' ? 'active' : ''}
-              aria-label="목록형 보기"
-              title="목록형 보기"
-              aria-pressed={viewMode === 'list'}
-              onClick={() => setViewMode('list')}
-            >
-              <span className="listIcon" aria-hidden="true" />
-            </button>
+            {viewMenuOpen ? (
+              <div className="sortMenu viewMenu" role="radiogroup" aria-label="보기 방식">
+                {viewOptions.map((option) => (
+                  <label key={option.mode} className="sortMenuOption">
+                    <input
+                      type="radio"
+                      name="order-view-mode"
+                      checked={viewMode === option.mode}
+                      onChange={() => setViewMode(option.mode)}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -254,65 +299,58 @@ export function OrderList({
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
           const hasOwnerMemo = order.ownerMemo.trim() !== '';
           const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
-          const needsAttention =
-            order.warningLevel === 'attention' || order.reviewReasons.length > 0 || order.missingFields.length > 0;
           const dday = formatDday(getDisplayDate(order));
           const reasonSummaries = summarizeReviewReasonGroups(order);
+          const statusClass = getOrderStatusClass(order.status);
 
           return (
             <article
               key={order.id}
-              className={`orderRow ${selectedId === order.id ? 'selected' : ''} ${
+              className={`orderRow ${statusClass} ${selectedId === order.id ? 'selected' : ''} ${
                 order.warningLevel === 'attention' ? 'attention' : ''
               }`}
             >
               {viewMode === 'list' ? (
                 <button type="button" className="orderRowMain compactRow" onClick={() => onSelect(order.id)}>
-                  <span className="compactLine">
-                    <span className="statusPill">{order.status}</span>
+                  <span className="compactLine badgeLine">
+                    <span className={`statusPill ${statusClass}`}>{order.status}</span>
                     <span className="ddayBadge" title={dday.title}>
                       {dday.label}
                     </span>
-                    <strong>{summarizeOrder(order)}</strong>
-                  </span>
-                  <span className="compactLine mutedText">
-                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
-                  </span>
-                  {reasonSummaries.length > 0 || hasUnconfirmedChangeRequest ? (
-                    <span className="compactLine reasonSummaryLine">
-                      {needsAttention ? <span className="reasonSummaryPill">확인 필요</span> : null}
-                      {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
-                      {reasonSummaries.map((summary) => (
-                        <span key={summary} className="reasonSummaryPill">
-                          {summary}
-                        </span>
-                      ))}
-                    </span>
-                  ) : null}
-                </button>
-              ) : (
-                <button type="button" className="orderRowMain" onClick={() => onSelect(order.id)}>
-                  <span className="rowTopline">
-                    <span className="sourcePill">{order.source}</span>
-                    <span className="statusPill">{order.status}</span>
-                    <span className="ddayBadge" title={dday.title}>
-                      {dday.label}
-                    </span>
-                    <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
-                  </span>
-                  <strong>{fallback(order.customerName, '고객명 미정')}</strong>
-                  <span>{summarizeOrder(order)}</span>
-                  <span className="mutedText">
-                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
-                  </span>
-                  <span className="flagLine">
-                    {needsAttention ? <span className="reasonSummaryPill">확인 필요</span> : null}
                     {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
                     {reasonSummaries.map((summary) => (
                       <span key={summary} className="reasonSummaryPill">
                         {summary}
                       </span>
                     ))}
+                  </span>
+                  <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                  <span className="compactLine mutedText">
+                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
+                  </span>
+                </button>
+              ) : (
+                <button type="button" className="orderRowMain" onClick={() => onSelect(order.id)}>
+                  <span className="rowTopline">
+                    <span className="sourcePill">{order.source}</span>
+                    <span className={`statusPill ${statusClass}`}>{order.status}</span>
+                    <span className="ddayBadge" title={dday.title}>
+                      {dday.label}
+                    </span>
+                    {reasonSummaries.map((summary) => (
+                      <span key={summary} className="reasonSummaryPill">
+                        {summary}
+                      </span>
+                    ))}
+                    {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
+                    <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
+                  </span>
+                  <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                  <span className="mutedText">
+                    {fallback(order.customerName, '고객명 미정')} · {fallback(order.desiredDateTime, '희망일 미정')} ·{' '}
+                    {fallback(order.fulfillmentType, '수령 방식 없음')}
+                  </span>
+                  <span className="flagLine">
                     {hasCustomerRequest ? <span className="flagOn">고객 요청 있음</span> : null}
                     {hasOwnerMemo ? <span className="flagOn">내부 메모 있음</span> : null}
                   </span>

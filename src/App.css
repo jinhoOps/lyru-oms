@@ -261,6 +261,12 @@ pre {
   margin-bottom: 4px;
 }
 
+.sectionTitleLine {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
 .sectionHeader p,
 .sectionHelp,
 .inputHelp {
@@ -382,6 +388,19 @@ pre {
   line-height: 1;
 }
 
+.settingsIconButton {
+  display: grid;
+  place-items: center;
+}
+
+.compactTextButton {
+  min-height: 36px;
+  padding: 7px 10px;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .linkButton {
   min-height: 36px;
   padding: 6px 10px;
@@ -429,12 +448,17 @@ pre {
   flex: 0 0 auto;
 }
 
+.viewMenuWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .sortButton {
   min-height: 38px;
   border-color: #d7c8ad;
   background: #fffdf8;
   color: #5b4322;
-  font-size: 18px;
+  font-size: 13px;
 }
 
 .sortMenu {
@@ -472,72 +496,10 @@ pre {
   min-height: 16px;
 }
 
-.viewToggle {
-  display: inline-flex;
-  gap: 2px;
-  border: 1px solid #e2d5bf;
-  border-radius: 8px;
+.viewButton {
+  border-color: #d7c8ad;
   background: #fffdf8;
-  padding: 2px;
-}
-
-.viewToggle button {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  min-height: 32px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: #746956;
-  padding: 0;
-}
-
-.viewToggle button.active {
-  border: 1px solid #d8c6a8;
-  background: #f8efe1;
   color: #5b4322;
-}
-
-.cardIcon,
-.listIcon {
-  width: 16px;
-  height: 16px;
-}
-
-.cardIcon {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 3px;
-}
-
-.cardIcon::before,
-.cardIcon::after,
-.listIcon::before,
-.listIcon::after {
-  content: "";
-}
-
-.cardIcon::before,
-.cardIcon::after {
-  border: 1.5px solid currentColor;
-  border-radius: 2px;
-  box-shadow: 9px 0 0 -1.5px currentColor;
-}
-
-.listIcon {
-  position: relative;
-  display: block;
-  border-top: 2px solid currentColor;
-  border-bottom: 2px solid currentColor;
-}
-
-.listIcon::before {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 5px;
-  border-top: 2px solid currentColor;
 }
 
 .orderList {
@@ -556,8 +518,19 @@ pre {
 }
 
 .orderRow.attention {
-  border-color: #c7923c;
-  box-shadow: inset 4px 0 0 #c7923c;
+  border-color: #c9a45f;
+  box-shadow: inset 4px 0 0 #c9a45f;
+}
+
+.orderRow.status-production-ready {
+  border-color: #d5c7a8;
+  box-shadow: inset 4px 0 0 #d5c7a8;
+}
+
+.orderRow.status-shipped {
+  border-color: #d9d9d2;
+  background: #fbfaf7;
+  box-shadow: inset 4px 0 0 #c9c9bf;
 }
 
 .orderRow.selected {
@@ -593,12 +566,26 @@ pre {
   gap: 6px;
 }
 
-.compactLine strong {
+.compactLine strong,
+.orderSummaryText {
   min-width: 0;
   overflow: hidden;
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.orderSummaryText {
+  display: block;
+  font-size: 15px;
+}
+
+.orderList.compact .orderSummaryText {
+  font-size: 13px;
+}
+
+.badgeLine {
+  flex-wrap: wrap;
 }
 
 .orderList.compact .statusPill {
@@ -660,6 +647,26 @@ pre {
 }
 
 .statusPill {
+  background: #172033;
+  color: #fffaf2;
+}
+
+.statusPill.status-needs-review {
+  background: #6f5430;
+  color: #fffaf2;
+}
+
+.statusPill.status-production-ready {
+  background: #eee2ca;
+  color: #4f402a;
+}
+
+.statusPill.status-shipped {
+  background: #ecebe5;
+  color: #6a665d;
+}
+
+.statusPill.status-new {
   background: #172033;
   color: #fffaf2;
 }
@@ -745,7 +752,13 @@ pre {
   }
 
   .sortMenuWrap {
-    margin-left: auto;
+    margin-left: 0;
+  }
+
+  .sortMenu,
+  .viewMenu {
+    right: 0;
+    left: auto;
   }
 }
 
