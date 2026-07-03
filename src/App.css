@@ -934,6 +934,7 @@ pre {
 }
 
 .fieldBlock {
+  display: grid;
   grid-template-columns: minmax(132px, 32%) minmax(0, 1fr);
   align-items: center;
   column-gap: 10px;
@@ -949,6 +950,140 @@ pre {
   align-items: center;
   min-width: 0;
   white-space: nowrap;
+}
+
+.dateTimeFieldButton {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-color: #d7c8ad;
+  background: #fffdf8;
+  color: #1b2430;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.dateTimeFieldValue {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dateTimeFieldCue {
+  flex: 0 0 auto;
+  color: #8a6f3e;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.dateTimeSheetBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: end center;
+  padding: 16px;
+  background: rgba(22, 32, 51, 0.34);
+}
+
+.dateTimeSheet {
+  width: min(100%, 430px);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border: 1px solid #e1d5c2;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 14px;
+  box-shadow: 0 18px 48px rgba(22, 32, 51, 0.22);
+}
+
+.dateTimeSheetHeader,
+.dateTimeSheetActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dateTimeSheetHeader h3 {
+  margin: 0;
+  color: #342819;
+  font-size: 17px;
+}
+
+.quickDateGrid,
+.timeChipGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dateChip,
+.timeChip {
+  min-height: 40px;
+  border-color: #d8c8ad;
+  background: #fffdf8;
+  color: #4e3d28;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.timeChip.selected {
+  border-color: #b48a3e;
+  background: #f7ead8;
+  color: #3e2d15;
+}
+
+.timePickerGroup {
+  display: grid;
+  gap: 8px;
+}
+
+.timePickerGroup p {
+  margin: 0;
+  color: #4c3b25;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dateTimeSheet .rdp-root {
+  --rdp-accent-color: #8a6f3e;
+  --rdp-accent-background-color: #f7ead8;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-selected-border: 2px solid #8a6f3e;
+  margin: 12px auto;
+}
+
+.dateTimeSheet .rdp-months {
+  justify-content: center;
+}
+
+.dateTimeSheet .rdp-caption_label {
+  color: #342819;
+  font-weight: 800;
+}
+
+.dateTimeSheet .rdp-button_next,
+.dateTimeSheet .rdp-button_previous {
+  color: #5b4322;
+}
+
+.dateTimeSheetActions {
+  position: sticky;
+  bottom: 0;
+  margin-top: 12px;
+  background: #fffaf2;
+  padding-top: 10px;
+}
+
+.dateTimeSheetActions button {
+  flex: 1 1 0;
 }
 
 .detailTitleButton {
@@ -1131,6 +1266,15 @@ pre {
 
   .fieldBlock {
     grid-template-columns: minmax(118px, 36%) minmax(0, 1fr);
+  }
+
+  .dateTimeSheetBackdrop {
+    padding: 10px;
+  }
+
+  .quickDateGrid,
+  .timeChipGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

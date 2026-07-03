@@ -10,6 +10,7 @@ import {
 } from '../domain/orderTypes';
 import { parseExplicitDate } from '../domain/dateDisplay';
 import { evaluateOrder } from '../domain/reviewRules';
+import { DesiredDateTimePicker } from './DesiredDateTimePicker';
 import { ReparseHint } from './ReparseHint';
 
 interface OrderDetailProps {
@@ -89,6 +90,27 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
     });
   }
 
+  function handleDesiredDateTimeApply(nextValue: { desiredDateTime: string; pickupTime: string }) {
+    if (!order) {
+      return;
+    }
+
+    const editedFields = new Set<OrderFieldKey>(order.manuallyEditedFields);
+    editedFields.add('desiredDateTime');
+
+    if (order.fulfillmentType === '픽업' || nextValue.pickupTime !== order.pickupTime) {
+      editedFields.add('pickupTime');
+    }
+
+    publish({
+      ...order,
+      desiredDateTime: nextValue.desiredDateTime,
+      pickupTime: nextValue.pickupTime,
+      parsedDate: parseExplicitDate(nextValue.desiredDateTime),
+      manuallyEditedFields: [...editedFields],
+    });
+  }
+
   function handleStatusChange(status: OrderStatus) {
     if (!order) {
       return;
@@ -146,12 +168,12 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
   const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
   const shouldShowReviewBox = infoReasonsToShow.length > 0 || checkReasons.length > 0 || hasUnconfirmedChangeRequest;
   const visibleEditableFields = editableFields.filter((field) => {
-    if (order.fulfillmentType === '픽업') {
-      return field !== 'address';
+    if (field === 'pickupTime') {
+      return false;
     }
 
-    if (order.fulfillmentType === '택배') {
-      return field !== 'pickupTime';
+    if (order.fulfillmentType === '픽업') {
+      return field !== 'address';
     }
 
     return true;
@@ -276,6 +298,23 @@ export function OrderDetail({ order, settings, onChange, onClose }: OrderDetailP
         {visibleEditableFields.map((field) => {
           const difference = differenceByField.get(field);
           const isTextarea = multilineFields.has(field);
+
+          if (field === 'desiredDateTime') {
+            return (
+              <div key={field} className="fieldBlock">
+                <span>
+                  {FIELD_DEFINITIONS[field].label}
+                  {difference ? <ReparseHint extractedValue={difference.extractedValue} /> : null}
+                </span>
+                <DesiredDateTimePicker
+                  desiredDateTime={order.desiredDateTime}
+                  pickupTime={order.pickupTime}
+                  includeTime={order.fulfillmentType === '픽업'}
+                  onApply={handleDesiredDateTimeApply}
+                />
+              </div>
+            );
+          }
 
           return (
             <label key={field} className={isTextarea ? 'fieldBlock spanAll' : 'fieldBlock'}>

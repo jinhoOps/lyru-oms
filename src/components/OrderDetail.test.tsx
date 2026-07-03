@@ -34,7 +34,18 @@ const baseOrder = (overrides: Partial<CapturedOrder> = {}): CapturedOrder => ({
   ...overrides,
 });
 
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+const addDaysIsoDate = (days: number) => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+};
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   cleanup();
 });
@@ -361,20 +372,92 @@ describe('OrderDetail', () => {
     );
   });
 
-  it('updates parsed date metadata when desired date is edited manually', async () => {
+  it('updates parsed date metadata when desired date is selected', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
+    const tomorrow = addDaysIsoDate(1);
 
     render(<OrderDetail order={baseOrder()} settings={DEFAULT_SETTINGS} onChange={onChange} onClose={vi.fn()} />);
 
-    fireEvent.change(screen.getByLabelText('희망일'), { target: { value: '2026-07-03' } });
+    await user.click(screen.getByRole('button', { name: '희망일 선택' }));
+    await user.click(within(screen.getByRole('dialog', { name: '희망일 선택' })).getByRole('button', { name: '내일' }));
+    await user.click(within(screen.getByRole('dialog', { name: '희망일 선택' })).getByRole('button', { name: '적용' }));
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
-        desiredDateTime: '2026-07-03',
+        desiredDateTime: tomorrow,
         parsedDate: expect.objectContaining({
-          isoDate: '2026-07-03',
+          isoDate: tomorrow,
           isRelative: false,
         }),
+      }),
+    );
+  });
+
+  it('applies desired date and pickup time from the picker for pickup orders', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const tomorrow = addDaysIsoDate(1);
+
+    render(
+      <OrderDetail
+        order={baseOrder({ desiredDateTime: '', fulfillmentType: '픽업', pickupTime: '' })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '희망일/시간 선택' }));
+
+    const picker = screen.getByRole('dialog', { name: '희망일/시간 선택' });
+    await user.click(within(picker).getByRole('button', { name: '내일' }));
+    await user.click(within(picker).getByRole('button', { name: '15:00' }));
+    await user.click(within(picker).getByRole('button', { name: '적용' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desiredDateTime: tomorrow,
+        pickupTime: '15:00',
+        parsedDate: expect.objectContaining({
+          isoDate: tomorrow,
+          isRelative: false,
+        }),
+        manuallyEditedFields: expect.arrayContaining(['desiredDateTime', 'pickupTime']),
+      }),
+    );
+  });
+
+  it('uses the same picker as a date-only flow for delivery orders', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const tomorrow = addDaysIsoDate(1);
+
+    render(
+      <OrderDetail
+        order={baseOrder({ desiredDateTime: '', fulfillmentType: '택배', pickupTime: '' })}
+        settings={DEFAULT_SETTINGS}
+        onChange={onChange}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '희망일 선택' }));
+
+    const picker = screen.getByRole('dialog', { name: '희망일 선택' });
+    expect(within(picker).queryByRole('button', { name: '15:00' })).not.toBeInTheDocument();
+
+    await user.click(within(picker).getByRole('button', { name: '내일' }));
+    await user.click(within(picker).getByRole('button', { name: '적용' }));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        desiredDateTime: tomorrow,
+        pickupTime: '',
+        parsedDate: expect.objectContaining({
+          isoDate: tomorrow,
+        }),
+        manuallyEditedFields: expect.arrayContaining(['desiredDateTime']),
       }),
     );
   });
@@ -397,7 +480,8 @@ describe('OrderDetail', () => {
       <OrderDetail order={pickupOrder} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />,
     );
 
-    expect(screen.getByText('픽업 시간')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '희망일/시간 선택' })).toBeInTheDocument();
+    expect(screen.queryByText('픽업 시간')).not.toBeInTheDocument();
     expect(screen.queryByText('택배 주소')).not.toBeInTheDocument();
 
     rerender(<OrderDetail order={baseOrder({ fulfillmentType: '택배' })} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />);
