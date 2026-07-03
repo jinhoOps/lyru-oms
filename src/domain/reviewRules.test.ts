@@ -159,6 +159,50 @@ describe('evaluateOrder', () => {
     });
   });
 
+  it('preserves duplicate raw text reasons while regenerating missing field reasons', () => {
+    const evaluated = evaluateOrder(
+      order({
+        orderItems: '',
+        quantity: '',
+        desiredDateTime: '2026-07-08',
+        fulfillmentType: '픽업',
+        reviewReasons: [
+          {
+            kind: '중복 가능성',
+            group: 'check',
+            code: 'duplicate-raw-text',
+            label: '중복 가능성',
+            message: '비슷한 원문이 이미 있습니다.',
+          },
+          {
+            kind: '정보 부족',
+            group: 'info',
+            code: 'missing-field',
+            field: 'address',
+            label: '택배 주소',
+            message: '택배 주소',
+          },
+        ],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    const missingFieldReasons = evaluated.reviewReasons.filter((reason) => reason.code === 'missing-field');
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: '중복 가능성', code: 'duplicate-raw-text' }),
+        expect.objectContaining({ kind: '정보 부족', group: 'info', field: 'orderItems' }),
+        expect.objectContaining({ kind: '정보 부족', group: 'info', field: 'quantity' }),
+      ]),
+    );
+    expect(missingFieldReasons.map((reason) => reason.field)).toEqual(['orderItems', 'quantity']);
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ code: 'missing-field', field: 'address' })]),
+    );
+    expect(evaluated.status).toBe('확인 필요');
+  });
+
   it('flags real-unit bulk orders at 40구 or more', () => {
     const evaluated = evaluateOrder(
       order({
@@ -226,6 +270,34 @@ describe('evaluateOrder', () => {
           field: 'quantity',
           label: '최소 주문 조건 확인',
         }),
+      ]),
+    );
+  });
+
+  it('keeps quantity business rule reasons explicit', () => {
+    const evaluated = evaluateOrder(
+      order({
+        orderItems: '화과자 4구',
+        quantity: '1세트',
+        desiredDateTime: '2026-07-08',
+        fulfillmentType: '픽업',
+        menuMatches: [{ menuId: 'hwagwaja-4', label: '화과자 4구', unitCount: 4, confidence: 'exact' }],
+        quantityCandidates: [{ value: 1, unit: '세트', rawText: '1세트' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'minimum-order',
+          field: 'quantity',
+          label: '최소 주문 조건 확인',
+          detail: '4구 상품은 최소 2세트 기준입니다. 현재 1세트입니다.',
+          message: '최소 주문 조건을 확인해야 합니다.',
+        },
       ]),
     );
   });
