@@ -1,3 +1,5 @@
+import { partition } from 'es-toolkit';
+
 import {
   FIELD_DEFINITIONS,
   type CapturedOrder,
@@ -171,11 +173,15 @@ const createReviewReasons = (
   order: CapturedOrder,
   settings: OrderSettings,
   missingFields: Set<OrderFieldKey>,
-): ReviewReason[] => [
-  ...order.reviewReasons.filter(isDuplicateReason).map(hydrateDuplicateReason),
-  ...[...missingFields].map(createMissingFieldReason),
-  ...createCheckReasons(order, settings),
-];
+): ReviewReason[] => {
+  const [duplicateReasons] = partition(order.reviewReasons, isDuplicateReason);
+
+  return [
+    ...duplicateReasons.map(hydrateDuplicateReason),
+    ...[...missingFields].map(createMissingFieldReason),
+    ...createCheckReasons(order, settings),
+  ];
+};
 
 export const evaluateOrder = (order: CapturedOrder, settings: OrderSettings): CapturedOrder => {
   const missingFields = new Set<OrderFieldKey>();
