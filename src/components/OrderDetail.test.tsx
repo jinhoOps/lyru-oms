@@ -138,6 +138,65 @@ describe('OrderDetail', () => {
     expect(within(reviewBox).getByText('수령 방식')).toBeInTheDocument();
   });
 
+  it('does not duplicate fallback missing fields that already have info reasons', () => {
+    const order = baseOrder({
+      missingFields: ['customerName', 'quantity'],
+      reviewReasons: [
+        {
+          kind: '정보 부족',
+          group: 'info',
+          code: 'missing-field',
+          field: 'customerName',
+          label: '고객명',
+          message: '고객명 정보가 비어 있어요.',
+        },
+        {
+          kind: '확인필요',
+          group: 'check',
+          code: 'delivery-check',
+          field: 'fulfillmentType',
+          label: '택배 가능 여부',
+          message: '택배 가능 여부를 확인해야 합니다.',
+        },
+      ],
+    });
+
+    render(<OrderDetail order={order} settings={DEFAULT_SETTINGS} onChange={vi.fn()} onClose={vi.fn()} />);
+
+    const reviewBox = screen.getByLabelText('확인 필요 사유');
+
+    expect(within(reviewBox).getByText('고객명')).toBeInTheDocument();
+    expect(within(reviewBox).getByText('수량')).toBeInTheDocument();
+    expect(within(reviewBox).getAllByText('고객명')).toHaveLength(1);
+    expect(within(reviewBox).getByText('택배 가능 여부')).toBeInTheDocument();
+  });
+
+  it('shows reparse hints on fields by field key', () => {
+    render(
+      <OrderDetail
+        order={baseOrder({
+          reparseDifferences: [
+            { field: 'quantity', extractedValue: '3세트' },
+            { field: 'desiredDateTime', extractedValue: '2026-07-08 14:00' },
+          ],
+        })}
+        settings={DEFAULT_SETTINGS}
+        onChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const quantityField = screen.getByLabelText('수량').closest('.fieldBlock');
+    const desiredDateField = screen.getByRole('button', { name: '희망일 선택' }).closest('.fieldBlock');
+
+    expect(quantityField).not.toBeNull();
+    expect(desiredDateField).not.toBeNull();
+    expect(within(quantityField as HTMLElement).getByLabelText('원문에서는 이렇게 가져왔어요: 3세트')).toBeInTheDocument();
+    expect(
+      within(desiredDateField as HTMLElement).getByLabelText('원문에서는 이렇게 가져왔어요: 2026-07-08 14:00'),
+    ).toBeInTheDocument();
+  });
+
   it('shows unconfirmed change request in the confirmation summary', () => {
     render(
       <OrderDetail
