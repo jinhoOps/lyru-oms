@@ -31,6 +31,8 @@ const viewOptions: Array<{ mode: OrderListViewMode; label: string }> = [
   { mode: 'card', label: '카드형 보기' },
 ];
 
+const sourceOptions: OrderSourceFilter[] = ['전체', ...ORDER_SOURCES];
+
 const fallback = (value: string, label: string) => (value.trim() ? value : label);
 
 const loadOrderListViewMode = (): OrderListViewMode => {
@@ -169,6 +171,7 @@ export function OrderList({
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
 
   function setViewMode(mode: OrderListViewMode) {
     setViewModeState(mode);
@@ -187,6 +190,11 @@ export function OrderList({
     setSortMenuOpen(false);
   }
 
+  function chooseSourceFilter(source: OrderSourceFilter) {
+    onSourceFilterChange(source);
+    setSourceMenuOpen(false);
+  }
+
   function clearOrdersFromActionMenu() {
     setActionMenuOpen(false);
     onClearOrders();
@@ -203,17 +211,6 @@ export function OrderList({
           <p>주문을 빠르게 훑고 선택합니다.</p>
         </div>
         <div className="sectionHeaderActions listHeaderActions">
-          <label className="headerSelectControl">
-            주문 목록 채널
-            <select value={sourceFilter} onChange={(event) => onSourceFilterChange(event.target.value as OrderSourceFilter)}>
-              <option value="전체">전체</option>
-              {ORDER_SOURCES.map((source) => (
-                <option key={source} value={source}>
-                  {source}
-                </option>
-              ))}
-            </select>
-          </label>
           <div
             className="sortMenuWrap"
             onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSortMenuOpen(false))}
@@ -230,6 +227,7 @@ export function OrderList({
               onClick={() => {
                 setViewMenuOpen(false);
                 setActionMenuOpen(false);
+                setSourceMenuOpen(false);
                 setSortMenuOpen((open) => !open);
               }}
               onKeyDown={(event) => {
@@ -272,6 +270,7 @@ export function OrderList({
               onClick={() => {
                 setSortMenuOpen(false);
                 setActionMenuOpen(false);
+                setSourceMenuOpen(false);
                 setViewMenuOpen((open) => !open);
               }}
             >
@@ -309,6 +308,7 @@ export function OrderList({
               onClick={() => {
                 setSortMenuOpen(false);
                 setViewMenuOpen(false);
+                setSourceMenuOpen(false);
                 setActionMenuOpen((open) => !open);
               }}
             >
@@ -325,6 +325,44 @@ export function OrderList({
                 >
                   전체 삭제
                 </button>
+              </div>
+            ) : null}
+          </div>
+          <div
+            className="sourceMenuWrap"
+            onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSourceMenuOpen(false))}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                setSourceMenuOpen(false);
+              }
+            }}
+          >
+            <button
+              type="button"
+              className="secondaryButton compactTextButton sourceButton"
+              aria-expanded={sourceMenuOpen}
+              onClick={() => {
+                setSortMenuOpen(false);
+                setViewMenuOpen(false);
+                setActionMenuOpen(false);
+                setSourceMenuOpen((open) => !open);
+              }}
+            >
+              채널: {sourceFilter}
+            </button>
+            {sourceMenuOpen ? (
+              <div className="sortMenu sourceMenu" role="radiogroup" aria-label="주문 목록 채널">
+                {sourceOptions.map((source) => (
+                  <label key={source} className="sortMenuOption">
+                    <input
+                      type="radio"
+                      name="order-source-filter"
+                      checked={sourceFilter === source}
+                      onChange={() => chooseSourceFilter(source)}
+                    />
+                    <span>{source}</span>
+                  </label>
+                ))}
               </div>
             ) : null}
           </div>

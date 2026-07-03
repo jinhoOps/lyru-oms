@@ -19,6 +19,11 @@ async function renderUnlockedApp() {
   await screen.findByRole('heading', { name: '주문 표준화 작업실' }, { timeout: 2000 });
 }
 
+async function selectOrderListChannel(user: ReturnType<typeof userEvent.setup>, channel: string) {
+  await user.click(screen.getByRole('button', { name: /^채널:/ }));
+  await user.click(screen.getByRole('radio', { name: channel }));
+}
+
 describe('App', () => {
   it('keeps owner questions hidden behind the header note control', async () => {
     const user = userEvent.setup();
@@ -162,7 +167,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버 스마트스토어');
+    await selectOrderListChannel(user, '네이버 스마트스토어');
 
     expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
     expect(screen.queryByText('주문 내용 미정 · 1세트')).not.toBeInTheDocument();
@@ -174,12 +179,12 @@ describe('App', () => {
 
     await renderUnlockedApp();
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버예약');
+    await selectOrderListChannel(user, '네이버예약');
     await user.selectOptions(screen.getByLabelText('채널'), '카카오톡 채널');
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
-    expect(screen.getByLabelText('주문 목록 채널')).toHaveValue('카카오톡 채널');
+    expect(screen.getByRole('button', { name: '채널: 카카오톡 채널' })).toBeInTheDocument();
     const detailDialog = screen.getByRole('dialog', { name: '주문 상세' });
     expect(detailDialog).toBeInTheDocument();
     expect(within(detailDialog).getByText('카카오고객')).toBeInTheDocument();
@@ -196,7 +201,7 @@ describe('App', () => {
 
     expect(screen.getByRole('dialog', { name: '주문 상세' })).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버예약');
+    await selectOrderListChannel(user, '네이버예약');
 
     expect(screen.queryByRole('dialog', { name: '주문 상세' })).not.toBeInTheDocument();
     expect(screen.getByText('선택한 채널의 주문이 없습니다.')).toBeInTheDocument();

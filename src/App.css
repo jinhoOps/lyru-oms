@@ -526,8 +526,14 @@ pre {
   flex: 0 0 auto;
 }
 
+.sourceMenuWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
 .sortButton,
-.actionButton {
+.actionButton,
+.sourceButton {
   min-height: 38px;
   border-color: #d7c8ad;
   background: #fffdf8;
@@ -907,20 +913,26 @@ pre {
 
   .sortMenuWrap,
   .viewMenuWrap,
-  .actionMenuWrap {
-    flex: 1 1 0;
+  .actionMenuWrap,
+  .sourceMenuWrap {
+    flex: 1 1 calc(50% - 4px);
     min-width: 0;
   }
 
   .sortButton,
   .viewButton,
-  .actionButton {
+  .actionButton,
+  .sourceButton {
     width: 100%;
+    min-height: 40px;
+    white-space: normal;
+    line-height: 1.15;
   }
 
   .sortMenu,
   .viewMenu,
-  .actionMenu {
+  .actionMenu,
+  .sourceMenu {
     right: 0;
     left: auto;
   }

@@ -357,16 +357,22 @@ describe('OrderList', () => {
     expect(screen.queryByRole('menu', { name: '주문 목록 작업' })).not.toBeInTheDocument();
   });
 
-  it('renders visible count and emits source filter changes', () => {
+  it('renders visible count and emits source filter changes from the channel menu', () => {
     const onSourceFilterChange = vi.fn();
     const naverOrder = { ...order, source: '네이버 스마트스토어' as const };
 
     renderOrderList({ orders: [naverOrder], sourceFilter: '네이버 스마트스토어', onSourceFilterChange });
 
     expect(screen.getByText('1건')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('주문 목록 채널'), { target: { value: '카카오톡 채널' } });
+    expect(screen.queryByLabelText('주문 목록 채널')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '채널: 네이버 스마트스토어' }));
+    const channelGroup = screen.getByRole('radiogroup', { name: '주문 목록 채널' });
+    expect(within(channelGroup).getByRole('radio', { name: '네이버 스마트스토어' })).toBeChecked();
+
+    fireEvent.click(within(channelGroup).getByRole('radio', { name: '카카오톡 채널' }));
 
     expect(onSourceFilterChange).toHaveBeenCalledWith('카카오톡 채널');
+    expect(screen.queryByRole('radiogroup', { name: '주문 목록 채널' })).not.toBeInTheDocument();
   });
 
   it('places the visible count next to the order list heading', () => {
