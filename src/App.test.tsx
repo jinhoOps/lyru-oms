@@ -14,11 +14,16 @@ afterEach(() => {
   cleanup();
 });
 
+async function renderUnlockedApp() {
+  render(<App />);
+  await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+}
+
 describe('App', () => {
   it('keeps owner questions hidden behind the header note control', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
     expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
     expect(screen.queryByText('아래 질문을 보시고 편하실 때 직접 연락으로 알려주세요.')).not.toBeInTheDocument();
@@ -31,12 +36,22 @@ describe('App', () => {
     expect(settingsButton).toHaveTextContent('⚙');
   });
 
+  it('starts an empty workspace with a Yuriru sample order', async () => {
+    await renderUnlockedApp();
+
+    expect(screen.getByText(/유리루/)).toBeInTheDocument();
+    expect(screen.getByText(/곶감말이/)).toBeInTheDocument();
+    expect(screen.getByText('1건')).toBeInTheDocument();
+  });
+
   it('collapses order capture and restores the draft state from localStorage', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
     expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
+    expect(screen.getByLabelText('채널')).toBeInTheDocument();
+    expect(screen.queryByLabelText('출처')).not.toBeInTheDocument();
 
     const captureToggle = screen.getByRole('button', { name: '주문 수집 접기' });
     expect(within(captureToggle).getByRole('heading', { name: '주문 수집' })).toBeInTheDocument();
@@ -46,24 +61,27 @@ describe('App', () => {
     await user.click(captureToggle);
 
     expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('채널')).not.toBeInTheDocument();
     expect(localStorage.getItem('lyru-oms.capturePanel.collapsed.v1')).toBe('true');
 
     cleanup();
-    render(<App />);
+    await renderUnlockedApp();
 
     expect(screen.queryByLabelText('주문/문의 원문')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('채널')).not.toBeInTheDocument();
     expect(screen.getByText('▸')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: '주문 수집 펼치기' }));
 
     expect(screen.getByLabelText('주문/문의 원문')).toBeInTheDocument();
+    expect(screen.getByLabelText('채널')).toBeInTheDocument();
     expect(localStorage.getItem('lyru-oms.capturePanel.collapsed.v1')).toBe('false');
   });
 
   it('re-evaluates existing orders when quantity settings change', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
     await user.type(
       screen.getByLabelText('주문/문의 원문'),
@@ -89,7 +107,7 @@ describe('App', () => {
   it('changes displayed order when sort mode changes', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 작은주문\n곶감 2세트\n2026-07-05\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
@@ -116,19 +134,19 @@ describe('App', () => {
   it('saves orders with the source selected from the capture header and filters the order list by source', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
-    await user.selectOptions(screen.getByLabelText('출처'), '네이버 스마트스토어');
+    await user.selectOptions(screen.getByLabelText('채널'), '네이버 스마트스토어');
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 스마트고객\n곶감 2세트\n2026-07-05\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.selectOptions(screen.getByLabelText('채널'), '카카오톡 채널');
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
+    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버 스마트스토어');
 
     expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
     expect(screen.queryByText('주문 내용 미정 · 1세트')).not.toBeInTheDocument();
@@ -138,14 +156,14 @@ describe('App', () => {
   it('keeps newly saved orders visible by moving the source filter to the saved source', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
-    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버 스마트스토어');
+    await user.selectOptions(screen.getByLabelText('채널'), '카카오톡 채널');
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
-    expect(screen.getByLabelText('주문 목록 출처')).toHaveValue('카카오톡 채널');
+    expect(screen.getByLabelText('주문 목록 채널')).toHaveValue('카카오톡 채널');
     const detailDialog = screen.getByRole('dialog', { name: '주문 상세' });
     expect(detailDialog).toBeInTheDocument();
     expect(within(detailDialog).getByText('카카오고객')).toBeInTheDocument();
@@ -154,17 +172,17 @@ describe('App', () => {
   it('closes detail when source filter excludes the selected order', async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderUnlockedApp();
 
-    await user.selectOptions(screen.getByLabelText('출처'), '카카오톡 채널');
+    await user.selectOptions(screen.getByLabelText('채널'), '카카오톡 채널');
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
     expect(screen.getByRole('dialog', { name: '주문 상세' })).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText('주문 목록 출처'), '네이버 스마트스토어');
+    await user.selectOptions(screen.getByLabelText('주문 목록 채널'), '네이버 스마트스토어');
 
     expect(screen.queryByRole('dialog', { name: '주문 상세' })).not.toBeInTheDocument();
-    expect(screen.getByText('선택한 출처의 주문이 없습니다.')).toBeInTheDocument();
+    expect(screen.getByText('선택한 채널의 주문이 없습니다.')).toBeInTheDocument();
   });
 });

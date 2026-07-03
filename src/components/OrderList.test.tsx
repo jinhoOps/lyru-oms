@@ -174,23 +174,23 @@ describe('OrderList', () => {
     expect(screen.queryByText('곶감밀푀유 · 5개')).not.toBeInTheDocument();
     expect(screen.getByText('정보 1개')).toBeInTheDocument();
     expect(screen.getByText('확인 1개')).toBeInTheDocument();
-    expect(screen.getByText('7월 3일 · 픽업')).toBeInTheDocument();
+    expect(screen.getByText(/김리루 · 7월 3일 ·\s*픽업/)).toBeInTheDocument();
     const compactOrderButton = screen.getByRole('button', { name: /곶감밀푀유 · 5/ });
     expect(within(compactOrderButton).queryByText('카카오톡 채널')).not.toBeInTheDocument();
-    expect(within(compactOrderButton).queryByText('김리루')).not.toBeInTheDocument();
+    expect(within(compactOrderButton).getByText(/김리루/)).toBeInTheDocument();
     expect(within(compactOrderButton).queryByText('고객 요청 있음')).not.toBeInTheDocument();
   });
 
   it('shows fulfillment type in the primary list fields', () => {
     renderOrderList({ orders: [{ ...order, fulfillmentType: '픽업' }] });
 
-    expect(screen.getByText('희망일 미정 · 픽업')).toBeInTheDocument();
+    expect(screen.getByText(/김리루 · 희망일 미정 ·\s*픽업/)).toBeInTheDocument();
   });
 
   it('shows fallback when fulfillment type is empty', () => {
     renderOrderList({ orders: [{ ...order, fulfillmentType: '' }] });
 
-    expect(screen.getByText('희망일 미정 · 수령 방식 없음')).toBeInTheDocument();
+    expect(screen.getByText(/김리루 · 희망일 미정 ·\s*수령 방식 없음/)).toBeInTheDocument();
   });
 
   it('shows registered date up to the minute in card mode', () => {
@@ -220,7 +220,7 @@ describe('OrderList', () => {
     renderOrderList({ orders: [{ ...order, desiredDateTime: '2026-07-03', parsedDate: null }] });
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
-    expect(screen.getByText('2026-07-03 · 수령 방식 없음')).toBeInTheDocument();
+    expect(screen.getByText(/김리루 · 2026-07-03 ·\s*수령 방식 없음/)).toBeInTheDocument();
   });
 
   it('uses missing fields as a fallback when info review reasons are missing', () => {
@@ -315,7 +315,7 @@ describe('OrderList', () => {
     renderOrderList({ orders: [naverOrder], sourceFilter: '네이버 스마트스토어', onSourceFilterChange });
 
     expect(screen.getByText('1건')).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('주문 목록 출처'), { target: { value: '카카오톡 채널' } });
+    fireEvent.change(screen.getByLabelText('주문 목록 채널'), { target: { value: '카카오톡 채널' } });
 
     expect(onSourceFilterChange).toHaveBeenCalledWith('카카오톡 채널');
   });
@@ -353,7 +353,7 @@ describe('OrderList', () => {
       />,
     );
 
-    expect(screen.getByText('선택한 출처의 주문이 없습니다.')).toBeInTheDocument();
+    expect(screen.getByText('선택한 채널의 주문이 없습니다.')).toBeInTheDocument();
   });
 
   it('shows change confirmation badge for unconfirmed change requests', () => {

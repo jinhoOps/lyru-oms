@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ACCESS_GRANTED_KEY, AccessGate } from './AccessGate';
 
 beforeEach(() => {
@@ -9,6 +9,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
 });
 
@@ -37,6 +38,8 @@ describe('AccessGate', () => {
     await user.type(screen.getByLabelText('패스코드'), '9999');
     await user.click(screen.getByRole('button', { name: '입장' }));
 
+    expect(await screen.findByText('작업실 준비 중')).toBeInTheDocument();
+    expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
     expect(await screen.findByText('주문 표준화 작업실')).toBeInTheDocument();
     expect(screen.queryByLabelText('패스코드')).not.toBeInTheDocument();
     expect(localStorage.getItem(ACCESS_GRANTED_KEY)).toBe('true');
@@ -60,6 +63,7 @@ describe('AccessGate', () => {
   });
 
   it('shows the app immediately when access was already cached', async () => {
+    vi.useFakeTimers();
     localStorage.setItem(ACCESS_GRANTED_KEY, 'true');
 
     render(
@@ -68,9 +72,14 @@ describe('AccessGate', () => {
       </AccessGate>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByText('주문 표준화 작업실')).toBeInTheDocument();
+    expect(screen.getByText('작업실 준비 중')).toBeInTheDocument();
+    expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
     });
+
+    expect(screen.getByText('주문 표준화 작업실')).toBeInTheDocument();
     expect(screen.queryByLabelText('패스코드')).not.toBeInTheDocument();
   });
 });

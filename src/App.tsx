@@ -6,6 +6,7 @@ import { OrderList } from './components/OrderList';
 import { QuestionNote } from './components/QuestionNote';
 import { SettingsModal } from './components/SettingsModal';
 import {
+  EMPTY_ORDER_FIELDS,
   ORDER_SOURCES,
   type CapturedOrder,
   type OrderSettings,
@@ -17,6 +18,41 @@ import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/sto
 import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
+
+const createSampleOrder = (): CapturedOrder => ({
+  ...EMPTY_ORDER_FIELDS,
+  id: 'sample-yuriru',
+  source: '인스타그램',
+  rawText: '성함: 유리루\n상품: 곶감말이 4구 세트\n수량: 2세트\n희망일: 2026-07-04\n수령 방식: 픽업',
+  customerName: '유리루',
+  orderItems: '곶감말이 4구 세트',
+  quantity: '2세트',
+  fulfillmentType: '픽업',
+  desiredDateTime: '2026-07-04',
+  pickupTime: '15:00',
+  menuMatches: [],
+  quantityCandidates: [{ value: 2, unit: '세트', rawText: '2세트' }],
+  parsedDate: {
+    isoDate: '2026-07-04',
+    timeText: '',
+    originalText: '2026-07-04',
+    isRelative: false,
+  },
+  manuallyEditedFields: [],
+  reparseDifferences: [],
+  missingFields: [],
+  reviewReasons: [],
+  warningLevel: 'none',
+  status: '신규',
+  createdAt: '2026-07-03T00:00:00.000Z',
+  updatedAt: '2026-07-03T00:00:00.000Z',
+});
+
+const loadInitialOrders = () => {
+  const storedOrders = loadOrders();
+
+  return storedOrders.length > 0 ? storedOrders : [createSampleOrder()];
+};
 
 const loadCapturePanelCollapsed = () => {
   try {
@@ -43,7 +79,7 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
 };
 
 export default function App() {
-  const [orders, setOrders] = useState<CapturedOrder[]>(() => loadOrders());
+  const [orders, setOrders] = useState<CapturedOrder[]>(() => loadInitialOrders());
   const [settings, setSettings] = useState<OrderSettings>(() => loadSettings());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<OrderSortMode>('desiredDate');
@@ -136,7 +172,7 @@ export default function App() {
 
         <div className="workspaceLayout">
           <section className="capturePanel" aria-label="주문 수집">
-            <div className="sectionHeader">
+            <div className="sectionHeader captureSectionHeader">
               <div>
                 <div
                   className="captureTitleToggle"
@@ -154,24 +190,24 @@ export default function App() {
                 </div>
                 <p>원문을 붙여넣고 저장합니다.</p>
               </div>
-              <div className="sectionHeaderActions">
-                <label className="headerSelectControl">
-                  출처
+            </div>
+            {captureCollapsed ? null : (
+              <div className="capturePanelBody">
+                <label className="inlineSelectControl">
+                  <span>채널</span>
                   <select value={captureSource} onChange={(event) => setCaptureSource(event.target.value as OrderSource)}>
                     {ORDER_SOURCES.map((item) => (
                       <option key={item}>{item}</option>
                     ))}
                   </select>
                 </label>
+                <OrderCaptureForm
+                  existingRawTexts={orders.map((order) => order.rawText)}
+                  settings={settings}
+                  source={captureSource}
+                  onSave={handleSaveOrder}
+                />
               </div>
-            </div>
-            {captureCollapsed ? null : (
-              <OrderCaptureForm
-                existingRawTexts={orders.map((order) => order.rawText)}
-                settings={settings}
-                source={captureSource}
-                onSave={handleSaveOrder}
-              />
             )}
           </section>
 

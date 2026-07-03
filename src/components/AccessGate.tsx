@@ -1,8 +1,9 @@
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
 
 export const ACCESS_GRANTED_KEY = 'lyru-oms:access-granted';
 
 const PASSCODE_HASH = '888df25ae35772424a560c7152a1de794440e0ea5cfee62828333a456a506e05';
+const REVEAL_DELAY_MS = 620;
 
 async function hashPasscode(passcode: string) {
   const input = new TextEncoder().encode(passcode);
@@ -18,10 +19,22 @@ type AccessGateProps = {
 
 export function AccessGate({ children }: AccessGateProps) {
   const [unlocked, setUnlocked] = useState(() => localStorage.getItem(ACCESS_GRANTED_KEY) === 'true');
+  const [revealReady, setRevealReady] = useState(false);
   const [passcode, setPasscode] = useState('');
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [failedAttempt, setFailedAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!unlocked) {
+      setRevealReady(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setRevealReady(true), REVEAL_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [unlocked]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,8 +57,20 @@ export function AccessGate({ children }: AccessGateProps) {
     }
   }
 
-  if (unlocked) {
+  if (unlocked && revealReady) {
     return <div className="appReveal">{children}</div>;
+  }
+
+  if (unlocked) {
+    return (
+      <main className="accessGateShell">
+        <section className="accessGateCard accessGateLoading" aria-label="작업실 준비">
+          <p className="accessGateEyebrow">Lyru OMS</p>
+          <h1>작업실 준비 중</h1>
+          <p className="accessGateCopy">주문 작업실을 불러오고 있어요.</p>
+        </section>
+      </main>
+    );
   }
 
   return (

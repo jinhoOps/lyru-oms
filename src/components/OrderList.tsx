@@ -175,7 +175,7 @@ export function OrderList({
         </div>
         <div className="sectionHeaderActions listHeaderActions">
           <label className="headerSelectControl">
-            주문 목록 출처
+            주문 목록 채널
             <select value={sourceFilter} onChange={(event) => onSourceFilterChange(event.target.value as OrderSourceFilter)}>
               <option value="전체">전체</option>
               {ORDER_SOURCES.map((source) => (
@@ -284,7 +284,7 @@ export function OrderList({
       <section className="orderListPanel" aria-label="주문 목록">
         {header}
         <p className="emptyState">
-          {totalOrderCount === 0 ? '아직 저장된 주문이 없습니다.' : '선택한 출처의 주문이 없습니다.'}
+          {totalOrderCount === 0 ? '아직 저장된 주문이 없습니다.' : '선택한 채널의 주문이 없습니다.'}
         </p>
       </section>
     );
@@ -326,7 +326,8 @@ export function OrderList({
                   </span>
                   <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
                   <span className="compactLine mutedText">
-                    {fallback(order.desiredDateTime, '희망일 미정')} · {fallback(order.fulfillmentType, '수령 방식 없음')}
+                    {fallback(order.customerName, '고객명 미정')} · {fallback(order.desiredDateTime, '희망일 미정')} ·{' '}
+                    {fallback(order.fulfillmentType, '수령 방식 없음')}
                   </span>
                 </button>
               ) : (
