@@ -125,6 +125,97 @@ create trigger order_checklist_items_set_updated_at
 before update on public.order_checklist_items
 for each row execute function public.set_updated_at();
 
+create or replace function public.prevent_orders_workspace_change()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.workspace_id is distinct from old.workspace_id then
+    raise exception 'orders.workspace_id cannot be changed after insert';
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.prevent_order_child_boundary_change()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.workspace_id is distinct from old.workspace_id then
+    raise exception '%.workspace_id cannot be changed after insert', TG_TABLE_NAME;
+  end if;
+
+  if new.order_id is distinct from old.order_id then
+    raise exception '%.order_id cannot be changed after insert', TG_TABLE_NAME;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger orders_prevent_workspace_change
+before update on public.orders
+for each row execute function public.prevent_orders_workspace_change();
+
+create trigger order_change_requests_prevent_boundary_change
+before update on public.order_change_requests
+for each row execute function public.prevent_order_child_boundary_change();
+
+create trigger order_checklist_items_prevent_boundary_change
+before update on public.order_checklist_items
+for each row execute function public.prevent_order_child_boundary_change();
+
+create or replace function public.prevent_last_workspace_owner_removal()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  should_check boolean := false;
+begin
+  if TG_OP = 'DELETE' then
+    should_check := old.role = 'owner';
+  else
+    should_check := old.role = 'owner'
+      and (
+        new.role <> 'owner'
+      or new.workspace_id is distinct from old.workspace_id
+      or new.user_id is distinct from old.user_id
+    );
+  end if;
+
+  if should_check and not exists (
+      select 1
+      from public.workspace_members wm
+      where wm.workspace_id = old.workspace_id
+        and wm.role = 'owner'
+        and wm.user_id <> old.user_id
+    )
+  then
+    raise exception 'workspace_members cannot remove or demote the last owner of a workspace';
+  end if;
+
+  if TG_OP = 'DELETE' then
+    return old;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger workspace_members_prevent_last_owner_update
+before update on public.workspace_members
+for each row execute function public.prevent_last_workspace_owner_removal();
+
+create trigger workspace_members_prevent_last_owner_delete
+before delete on public.workspace_members
+for each row execute function public.prevent_last_workspace_owner_removal();
+
 create or replace function public.is_workspace_member(target_workspace_id uuid)
 returns boolean
 language sql

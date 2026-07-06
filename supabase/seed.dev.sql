@@ -23,7 +23,8 @@ values (
     }
   }'::jsonb
 )
-on conflict (workspace_id) do nothing;
+on conflict (workspace_id) do update
+set settings = excluded.settings;
 
 insert into public.orders (
   id,
@@ -93,4 +94,30 @@ values (
   '2026-07-03T00:05:00.000Z',
   '2026-07-03T00:05:00.000Z'
 )
-on conflict (id) do nothing;
+on conflict (id) do update
+set
+  source = excluded.source,
+  status = excluded.status,
+  raw_text = excluded.raw_text,
+  customer_name = excluded.customer_name,
+  phone = excluded.phone,
+  order_items = excluded.order_items,
+  quantity = excluded.quantity,
+  purpose = excluded.purpose,
+  fulfillment_type = excluded.fulfillment_type,
+  desired_date_time = excluded.desired_date_time,
+  pickup_time = excluded.pickup_time,
+  allergy_note = excluded.allergy_note,
+  options = excluded.options,
+  customer_request_note = excluded.customer_request_note,
+  owner_memo = excluded.owner_memo,
+  parsed_date = excluded.parsed_date,
+  menu_matches = excluded.menu_matches,
+  quantity_candidates = excluded.quantity_candidates,
+  manually_edited_fields = excluded.manually_edited_fields,
+  reparse_differences = excluded.reparse_differences,
+  missing_fields = excluded.missing_fields,
+  review_reasons = excluded.review_reasons,
+  warning_level = excluded.warning_level,
+  created_at = excluded.created_at,
+  updated_at = excluded.updated_at;
