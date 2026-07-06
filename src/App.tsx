@@ -108,7 +108,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const workspaceGenerationRef = useRef(0);
   const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
   const settingsSaveSequenceRef = useRef(0);
-  const workspaceMutationSequenceRef = useRef(0);
   const clearGenerationRef = useRef(0);
 
   if (currentWorkspaceIdRef.current !== membership.workspaceId) {
@@ -116,7 +115,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     workspaceGenerationRef.current += 1;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
-    workspaceMutationSequenceRef.current = 0;
     clearGenerationRef.current = 0;
   }
 
@@ -143,15 +141,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const isLatestSettingsSave = (workspaceId: string, generation: number, sequence: number) =>
     isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
 
-  const nextWorkspaceMutationSequence = () => {
-    workspaceMutationSequenceRef.current += 1;
-
-    return workspaceMutationSequenceRef.current;
-  };
-
-  const isLatestWorkspaceMutation = (workspaceId: string, generation: number, sequence: number) =>
-    isCurrentWorkspaceGeneration(workspaceId, generation) && workspaceMutationSequenceRef.current === sequence;
-
   const isOrderMutationCurrent = (workspaceId: string, generation: number, clearGeneration: number) =>
     isCurrentWorkspaceGeneration(workspaceId, generation) && clearGenerationRef.current === clearGeneration;
 
@@ -162,7 +151,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     currentWorkspaceIdRef.current = workspaceId;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
-    workspaceMutationSequenceRef.current = 0;
     clearGenerationRef.current = 0;
 
     setLoadStatus('loading');
@@ -210,7 +198,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const clearGeneration = clearGenerationRef.current;
-    nextWorkspaceMutationSequence();
 
     try {
       const savedOrder = await orderRepository.saveOrder(workspaceId, order);
@@ -242,22 +229,23 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
 
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
+    const orderIdsAtClearStart = new Set(orders.map((order) => order.id));
     clearGenerationRef.current += 1;
-    const mutationSequence = nextWorkspaceMutationSequence();
 
     try {
       await orderRepository.deleteAllOrders(workspaceId);
 
-      if (!isLatestWorkspaceMutation(workspaceId, generation, mutationSequence)) {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return;
       }
 
-      setOrders([]);
-      setSelectedId(null);
-      setSourceFilter('전체');
+      setOrders((current) => current.filter((order) => !orderIdsAtClearStart.has(order.id)));
+      setSelectedId((currentSelectedId) =>
+        currentSelectedId && orderIdsAtClearStart.has(currentSelectedId) ? null : currentSelectedId,
+      );
       setSaveStatusMessage('');
     } catch {
-      if (!isLatestWorkspaceMutation(workspaceId, generation, mutationSequence)) {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return;
       }
 
@@ -282,7 +270,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     const generation = workspaceGenerationRef.current;
     const clearGeneration = clearGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
-    nextWorkspaceMutationSequence();
 
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
 

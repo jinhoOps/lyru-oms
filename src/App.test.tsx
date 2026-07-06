@@ -276,7 +276,7 @@ describe('App', () => {
     expect(screen.queryByText(/나스닥3배/)).not.toBeInTheDocument();
   });
 
-  it('keeps an order saved after clear starts when the clear response resolves later', async () => {
+  it('removes pre-clear orders and keeps an order saved after clear starts', async () => {
     const user = userEvent.setup();
     const existingOrder = createCapturedOrder({ id: 'old-order', customerName: '기존고객' });
     const clearOrders = createDeferred<void>();
@@ -324,6 +324,7 @@ describe('App', () => {
     });
 
     expect(screen.getByText('새고객')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /기존고객/ })).not.toBeInTheDocument();
     expect(screen.queryByText('아직 저장된 주문이 없습니다.')).not.toBeInTheDocument();
   });
 

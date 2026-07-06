@@ -57,6 +57,12 @@ describe('SettingsModal', () => {
 
     expect(onSave).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: '저장 중' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '설정 닫기' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '취소' })).toBeDisabled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+
     expect(onClose).not.toHaveBeenCalled();
 
     await act(async () => {

@@ -144,6 +144,10 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
   function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
     if (event.key === 'Escape') {
       event.preventDefault();
+      if (isSavingRef.current) {
+        return;
+      }
+
       onClose();
       return;
     }
@@ -192,7 +196,14 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
             <p className="eyebrow">관리 설정</p>
             <h2 id="settings-title">정보 부족 기준</h2>
           </div>
-          <button ref={closeButtonRef} type="button" className="iconButton" aria-label="설정 닫기" onClick={onClose}>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className="iconButton"
+            aria-label="설정 닫기"
+            disabled={isSaving}
+            onClick={onClose}
+          >
             ×
           </button>
         </div>
@@ -260,7 +271,7 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
         {saveError ? <p role="alert">{saveError}</p> : null}
 
         <div className="modalActions">
-          <button type="button" className="secondaryButton" onClick={onClose}>
+          <button type="button" className="secondaryButton" disabled={isSaving} onClick={onClose}>
             취소
           </button>
           <button type="button" disabled={isSaving} onClick={handleSave}>
