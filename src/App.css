@@ -162,6 +162,11 @@ textarea {
     transform 180ms ease;
 }
 
+.authGateInput {
+  letter-spacing: 0;
+  text-align: left;
+}
+
 .accessGateInput.hasError {
   animation: gateShake 280ms cubic-bezier(0.2, 0, 0, 1);
   border-color: #b6423c;

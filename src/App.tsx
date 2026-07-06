@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { createAuthRepository } from './auth/authRepository';
+import { AuthGate } from './components/AuthGate';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
-import { AccessGate } from './components/AccessGate';
 import { OrderDetail } from './components/OrderDetail';
 import { OrderList } from './components/OrderList';
 import { QuestionNote } from './components/QuestionNote';
@@ -15,6 +16,7 @@ import {
 import { evaluateOrder } from './domain/reviewRules';
 import { sortOrders, type OrderSortMode } from './domain/orderSorting';
 import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/storage';
+import { createBrowserSupabaseClient } from './lib/supabaseClient';
 import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
@@ -122,6 +124,8 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
 };
 
 export default function App() {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const authRepository = useMemo(() => createAuthRepository(supabase), [supabase]);
   const [orders, setOrders] = useState<CapturedOrder[]>(() => loadInitialOrders());
   const [settings, setSettings] = useState<OrderSettings>(() => loadSettings());
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -202,7 +206,7 @@ export default function App() {
   }
 
   return (
-    <AccessGate>
+    <AuthGate authRepository={authRepository}>
       <main className="appShell">
         <header className="appHeader">
           <div>
@@ -291,6 +295,6 @@ export default function App() {
           onSave={handleSaveSettings}
         />
       </main>
-    </AccessGate>
+    </AuthGate>
   );
 }

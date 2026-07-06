@@ -1,13 +1,32 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { ACCESS_GRANTED_KEY } from './components/AccessGate';
+
+const authRepositoryMock = {
+  getSession: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
+  signIn: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
+  signOut: vi.fn().mockResolvedValue(undefined),
+  getWorkspaceMembership: vi.fn().mockResolvedValue({
+    workspaceId: 'workspace-1',
+    workspaceName: '리루 작업실',
+    role: 'owner',
+  }),
+  onSessionChange: vi.fn(() => vi.fn()),
+};
+
+vi.mock('./lib/supabaseClient', () => ({
+  createBrowserSupabaseClient: vi.fn(() => ({ marker: 'supabase-client' })),
+}));
+
+vi.mock('./auth/authRepository', () => ({
+  createAuthRepository: vi.fn(() => authRepositoryMock),
+}));
 
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem(ACCESS_GRANTED_KEY, 'true');
+  vi.clearAllMocks();
 });
 
 afterEach(() => {
