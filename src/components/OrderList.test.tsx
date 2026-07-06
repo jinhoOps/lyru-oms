@@ -205,6 +205,67 @@ describe('OrderList', () => {
     expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
   });
 
+  it('shows today orders once in daily mode with the correct range status', () => {
+    vi.setSystemTime(new Date('2026-07-02T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'daily-progress',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '일별' }));
+
+    expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*진행 중/ })).toBeInTheDocument();
+    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
+  });
+
+  it('keeps missing and invalid desired dates in the unresolved calendar group', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'calendar-unresolved',
+          customerName: '최확인',
+          orderItems: '화과자',
+          quantity: '4개',
+          desiredDateTime: '',
+          parsedDate: null,
+        },
+        {
+          ...order,
+          id: 'calendar-invalid',
+          customerName: '문확인',
+          orderItems: '양갱',
+          quantity: '3개',
+          desiredDateTime: '2026-06-29',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    const unresolved = screen.getByRole('region', { name: '날짜 확인 필요' });
+    expect(within(unresolved).getByRole('button', { name: /화과자 · 4개.*희망일 확인/ })).toBeInTheDocument();
+    expect(within(unresolved).getByRole('button', { name: /양갱 · 3개.*기간 확인/ })).toBeInTheDocument();
+  });
+
   it('keeps filtered-out empty state before rendering calendar view', () => {
     renderOrderList({ orders: [], totalOrderCount: 1, sourceFilter: '네이버 스마트스토어' });
 

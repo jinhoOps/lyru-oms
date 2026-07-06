@@ -370,6 +370,27 @@ const buildRangeSegments = (
   return sortBy(segments, [(segment) => segment.startDate, (segment) => segment.endDate, (segment) => segment.order.createdAt]);
 };
 
+const getDailyRangeStatus = (item: CalendarRangeItem, today: string) => {
+  if (item.startDate === today) {
+    return '등록';
+  }
+
+  if (item.endDate === today) {
+    return '마감';
+  }
+
+  return '진행 중';
+};
+
+const buildDailyItems = (rangeItems: CalendarRangeItem[], today: string) =>
+  sortBy(
+    rangeItems.filter((item) => item.startDate <= today && item.endDate >= today),
+    [(item) => item.endDate, (item) => item.order.createdAt],
+  );
+
+const getUnresolvedReasonLabel = (reason: CalendarUnresolvedItem['reason']) =>
+  reason === 'invalid-range' ? '기간 확인' : '희망일 확인';
+
 const formatCalendarDateLabel = (isoDate: string) => {
   const [, month, day] = isoDate.split('-').map(Number);
 
@@ -675,6 +696,7 @@ export function OrderList({
       ? buildRangeSegments(calendarData.rangeItems, calendarWindow.rows, calendarWindow.startDate, calendarWindow.endDate)
       : [];
     const segmentsByRow = groupBy(calendarSegments, (segment) => segment.rowId);
+    const dailyItems = calendarRangeMode === 'day' ? buildDailyItems(calendarData.rangeItems, todayIsoDate) : [];
 
     return (
       <section className="orderListPanel" aria-label="주문 목록">
@@ -737,20 +759,48 @@ export function OrderList({
               ))}
             </div>
           ) : null}
+          {calendarRangeMode === 'day' ? (
+            <section className="calendarDaily" aria-labelledby="calendar-daily-title">
+              <div className="calendarDateHeader">
+                <h3 id="calendar-daily-title">{formatCalendarDateLabel(todayIsoDate)}</h3>
+                <span>{dailyItems.length}건</span>
+              </div>
+              <div className="calendarDailyList">
+                {dailyItems.map((item) => {
+                  const status = getDailyRangeStatus(item, todayIsoDate);
+
+                  return (
+                    <button
+                      key={item.order.id}
+                      type="button"
+                      className="calendarDailyItem"
+                      aria-label={`${summarizeOrder(item.order)} ${status}`}
+                      onClick={() => onSelect(item.order.id)}
+                    >
+                      <span className="calendarRangeMeta">{status}</span>
+                      <strong>{summarizeOrder(item.order)}</strong>
+                      <span>{fallback(item.order.customerName, '고객명 미정')}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
           {calendarData.unresolvedItems.length > 0 ? (
-            <section className="calendarUnresolved" aria-labelledby="calendar-unresolved-title">
+            <section className="calendarUnresolved" role="region" aria-labelledby="calendar-unresolved-title">
               <h3 id="calendar-unresolved-title">날짜 확인 필요</h3>
               <div className="calendarMarkerList">
-                {calendarData.unresolvedItems.map(({ order }) => (
+                {calendarData.unresolvedItems.map((item) => (
                   <button
-                    key={order.id}
+                    key={item.order.id}
                     type="button"
                     className="calendarOrderChip unresolved"
-                    onClick={() => onSelect(order.id)}
+                    aria-label={`${summarizeOrder(item.order)} ${getUnresolvedReasonLabel(item.reason)}`}
+                    onClick={() => onSelect(item.order.id)}
                   >
-                    <span className="calendarMarkerKind">확인</span>
-                    <strong>{summarizeOrder(order)}</strong>
-                    <span>{fallback(order.customerName, '고객명 미정')}</span>
+                    <span className="calendarMarkerKind">{getUnresolvedReasonLabel(item.reason)}</span>
+                    <strong>{summarizeOrder(item.order)}</strong>
+                    <span>{fallback(item.order.customerName, '고객명 미정')}</span>
                   </button>
                 ))}
               </div>
