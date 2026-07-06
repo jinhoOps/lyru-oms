@@ -152,6 +152,59 @@ describe('OrderList', () => {
     expect(screen.getByRole('radio', { name: '2주' })).toBeChecked();
   });
 
+  it('shows the current Sunday through next Saturday in two-week calendar mode', () => {
+    vi.setSystemTime(new Date('2026-07-06T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'two-week-range',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-10',
+          parsedDate: null,
+          createdAt: '2026-07-05T00:30:00.000Z',
+          updatedAt: '2026-07-05T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '2주' }));
+
+    const grid = screen.getByRole('grid', { name: '2주 주문 달력' });
+    expect(within(grid).getByText('7월 5일')).toBeInTheDocument();
+    expect(within(grid).getByText('7월 18일')).toBeInTheDocument();
+    expect(within(grid).queryByText('7월 19일')).not.toBeInTheDocument();
+  });
+
+  it('renders a multi-day order as one connected range per visible week instead of repeated daily chips', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'calendar-range',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    const rangeButton = screen.getByRole('button', { name: /곶감단지 · 2세트.*등록.*마감/ });
+    expect(rangeButton).toBeInTheDocument();
+    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
+  });
+
   it('keeps filtered-out empty state before rendering calendar view', () => {
     renderOrderList({ orders: [], totalOrderCount: 1, sourceFilter: '네이버 스마트스토어' });
 

@@ -190,19 +190,35 @@ const getDisplayDate = (order: CapturedOrder) => {
   return parsedDesiredDate ?? order.parsedDate;
 };
 
-type CalendarMarkerKind = 'start' | 'middle' | 'end' | 'invalid';
-
 interface CalendarRangeItem {
   order: CapturedOrder;
   startDate: string;
   endDate: string;
+}
+
+interface CalendarRangeCandidate extends CalendarRangeItem {
   invalidRange: boolean;
 }
 
-interface CalendarMarker {
+interface CalendarUnresolvedItem {
   order: CapturedOrder;
-  isoDate: string;
-  kind: CalendarMarkerKind;
+  reason: 'missing-date' | 'invalid-range';
+}
+
+interface CalendarWeekRow {
+  id: string;
+  dates: string[];
+}
+
+interface CalendarRangeSegment {
+  order: CapturedOrder;
+  rowId: string;
+  startDate: string;
+  endDate: string;
+  startsInView: boolean;
+  endsInView: boolean;
+  columnStart: number;
+  columnEnd: number;
 }
 
 const DAY_MS = 86_400_000;
@@ -235,21 +251,123 @@ const parseIsoDateOnly = (isoDate: string) => {
   return Date.UTC(year, month - 1, day);
 };
 
-const expandDateRange = (startDate: string, endDate: string) => {
-  const startTime = parseIsoDateOnly(startDate);
-  const endTime = parseIsoDateOnly(endDate);
+const addDays = (isoDate: string, days: number) => {
+  const time = parseIsoDateOnly(isoDate);
+  return time === null ? isoDate : new Date(time + days * DAY_MS).toISOString().slice(0, 10);
+};
 
-  if (startTime === null || endTime === null || endTime < startTime) {
-    return [startDate];
+const getTodayKoreaIsoDate = () => getKoreaIsoDate(new Date().toISOString()) ?? new Date().toISOString().slice(0, 10);
+
+const getWeekStartSunday = (isoDate: string) => {
+  const time = parseIsoDateOnly(isoDate);
+  if (time === null) {
+    return isoDate;
   }
 
-  const dates: string[] = [];
+  const day = new Date(time).getUTCDay();
+  return addDays(isoDate, -day);
+};
 
-  for (let time = startTime; time <= endTime; time += DAY_MS) {
-    dates.push(new Date(time).toISOString().slice(0, 10));
+const buildSequentialDates = (startDate: string, count: number) =>
+  Array.from({ length: count }, (_, index) => addDays(startDate, index));
+
+const buildWeekRows = (startDate: string, weekCount: number): CalendarWeekRow[] =>
+  Array.from({ length: weekCount }, (_, weekIndex) => {
+    const firstDate = addDays(startDate, weekIndex * 7);
+    return {
+      id: firstDate,
+      dates: buildSequentialDates(firstDate, 7),
+    };
+  });
+
+const buildMonthRows = (today: string): CalendarWeekRow[] => {
+  const [year, month] = today.split('-').map(Number);
+  const firstOfMonth = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastOfMonth = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+  const firstVisibleDate = getWeekStartSunday(firstOfMonth);
+  const lastVisibleDate = addDays(getWeekStartSunday(lastOfMonth), 6);
+  const weekCount =
+    Math.floor(((parseIsoDateOnly(lastVisibleDate) ?? 0) - (parseIsoDateOnly(firstVisibleDate) ?? 0)) / (DAY_MS * 7)) +
+    1;
+
+  return buildWeekRows(firstVisibleDate, weekCount);
+};
+
+const buildTwoWeekRows = (today: string) => buildWeekRows(getWeekStartSunday(today), 2);
+
+const getCalendarWindow = (mode: Exclude<CalendarRangeMode, 'day'>, today: string) => {
+  const rows = mode === 'month' ? buildMonthRows(today) : buildTwoWeekRows(today);
+  const firstRow = rows[0];
+  const lastRow = rows[rows.length - 1];
+
+  return {
+    rows,
+    startDate: firstRow.dates[0],
+    endDate: lastRow.dates[lastRow.dates.length - 1],
+  };
+};
+
+const getDateIndexInRow = (row: CalendarWeekRow, isoDate: string) => row.dates.indexOf(isoDate);
+
+const clampDate = (date: string, min: string, max: string) => {
+  if (date < min) {
+    return min;
   }
 
-  return dates;
+  if (date > max) {
+    return max;
+  }
+
+  return date;
+};
+
+const buildRangeSegments = (
+  rangeItems: CalendarRangeItem[],
+  rows: CalendarWeekRow[],
+  windowStart: string,
+  windowEnd: string,
+): CalendarRangeSegment[] => {
+  const segments = rangeItems.flatMap((item) => {
+    if (item.endDate < windowStart || item.startDate > windowEnd) {
+      return [];
+    }
+
+    const visibleStart = clampDate(item.startDate, windowStart, windowEnd);
+    const visibleEnd = clampDate(item.endDate, windowStart, windowEnd);
+
+    return rows.flatMap((row) => {
+      const rowStart = row.dates[0];
+      const rowEnd = row.dates[row.dates.length - 1];
+
+      if (visibleEnd < rowStart || visibleStart > rowEnd) {
+        return [];
+      }
+
+      const segmentStart = clampDate(visibleStart, rowStart, rowEnd);
+      const segmentEnd = clampDate(visibleEnd, rowStart, rowEnd);
+      const startIndex = getDateIndexInRow(row, segmentStart);
+      const endIndex = getDateIndexInRow(row, segmentEnd);
+
+      if (startIndex < 0 || endIndex < 0) {
+        return [];
+      }
+
+      return [
+        {
+          order: item.order,
+          rowId: row.id,
+          startDate: segmentStart,
+          endDate: segmentEnd,
+          startsInView: segmentStart === item.startDate,
+          endsInView: segmentEnd === item.endDate,
+          columnStart: startIndex + 1,
+          columnEnd: endIndex + 2,
+        },
+      ];
+    });
+  });
+
+  return sortBy(segments, [(segment) => segment.startDate, (segment) => segment.endDate, (segment) => segment.order.createdAt]);
 };
 
 const formatCalendarDateLabel = (isoDate: string) => {
@@ -272,7 +390,7 @@ const getDesiredIsoDate = (order: CapturedOrder) => {
   return parsed.isoDate;
 };
 
-const buildCalendarRangeItem = (order: CapturedOrder): CalendarRangeItem | null => {
+const buildCalendarRangeItem = (order: CapturedOrder): CalendarRangeCandidate | null => {
   const startDate = getKoreaIsoDate(order.createdAt);
   const endDate = getDesiredIsoDate(order);
 
@@ -286,22 +404,6 @@ const buildCalendarRangeItem = (order: CapturedOrder): CalendarRangeItem | null 
     endDate,
     invalidRange: endDate < startDate,
   };
-};
-
-const getCalendarMarkerLabel = (kind: CalendarMarkerKind) => {
-  if (kind === 'start') {
-    return '등록';
-  }
-
-  if (kind === 'end') {
-    return '마감';
-  }
-
-  if (kind === 'invalid') {
-    return '날짜 확인';
-  }
-
-  return '진행 중';
 };
 
 export function OrderList({
@@ -322,41 +424,35 @@ export function OrderList({
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
   const [sourceMenuOpen, setSourceMenuOpen] = useState(false);
+  const todayIsoDate = getTodayKoreaIsoDate();
   const calendarData = useMemo(() => {
-    const rangeItems = orders.flatMap((order) => {
+    const rangeItems: CalendarRangeItem[] = [];
+    const unresolvedItems: CalendarUnresolvedItem[] = [];
+
+    orders.forEach((order) => {
       const item = buildCalendarRangeItem(order);
 
-      return item ? [item] : [];
+      if (!item) {
+        unresolvedItems.push({ order, reason: 'missing-date' });
+        return;
+      }
+
+      if (item.invalidRange) {
+        unresolvedItems.push({ order, reason: 'invalid-range' });
+        return;
+      }
+
+      rangeItems.push({
+        order: item.order,
+        startDate: item.startDate,
+        endDate: item.endDate,
+      });
     });
-    const rangeOrderIds = new Set(rangeItems.map((item) => item.order.id));
-    const unresolvedOrders = orders.filter((order) => !rangeOrderIds.has(order.id));
-    const markers = rangeItems.flatMap((item) =>
-      expandDateRange(item.startDate, item.endDate).map((isoDate) => {
-        const kind: CalendarMarkerKind = item.invalidRange
-          ? 'invalid'
-          : isoDate === item.startDate
-            ? 'start'
-            : isoDate === item.endDate
-              ? 'end'
-              : 'middle';
 
-        return {
-          order: item.order,
-          isoDate,
-          kind,
-        };
-      }),
-    );
-    const markersByDate = groupBy(markers, (marker) => marker.isoDate);
-    const entries = sortBy(
-      Object.entries(markersByDate).map(([isoDate, dateMarkers]) => ({
-        isoDate,
-        markers: dateMarkers,
-      })),
-      [(entry) => entry.isoDate],
-    );
-
-    return { entries, unresolvedOrders };
+    return {
+      rangeItems: sortBy(rangeItems, [(item) => item.startDate, (item) => item.endDate, (item) => item.order.createdAt]),
+      unresolvedItems,
+    };
   }, [orders]);
 
   function setViewMode(mode: OrderListViewMode) {
@@ -574,6 +670,12 @@ export function OrderList({
   }
 
   if (viewMode === 'calendar') {
+    const calendarWindow = calendarRangeMode === 'day' ? null : getCalendarWindow(calendarRangeMode, todayIsoDate);
+    const calendarSegments = calendarWindow
+      ? buildRangeSegments(calendarData.rangeItems, calendarWindow.rows, calendarWindow.startDate, calendarWindow.endDate)
+      : [];
+    const segmentsByRow = groupBy(calendarSegments, (segment) => segment.rowId);
+
     return (
       <section className="orderListPanel" aria-label="주문 목록">
         {header}
@@ -590,38 +692,56 @@ export function OrderList({
             </label>
           ))}
         </div>
-        <div
-          className="orderCalendar"
-          role="grid"
-          aria-label={calendarRangeMode === 'month' ? '월별 주문 달력' : '주문 달력'}
-        >
-          {calendarData.entries.map((entry) => (
-            <section key={entry.isoDate} className="calendarDateRow" aria-labelledby={`calendar-date-${entry.isoDate}`}>
-              <div className="calendarDateHeader">
-                <h3 id={`calendar-date-${entry.isoDate}`}>{formatCalendarDateLabel(entry.isoDate)}</h3>
-                <span>{entry.markers.length}건</span>
-              </div>
-              <div className="calendarMarkerList">
-                {entry.markers.map((marker) => (
-                  <button
-                    key={`${entry.isoDate}-${marker.order.id}-${marker.kind}`}
-                    type="button"
-                    className={`calendarOrderChip ${marker.kind}`}
-                    onClick={() => onSelect(marker.order.id)}
-                  >
-                    <span className="calendarMarkerKind">{getCalendarMarkerLabel(marker.kind)}</span>
-                    <strong>{summarizeOrder(marker.order)}</strong>
-                    <span>{fallback(marker.order.customerName, '고객명 미정')}</span>
-                  </button>
+        <div className="orderCalendar" aria-label="등록일부터 희망일까지 주문 일정">
+          {calendarWindow ? (
+            <div
+              className={`calendarGrid ${calendarRangeMode}`}
+              role="grid"
+              aria-label={calendarRangeMode === 'month' ? '월별 주문 달력' : '2주 주문 달력'}
+            >
+              <div className="calendarWeekHeader" role="row">
+                {['일', '월', '화', '수', '목', '금', '토'].map((dayLabel) => (
+                  <span key={dayLabel} role="columnheader">
+                    {dayLabel}
+                  </span>
                 ))}
               </div>
-            </section>
-          ))}
-          {calendarData.unresolvedOrders.length > 0 ? (
+              {calendarWindow.rows.map((row) => (
+                <section key={row.id} className="calendarWeekRow" role="row" aria-label={`${formatCalendarDateLabel(row.dates[0])} 주`}>
+                  <div className="calendarDayNumbers">
+                    {row.dates.map((isoDate) => (
+                      <span key={isoDate} className="calendarDayNumber" role="gridcell">
+                        {formatCalendarDateLabel(isoDate)}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="calendarRangeLayer">
+                    {(segmentsByRow[row.id] ?? []).map((segment) => (
+                      <button
+                        key={`${row.id}-${segment.order.id}-${segment.startDate}-${segment.endDate}`}
+                        type="button"
+                        className="calendarRangeBar"
+                        style={{ gridColumn: `${segment.columnStart} / ${segment.columnEnd}` }}
+                        aria-label={`${summarizeOrder(segment.order)} ${formatCalendarDateLabel(segment.startDate)}부터 ${formatCalendarDateLabel(segment.endDate)}까지 ${segment.startsInView ? '등록' : '계속'} ${segment.endsInView ? '마감' : '진행 중'}`}
+                        onClick={() => onSelect(segment.order.id)}
+                      >
+                        <span className="calendarRangeMeta">
+                          {segment.startsInView ? '등록' : '계속'}
+                          {segment.endsInView ? ' · 마감' : ''}
+                        </span>
+                        <strong>{summarizeOrder(segment.order)}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+          ) : null}
+          {calendarData.unresolvedItems.length > 0 ? (
             <section className="calendarUnresolved" aria-labelledby="calendar-unresolved-title">
               <h3 id="calendar-unresolved-title">날짜 확인 필요</h3>
               <div className="calendarMarkerList">
-                {calendarData.unresolvedOrders.map((order) => (
+                {calendarData.unresolvedItems.map(({ order }) => (
                   <button
                     key={order.id}
                     type="button"
