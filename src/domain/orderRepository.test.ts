@@ -103,6 +103,10 @@ function createSupabaseMock({
         record(table, 'eq', [column, value]);
         return query;
       }),
+      in: vi.fn((column: string, values: unknown[]) => {
+        record(table, 'in', [column, values]);
+        return query;
+      }),
     };
 
     return query;
@@ -358,13 +362,22 @@ describe('orderRepository', () => {
     });
   });
 
-  it('deletes all orders in the workspace', async () => {
+  it('deletes only the requested order snapshot in the workspace', async () => {
     const supabase = createSupabaseMock();
     const repository = createOrderRepository(supabase as never);
 
-    await expect(repository.deleteAllOrders(workspaceId)).resolves.toBeUndefined();
+    await expect(repository.deleteOrders(workspaceId, ['order-a', 'order-b'])).resolves.toBeUndefined();
     expect(supabase.calls).toContainEqual({ table: 'orders', method: 'delete', args: [] });
     expect(supabase.calls).toContainEqual({ table: 'orders', method: 'eq', args: ['workspace_id', workspaceId] });
+    expect(supabase.calls).toContainEqual({ table: 'orders', method: 'in', args: ['id', ['order-a', 'order-b']] });
+  });
+
+  it('skips deleting orders when the requested snapshot is empty', async () => {
+    const supabase = createSupabaseMock();
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.deleteOrders(workspaceId, [])).resolves.toBeUndefined();
+    expect(supabase.from).not.toHaveBeenCalled();
   });
 
   it('upserts workspace settings and returns saved settings', async () => {

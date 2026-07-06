@@ -107,12 +107,14 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const currentWorkspaceIdRef = useRef(membership.workspaceId);
   const workspaceGenerationRef = useRef(0);
   const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
+  const orderSaveChainByIdRef = useRef(new Map<string, Promise<void>>());
   const settingsSaveSequenceRef = useRef(0);
 
   if (currentWorkspaceIdRef.current !== membership.workspaceId) {
     currentWorkspaceIdRef.current = membership.workspaceId;
     workspaceGenerationRef.current += 1;
     orderSaveSequenceByIdRef.current.clear();
+    orderSaveChainByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
   }
 
@@ -130,6 +132,22 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     isCurrentWorkspaceGeneration(workspaceId, generation) &&
     orderSaveSequenceByIdRef.current.get(orderId) === sequence;
 
+  const enqueueOrderSave = (orderId: string, task: () => Promise<void>) => {
+    const previousSave = orderSaveChainByIdRef.current.get(orderId) ?? Promise.resolve();
+    const nextSave = previousSave.catch(() => undefined).then(task);
+    orderSaveChainByIdRef.current.set(orderId, nextSave);
+
+    nextSave
+      .finally(() => {
+        if (orderSaveChainByIdRef.current.get(orderId) === nextSave) {
+          orderSaveChainByIdRef.current.delete(orderId);
+        }
+      })
+      .catch(() => undefined);
+
+    return nextSave;
+  };
+
   const nextSettingsSaveSequence = () => {
     settingsSaveSequenceRef.current += 1;
 
@@ -145,6 +163,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     workspaceGenerationRef.current = generation;
     currentWorkspaceIdRef.current = workspaceId;
     orderSaveSequenceByIdRef.current.clear();
+    orderSaveChainByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
 
     setLoadStatus('loading');
@@ -222,18 +241,19 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
 
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
-    const orderIdsAtClearStart = new Set(orders.map((order) => order.id));
+    const orderIdsAtClearStart = orders.map((order) => order.id);
+    const orderIdsAtClearStartSet = new Set(orderIdsAtClearStart);
 
     try {
-      await orderRepository.deleteAllOrders(workspaceId);
+      await orderRepository.deleteOrders(workspaceId, orderIdsAtClearStart);
 
       if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return;
       }
 
-      setOrders((current) => current.filter((order) => !orderIdsAtClearStart.has(order.id)));
+      setOrders((current) => current.filter((order) => !orderIdsAtClearStartSet.has(order.id)));
       setSelectedId((currentSelectedId) =>
-        currentSelectedId && orderIdsAtClearStart.has(currentSelectedId) ? null : currentSelectedId,
+        currentSelectedId && orderIdsAtClearStartSet.has(currentSelectedId) ? null : currentSelectedId,
       );
       setSaveStatusMessage('');
     } catch {
@@ -264,23 +284,29 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
 
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
 
-    try {
-      const savedOrder = await orderRepository.saveOrder(workspaceId, nextOrder);
-
-      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+    await enqueueOrderSave(nextOrder.id, async () => {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return;
       }
 
-      setOrders((current) => current.map((order) => (order.id === savedOrder.id ? savedOrder : order)));
-      setSaveStatusMessage('');
-    } catch {
-      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
-        return;
-      }
+      try {
+        const savedOrder = await orderRepository.saveOrder(workspaceId, nextOrder);
 
-      saveOrderDraft(nextOrder);
-      setSaveStatusMessage('변경 내용을 저장하지 못했습니다. 임시 저장했어요.');
-    }
+        if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+          return;
+        }
+
+        setOrders((current) => current.map((order) => (order.id === savedOrder.id ? savedOrder : order)));
+        setSaveStatusMessage('');
+      } catch {
+        if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+          return;
+        }
+
+        saveOrderDraft(nextOrder);
+        setSaveStatusMessage('변경 내용을 저장하지 못했습니다. 임시 저장했어요.');
+      }
+    });
   }
 
   async function handleSaveSettings(nextSettings: OrderSettings) {

@@ -18,7 +18,7 @@ export interface WorkspaceData {
 export interface OrderRepository {
   loadWorkspaceData(workspaceId: string): Promise<WorkspaceData>;
   saveOrder(workspaceId: string, order: CapturedOrder): Promise<CapturedOrder>;
-  deleteAllOrders(workspaceId: string): Promise<void>;
+  deleteOrders(workspaceId: string, orderIds: string[]): Promise<void>;
   saveSettings(workspaceId: string, settings: OrderSettings): Promise<OrderSettings>;
 }
 
@@ -86,6 +86,7 @@ type MutationQuery<T> = {
   select(columns?: string): MutationQuery<T>;
   single(): QueryResult<T>;
   eq(column: string, value: unknown): MutationQuery<T>;
+  in(column: string, values: unknown[]): MutationQuery<T>;
   then<TResult1 = QueryResultValue<T>, TResult2 = never>(
     onfulfilled?: ((value: QueryResultValue<T>) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -302,8 +303,12 @@ export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
 
       return mapOrderFromRow(orderResult.data, changeRequestResult.data);
     },
-    async deleteAllOrders(workspaceId) {
-      const result = await supabase.from('orders').delete<null>().eq('workspace_id', workspaceId);
+    async deleteOrders(workspaceId, orderIds) {
+      if (orderIds.length === 0) {
+        return;
+      }
+
+      const result = await supabase.from('orders').delete<null>().eq('workspace_id', workspaceId).in('id', orderIds);
 
       throwIfError(result.error);
     },

@@ -20,7 +20,7 @@ const authRepositoryMock = {
 const orderRepositoryMock = {
   loadWorkspaceData: vi.fn().mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS }),
   saveOrder: vi.fn(async (_workspaceId, order) => order),
-  deleteAllOrders: vi.fn().mockResolvedValue(undefined),
+  deleteOrders: vi.fn().mockResolvedValue(undefined),
   saveSettings: vi.fn(async (_workspaceId, settings) => settings),
 };
 
@@ -46,7 +46,7 @@ beforeEach(() => {
   authRepositoryMock.onSessionChange.mockReset();
   orderRepositoryMock.loadWorkspaceData.mockReset();
   orderRepositoryMock.saveOrder.mockReset();
-  orderRepositoryMock.deleteAllOrders.mockReset();
+  orderRepositoryMock.deleteOrders.mockReset();
   orderRepositoryMock.saveSettings.mockReset();
   authRepositoryMock.getSession.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
   authRepositoryMock.signIn.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
@@ -59,7 +59,7 @@ beforeEach(() => {
   authRepositoryMock.onSessionChange.mockImplementation(() => vi.fn());
   orderRepositoryMock.loadWorkspaceData.mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS });
   orderRepositoryMock.saveOrder.mockImplementation(async (_workspaceId, order) => order);
-  orderRepositoryMock.deleteAllOrders.mockResolvedValue(undefined);
+  orderRepositoryMock.deleteOrders.mockResolvedValue(undefined);
   orderRepositoryMock.saveSettings.mockImplementation(async (_workspaceId, settings) => settings);
 });
 
@@ -206,19 +206,28 @@ describe('App', () => {
     fireEvent.change(ownerMemoInput, { target: { value: '느린 저장' } });
     fireEvent.change(ownerMemoInput, { target: { value: '최신 저장' } });
 
-    expect(orderRepositoryMock.saveOrder).toHaveBeenCalledTimes(2);
-    expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
-
-    await act(async () => {
-      fastSave.resolve(createCapturedOrder({ id: 'order-race', ownerMemo: '최신 저장' }));
-      await fastSave.promise;
-    });
-
+    await waitFor(() => expect(orderRepositoryMock.saveOrder).toHaveBeenCalledTimes(1));
+    expect(orderRepositoryMock.saveOrder).toHaveBeenLastCalledWith(
+      'workspace-1',
+      expect.objectContaining({ ownerMemo: '느린 저장' }),
+    );
     expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
 
     await act(async () => {
       slowSave.resolve(createCapturedOrder({ id: 'order-race', ownerMemo: '느린 저장' }));
       await slowSave.promise;
+    });
+
+    await waitFor(() => expect(orderRepositoryMock.saveOrder).toHaveBeenCalledTimes(2));
+    expect(orderRepositoryMock.saveOrder).toHaveBeenLastCalledWith(
+      'workspace-1',
+      expect.objectContaining({ ownerMemo: '최신 저장' }),
+    );
+    expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
+
+    await act(async () => {
+      fastSave.resolve(createCapturedOrder({ id: 'order-race', ownerMemo: '최신 저장' }));
+      await fastSave.promise;
     });
 
     expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
@@ -284,7 +293,7 @@ describe('App', () => {
     const rawText = '성함: 새고객\n곶감 1세트\n2026-07-06\n픽업';
     window.confirm = () => true;
     orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [existingOrder], settings: DEFAULT_SETTINGS });
-    orderRepositoryMock.deleteAllOrders.mockReturnValueOnce(clearOrders.promise);
+    orderRepositoryMock.deleteOrders.mockReturnValueOnce(clearOrders.promise);
     orderRepositoryMock.saveOrder.mockReturnValueOnce(saveOrder.promise);
 
     render(
@@ -298,7 +307,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: '작업' }));
     await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
-    expect(orderRepositoryMock.deleteAllOrders).toHaveBeenCalledWith('workspace-1');
+    expect(orderRepositoryMock.deleteOrders).toHaveBeenCalledWith('workspace-1', ['old-order']);
 
     await user.type(screen.getByLabelText('주문/문의 원문'), rawText);
     await user.click(screen.getByRole('button', { name: '저장' }));
@@ -336,7 +345,7 @@ describe('App', () => {
     const rawText = '성함: 저장성공고객\n곶감 1세트\n2026-07-06\n픽업';
     window.confirm = () => true;
     orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [existingOrder], settings: DEFAULT_SETTINGS });
-    orderRepositoryMock.deleteAllOrders.mockReturnValueOnce(clearOrders.promise);
+    orderRepositoryMock.deleteOrders.mockReturnValueOnce(clearOrders.promise);
     orderRepositoryMock.saveOrder.mockReturnValueOnce(saveOrder.promise);
 
     render(
@@ -354,7 +363,7 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: '작업' }));
     await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
-    expect(orderRepositoryMock.deleteAllOrders).toHaveBeenCalledWith('workspace-1');
+    expect(orderRepositoryMock.deleteOrders).toHaveBeenCalledWith('workspace-1', ['existing-before-clear']);
 
     await act(async () => {
       clearOrders.reject(new Error('delete failed'));
