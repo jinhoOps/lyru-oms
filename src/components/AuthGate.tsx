@@ -3,11 +3,15 @@ import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/a
 
 type AuthGateProps = {
   authRepository: AuthRepository;
-  children: ReactNode | ((membership: WorkspaceMembership) => ReactNode);
+  children: ReactNode | ((membership: WorkspaceMembership, actions: AuthGateActions) => ReactNode);
   onBeforeSignOut?: () => void | Promise<void>;
 };
 
 type AuthGateStatus = 'loading' | 'signed-out' | 'blocked' | 'ready';
+
+export interface AuthGateActions {
+  signOut: () => Promise<void>;
+}
 
 export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGateProps) {
   const [status, setStatus] = useState<AuthGateStatus>('loading');
@@ -165,7 +169,11 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
   }
 
   if (status === 'ready' && membership) {
-    return <div className="appReveal">{typeof children === 'function' ? children(membership) : children}</div>;
+    return (
+      <div className="appReveal">
+        {typeof children === 'function' ? children(membership, { signOut: handleSignOut }) : children}
+      </div>
+    );
   }
 
   if (status === 'loading') {

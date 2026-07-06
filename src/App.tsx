@@ -16,7 +16,7 @@ import {
 } from './domain/orderTypes';
 import {
   clearLocalOrderData,
-  loadRecentOrderCache,
+  loadRecentOrderCacheSnapshot,
   saveOrderDraft,
   saveRecentOrderCache,
 } from './domain/localDraftCache';
@@ -59,9 +59,10 @@ type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
 interface WorkspaceAppProps {
   membership: WorkspaceMembership;
   orderRepository: OrderRepository;
+  onSignOut?: () => Promise<void>;
 }
 
-export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps) {
+export function WorkspaceApp({ membership, orderRepository, onSignOut }: WorkspaceAppProps) {
   const [orders, setOrders] = useState<CapturedOrder[]>([]);
   const [settings, setSettings] = useState<OrderSettings>(() => DEFAULT_SETTINGS);
   const [loadStatus, setLoadStatus] = useState<WorkspaceLoadStatus>('loading');
@@ -170,10 +171,10 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
         }
 
         if (navigator.onLine === false) {
-          const cachedOrders = loadRecentOrderCache(workspaceId);
+          const cachedSnapshot = loadRecentOrderCacheSnapshot(workspaceId);
 
-          if (cachedOrders.length > 0) {
-            setOrders(cachedOrders);
+          if (cachedSnapshot) {
+            setOrders(cachedSnapshot.orders);
             setSettings(DEFAULT_SETTINGS);
             setLoadedWorkspaceId(workspaceId);
             setLoadStatus('offline-cache');
@@ -403,6 +404,11 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
             >
               <span aria-hidden="true">⚙</span>
             </button>
+            {onSignOut ? (
+              <button type="button" className="secondaryButton compactTextButton" onClick={onSignOut}>
+                로그아웃
+              </button>
+            ) : null}
           </div>
         </header>
         {isOfflineCacheReadonly ? (
@@ -494,7 +500,9 @@ export default function App() {
 
   return (
     <AuthGate authRepository={authRepository} onBeforeSignOut={clearLocalOrderData}>
-      {(membership) => <WorkspaceApp membership={membership} orderRepository={orderRepository} />}
+      {(membership, { signOut }) => (
+        <WorkspaceApp membership={membership} orderRepository={orderRepository} onSignOut={signOut} />
+      )}
     </AuthGate>
   );
 }

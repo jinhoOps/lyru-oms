@@ -41,6 +41,12 @@ interface RecentOrderCachePayload {
   orders: CapturedOrder[];
 }
 
+export interface RecentOrderCacheSnapshot {
+  workspaceId: string;
+  cachedAt: string;
+  orders: CapturedOrder[];
+}
+
 const readLocalStorage = (key: string) => {
   try {
     return globalThis.localStorage?.getItem(key) ?? null;
@@ -223,22 +229,33 @@ export const saveRecentOrderCache = (workspaceId: string, orders: CapturedOrder[
   writeLocalStorage(RECENT_ORDER_CACHE_KEY, JSON.stringify(payload));
 };
 
-export const loadRecentOrderCache = (workspaceId: string, now = new Date()): CapturedOrder[] => {
+export const loadRecentOrderCacheSnapshot = (
+  workspaceId: string,
+  now = new Date(),
+): RecentOrderCacheSnapshot | null => {
   const parsed = parseJson(readLocalStorage(RECENT_ORDER_CACHE_KEY));
 
   if (!isRecentOrderCachePayload(parsed)) {
-    return [];
+    return null;
   }
 
   if (parsed.workspaceId !== workspaceId) {
-    return [];
+    return null;
   }
 
   if (now.getTime() - toDateTime(parsed.cachedAt) > CACHE_TTL_MS) {
-    return [];
+    return null;
   }
 
-  return sortByUpdatedDesc(parsed.orders.filter(isCapturedOrder));
+  return {
+    workspaceId: parsed.workspaceId,
+    cachedAt: parsed.cachedAt,
+    orders: sortByUpdatedDesc(parsed.orders.filter(isCapturedOrder)),
+  };
+};
+
+export const loadRecentOrderCache = (workspaceId: string, now = new Date()): CapturedOrder[] => {
+  return loadRecentOrderCacheSnapshot(workspaceId, now)?.orders ?? [];
 };
 
 export const clearLocalOrderData = (): void => {

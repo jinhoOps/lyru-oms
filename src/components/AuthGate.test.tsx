@@ -101,6 +101,28 @@ describe('AuthGate', () => {
     expect(await screen.findByText('리루 작업실')).toBeInTheDocument();
   });
 
+  it('passes a sign-out action to ready children', async () => {
+    const user = userEvent.setup();
+    const authRepository = createAuthRepositoryMock({ initialSession: session, workspaceMembership: membership });
+    const onBeforeSignOut = vi.fn();
+
+    render(
+      <AuthGate authRepository={authRepository} onBeforeSignOut={onBeforeSignOut}>
+        {(_workspaceMembership, { signOut }) => (
+          <button type="button" onClick={signOut}>
+            로그아웃
+          </button>
+        )}
+      </AuthGate>,
+    );
+
+    await user.click(await screen.findByRole('button', { name: '로그아웃' }));
+
+    expect(onBeforeSignOut).toHaveBeenCalledTimes(1);
+    expect(authRepository.signOut).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
+  });
+
   it('shows a login error when sign-in fails and keeps children hidden', async () => {
     const user = userEvent.setup();
     const authRepository = createAuthRepositoryMock({

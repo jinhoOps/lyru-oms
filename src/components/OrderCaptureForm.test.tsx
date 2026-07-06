@@ -7,6 +7,7 @@ import { OrderCaptureForm } from './OrderCaptureForm';
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 function createDeferred<T>() {
@@ -42,6 +43,26 @@ describe('OrderCaptureForm', () => {
         rawText: '성함: 김리루',
         customerName: '김리루',
         status: '확인 필요',
+      }),
+    );
+  });
+
+  it('creates a database-compatible UUID when crypto.randomUUID is unavailable', async () => {
+    const onSave = vi.fn();
+    vi.stubGlobal('crypto', {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.set(Array.from({ length: bytes.length }, (_, index) => index));
+        return bytes;
+      },
+    });
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    await userEvent.type(screen.getByLabelText('주문/문의 원문'), '성함: UUID고객');
+    await userEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '00010203-0405-4607-8809-0a0b0c0d0e0f',
       }),
     );
   });

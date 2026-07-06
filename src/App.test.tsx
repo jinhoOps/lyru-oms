@@ -239,7 +239,7 @@ describe('App', () => {
     expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
   });
 
-  it('clears local draft and recent-order cache on logout', async () => {
+  it('clears local draft and recent-order cache on blocked-screen logout', async () => {
     const user = userEvent.setup();
     authRepositoryMock.getWorkspaceMembership.mockResolvedValueOnce(null);
     saveOrderDraft(createCapturedOrder());
@@ -253,6 +253,23 @@ describe('App', () => {
 
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
 
+    expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
+    expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
+    expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).toBeNull();
+  });
+
+  it('clears local draft and recent-order cache on ready workspace logout', async () => {
+    const user = userEvent.setup();
+    saveOrderDraft(createCapturedOrder());
+    saveRecentOrderCache('workspace-1', [createCapturedOrder()]);
+
+    await renderUnlockedApp();
+    expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).not.toBeNull();
+    expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+
+    expect(authRepositoryMock.signOut).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
     expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).toBeNull();
@@ -310,7 +327,9 @@ describe('App', () => {
 
     render(<App />);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('주문 데이터를 불러오지 못했습니다.');
+    expect(
+      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('삭제될고객')).not.toBeInTheDocument();
   });
 

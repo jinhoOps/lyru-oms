@@ -3,6 +3,7 @@ import { EMPTY_ORDER_FIELDS, type CapturedOrder } from './orderTypes';
 import {
   clearLocalOrderData,
   loadRecentOrderCache,
+  loadRecentOrderCacheSnapshot,
   loadSavedOrderDraft,
   saveOrderDraft,
   saveRecentOrderCache,
@@ -167,12 +168,25 @@ describe('localDraftCache', () => {
     vi.setSystemTime(new Date('2026-07-07T12:00:00.001Z'));
 
     expect(loadRecentOrderCache('workspace-1')).toEqual([]);
+    expect(loadRecentOrderCacheSnapshot('workspace-1')).toBeNull();
   });
 
   it('returns an empty cache when the stored workspace does not match', () => {
     saveRecentOrderCache('workspace-1', [createOrder()]);
 
     expect(loadRecentOrderCache('workspace-2')).toEqual([]);
+    expect(loadRecentOrderCacheSnapshot('workspace-2')).toBeNull();
+  });
+
+  it('can distinguish a valid empty recent-order cache from a missing cache', () => {
+    saveRecentOrderCache('workspace-1', []);
+
+    expect(loadRecentOrderCache('workspace-1')).toEqual([]);
+    expect(loadRecentOrderCacheSnapshot('workspace-1')).toEqual({
+      workspaceId: 'workspace-1',
+      cachedAt: '2026-07-06T12:00:00.000Z',
+      orders: [],
+    });
   });
 
   it('clears both draft and recent-order cache', () => {
