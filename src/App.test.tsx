@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App, { WorkspaceApp } from './App';
 import { DEFAULT_SETTINGS, EMPTY_ORDER_FIELDS, type CapturedOrder } from './domain/orderTypes';
+import { localDraftCacheKeys, saveOrderDraft, saveRecentOrderCache } from './domain/localDraftCache';
 
 const authRepositoryMock = {
   getSession: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
@@ -38,6 +39,7 @@ vi.mock('./domain/orderRepository', () => ({
 
 beforeEach(() => {
   localStorage.clear();
+  Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
   vi.clearAllMocks();
   authRepositoryMock.getSession.mockReset();
   authRepositoryMock.signIn.mockReset();
@@ -65,6 +67,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
 });
 
 async function renderUnlockedApp() {
@@ -156,6 +159,56 @@ describe('App', () => {
     expect(screen.queryByRole('heading', { name: '주문 표준화 작업실' })).not.toBeInTheDocument();
   });
 
+  it('shows cached orders read-only when offline workspace loading fails', async () => {
+    const user = userEvent.setup();
+    const cachedOrder = createCapturedOrder({
+      id: 'cached-order',
+      customerName: '캐시고객',
+      updatedAt: '2026-07-06T10:00:00.000Z',
+    });
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+    localStorage.setItem(
+      localDraftCacheKeys.recentOrderCache,
+      JSON.stringify({
+        cachedAt: new Date().toISOString(),
+        orders: [cachedOrder],
+      }),
+    );
+    orderRepositoryMock.loadWorkspaceData.mockRejectedValueOnce(new Error('load failed'));
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /캐시고객/ })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 오프라인저장\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(orderRepositoryMock.saveOrder).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: /캐시고객/ }));
+    fireEvent.change(screen.getByLabelText('사장님 내부 메모'), { target: { value: '수정 시도' } });
+
+    expect(screen.getByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(orderRepositoryMock.saveOrder).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+    await user.click(screen.getByRole('button', { name: '작업' }));
+    await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
+
+    expect(screen.getByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(orderRepositoryMock.deleteOrders).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '관리 설정' }));
+    await user.click(within(screen.getByRole('dialog', { name: '정보 부족 기준' })).getByRole('button', { name: '저장' }));
+
+    expect(screen.getByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(orderRepositoryMock.saveSettings).not.toHaveBeenCalled();
+  });
+
   it('keeps a local draft and shows Korean status when a new order save fails', async () => {
     const user = userEvent.setup();
     const rawText = '성함: 저장실패고객\n곶감 1세트\n2026-07-06\n픽업';
@@ -182,6 +235,25 @@ describe('App', () => {
     expect(draft).not.toHaveProperty('reviewReasons');
     expect(draft).not.toHaveProperty('menuMatches');
     expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
+  });
+
+  it('clears local draft and recent-order cache on logout', async () => {
+    const user = userEvent.setup();
+    authRepositoryMock.getWorkspaceMembership.mockResolvedValueOnce(null);
+    saveOrderDraft(createCapturedOrder());
+    saveRecentOrderCache([createCapturedOrder()]);
+
+    render(<App />);
+
+    await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' });
+    expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).not.toBeNull();
+    expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).not.toBeNull();
+
+    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+
+    expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
+    expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
+    expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).toBeNull();
   });
 
   it('keeps the latest existing order edit when save responses resolve out of order', async () => {

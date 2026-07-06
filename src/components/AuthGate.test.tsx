@@ -188,6 +188,27 @@ describe('AuthGate', () => {
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
   });
 
+  it('runs the sign-out cleanup callback before signing out', async () => {
+    const user = userEvent.setup();
+    const authRepository = createAuthRepositoryMock({
+      initialSession: session,
+      workspaceMembership: null,
+    });
+    const onBeforeSignOut = vi.fn();
+
+    render(
+      <AuthGate authRepository={authRepository} onBeforeSignOut={onBeforeSignOut}>
+        <p>주문 표준화 작업실</p>
+      </AuthGate>,
+    );
+
+    await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' });
+    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+
+    expect(onBeforeSignOut).toHaveBeenCalledTimes(1);
+    expect(onBeforeSignOut).toHaveBeenCalledBefore(vi.mocked(authRepository.signOut));
+  });
+
   it('shows a Korean status if blocked screen logout fails', async () => {
     const user = userEvent.setup();
     const authRepository = createAuthRepositoryMock({

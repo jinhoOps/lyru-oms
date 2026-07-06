@@ -4,11 +4,12 @@ import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/a
 type AuthGateProps = {
   authRepository: AuthRepository;
   children: ReactNode | ((membership: WorkspaceMembership) => ReactNode);
+  onBeforeSignOut?: () => void | Promise<void>;
 };
 
 type AuthGateStatus = 'loading' | 'signed-out' | 'blocked' | 'ready';
 
-export function AuthGate({ authRepository, children }: AuthGateProps) {
+export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGateProps) {
   const [status, setStatus] = useState<AuthGateStatus>('loading');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -143,6 +144,12 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     setBlockedError('');
 
     try {
+      try {
+        await onBeforeSignOut?.();
+      } catch {
+        // Local cleanup should not block the actual sign-out request.
+      }
+
       await authRepository.signOut();
       if (isCurrentAuthRequest(requestId)) {
         setEmail('');

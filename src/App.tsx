@@ -14,6 +14,12 @@ import {
   type OrderSettings,
   type OrderSource,
 } from './domain/orderTypes';
+import {
+  clearLocalOrderData,
+  loadRecentOrderCache,
+  saveOrderDraft,
+  saveRecentOrderCache,
+} from './domain/localDraftCache';
 import { createOrderRepository, type OrderRepository } from './domain/orderRepository';
 import { evaluateOrder } from './domain/reviewRules';
 import { sortOrders, type OrderSortMode } from './domain/orderSorting';
@@ -21,7 +27,8 @@ import { createBrowserSupabaseClient } from './lib/supabaseClient';
 import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
-const ORDER_DRAFT_KEY = 'lyru-oms.orderDraft.v1';
+const OFFLINE_CACHE_STATUS_MESSAGE = '오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.';
+const READ_ONLY_CACHE_MUTATION_MESSAGE = '오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.';
 
 const loadCapturePanelCollapsed = () => {
   try {
@@ -47,46 +54,7 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
   }
 };
 
-const createOrderDraftFields = (order: CapturedOrder) => ({
-  customerName: order.customerName,
-  phone: order.phone,
-  orderItems: order.orderItems,
-  quantity: order.quantity,
-  purpose: order.purpose,
-  fulfillmentType: order.fulfillmentType,
-  desiredDateTime: order.desiredDateTime,
-  pickupTime: order.pickupTime,
-  address: order.address,
-  allergyNote: order.allergyNote,
-  options: order.options,
-  customerRequestNote: order.customerRequestNote,
-  ownerMemo: order.ownerMemo,
-  changeRequestNote: order.changeRequestNote,
-  changeRequestConfirmed: order.changeRequestConfirmed,
-  status: order.status,
-});
-
-const saveOrderDraft = (order: CapturedOrder) => {
-  try {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-
-    localStorage.setItem(
-      ORDER_DRAFT_KEY,
-      JSON.stringify({
-        savedAt: new Date().toISOString(),
-        rawText: order.rawText,
-        source: order.source,
-        fields: createOrderDraftFields(order),
-      }),
-    );
-  } catch {
-    // Task 6 will add the full offline helper. This is only a minimal safety draft.
-  }
-};
-
-type WorkspaceLoadStatus = 'loading' | 'ready' | 'error';
+type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
 
 interface WorkspaceAppProps {
   membership: WorkspaceMembership;
@@ -157,6 +125,17 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const isLatestSettingsSave = (workspaceId: string, generation: number, sequence: number) =>
     isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
 
+  const isOfflineCacheReadonly = loadStatus === 'offline-cache';
+
+  const blockOfflineCacheMutation = () => {
+    if (!isOfflineCacheReadonly) {
+      return false;
+    }
+
+    setSaveStatusMessage(READ_ONLY_CACHE_MUTATION_MESSAGE);
+    return true;
+  };
+
   useEffect(() => {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current + 1;
@@ -181,10 +160,22 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
         setOrders(workspaceData.orders);
         setSettings(workspaceData.settings);
         setLoadStatus('ready');
+        saveRecentOrderCache(workspaceData.orders);
       })
       .catch(() => {
         if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
           return;
+        }
+
+        if (navigator.onLine === false) {
+          const cachedOrders = loadRecentOrderCache();
+
+          if (cachedOrders.length > 0) {
+            setOrders(cachedOrders);
+            setSettings(DEFAULT_SETTINGS);
+            setLoadStatus('offline-cache');
+            return;
+          }
         }
 
         setLoadStatus('error');
@@ -208,6 +199,10 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const displayOrders = useMemo(() => sortOrders(filteredOrders, sortMode), [filteredOrders, sortMode]);
 
   async function handleSaveOrder(order: CapturedOrder) {
+    if (blockOfflineCacheMutation()) {
+      return false;
+    }
+
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
 
@@ -235,6 +230,10 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   }
 
   async function handleClearOrders() {
+    if (blockOfflineCacheMutation()) {
+      return;
+    }
+
     if (!window.confirm('저장된 주문을 모두 삭제할까요?')) {
       return;
     }
@@ -278,6 +277,10 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   }
 
   async function handleChangeOrder(nextOrder: CapturedOrder) {
+    if (blockOfflineCacheMutation()) {
+      return;
+    }
+
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
@@ -310,6 +313,10 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   }
 
   async function handleSaveSettings(nextSettings: OrderSettings) {
+    if (blockOfflineCacheMutation()) {
+      throw new Error(READ_ONLY_CACHE_MUTATION_MESSAGE);
+    }
+
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const sequence = nextSettingsSaveSequence();
@@ -387,6 +394,11 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
             </button>
           </div>
         </header>
+        {isOfflineCacheReadonly ? (
+          <p className="appPersistenceStatus" role="status" aria-live="polite">
+            {OFFLINE_CACHE_STATUS_MESSAGE}
+          </p>
+        ) : null}
         {saveStatusMessage ? (
           <p className="appPersistenceStatus" role="status" aria-live="polite">
             {saveStatusMessage}
@@ -470,7 +482,7 @@ export default function App() {
   const orderRepository = useMemo(() => createOrderRepository(supabase as never), [supabase]);
 
   return (
-    <AuthGate authRepository={authRepository}>
+    <AuthGate authRepository={authRepository} onBeforeSignOut={clearLocalOrderData}>
       {(membership) => <WorkspaceApp membership={membership} orderRepository={orderRepository} />}
     </AuthGate>
   );
