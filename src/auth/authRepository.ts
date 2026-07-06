@@ -70,17 +70,18 @@ export function createAuthRepository(supabase: SupabaseClient): AuthRepository {
         .from('workspace_members')
         .select('workspace_id, role, workspaces(name)')
         .eq('user_id', session.userId)
-        .maybeSingle();
+        .order('created_at', { ascending: true })
+        .limit(1);
 
       if (error) {
         throw error;
       }
 
-      if (!data) {
+      const row = (Array.isArray(data) ? data[0] : data) as WorkspaceMembershipRow | null | undefined;
+      if (!row) {
         return null;
       }
 
-      const row = data as WorkspaceMembershipRow;
       const membership: WorkspaceMembership = {
         workspaceId: row.workspace_id,
         workspaceName: getWorkspaceName(row.workspaces),

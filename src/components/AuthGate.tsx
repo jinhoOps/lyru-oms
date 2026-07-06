@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect, useState } from 'react';
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import type { AuthRepository, AuthSession } from '../auth/authTypes';
 
 type AuthGateProps = {
@@ -13,56 +13,67 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [blockedError, setBlockedError] = useState('');
   const [checking, setChecking] = useState(false);
+  const mountedRef = useRef(false);
 
-  useEffect(() => {
-    let active = true;
-
-    async function resolveWorkspace(session: AuthSession | null) {
+  const resolveWorkspace = useCallback(
+    async (session: AuthSession | null) => {
       if (!session) {
-        if (active) {
+        if (mountedRef.current) {
           setStatus('signed-out');
         }
         return;
       }
 
-      if (active) {
+      if (mountedRef.current) {
         setStatus('loading');
+        setBlockedError('');
       }
 
       try {
         const membership = await authRepository.getWorkspaceMembership();
-        if (active) {
+        if (mountedRef.current) {
           setStatus(membership ? 'ready' : 'blocked');
         }
       } catch {
-        if (active) {
+        if (mountedRef.current) {
           setStatus('blocked');
         }
       }
+    },
+    [authRepository],
+  );
+
+  const loadSession = useCallback(async () => {
+    if (mountedRef.current) {
+      setStatus('loading');
+      setBlockedError('');
     }
 
-    async function prepare() {
-      try {
-        await resolveWorkspace(await authRepository.getSession());
-      } catch {
-        if (active) {
-          setStatus('signed-out');
-        }
+    try {
+      await resolveWorkspace(await authRepository.getSession());
+    } catch {
+      if (mountedRef.current) {
+        setStatus('signed-out');
       }
     }
+  }, [authRepository, resolveWorkspace]);
 
-    void prepare();
+  useEffect(() => {
+    mountedRef.current = true;
+
+    void loadSession();
 
     const unsubscribe = authRepository.onSessionChange((nextSession) => {
       void resolveWorkspace(nextSession);
     });
 
     return () => {
-      active = false;
+      mountedRef.current = false;
       unsubscribe();
     };
-  }, [authRepository]);
+  }, [authRepository, loadSession, resolveWorkspace]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,12 +83,35 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     try {
       const session = await authRepository.signIn(email, password);
       const membership = await authRepository.getWorkspaceMembership();
-      setStatus(session && membership ? 'ready' : 'blocked');
+      if (mountedRef.current) {
+        setStatus(session && membership ? 'ready' : 'blocked');
+      }
     } catch {
-      setStatus('signed-out');
-      setError('로그인 정보를 확인해 주세요.');
+      if (mountedRef.current) {
+        setStatus('signed-out');
+        setError('로그인 정보를 확인해 주세요.');
+      }
     } finally {
-      setChecking(false);
+      if (mountedRef.current) {
+        setChecking(false);
+      }
+    }
+  }
+
+  async function handleSignOut() {
+    setBlockedError('');
+
+    try {
+      await authRepository.signOut();
+      if (mountedRef.current) {
+        setEmail('');
+        setPassword('');
+        setStatus('signed-out');
+      }
+    } catch {
+      if (mountedRef.current) {
+        setBlockedError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      }
     }
   }
 
@@ -103,7 +137,18 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
         <section className="accessGateCard" aria-label="작업실 접근 차단">
           <p className="accessGateEyebrow">Lyru OMS</p>
           <h1>작업실 접근 권한이 없습니다</h1>
-          <p className="accessGateCopy">이 계정에 연결된 workspace_members 권한을 확인해 주세요.</p>
+          <p className="accessGateCopy">이 계정의 workspace_members 권한이 없거나 확인하지 못했습니다.</p>
+          <div className="accessGateActions">
+            <button type="button" onClick={loadSession}>
+              다시 시도
+            </button>
+            <button type="button" className="secondaryButton" onClick={handleSignOut}>
+              로그아웃
+            </button>
+          </div>
+          <p className="accessGateError" role="status" aria-live="polite">
+            {blockedError}
+          </p>
         </section>
       </main>
     );
@@ -122,6 +167,8 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
               className="accessGateInput authGateInput"
               type="email"
               autoComplete="email"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'authGateLoginError' : undefined}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoFocus
@@ -133,6 +180,8 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
               className={error ? 'accessGateInput authGateInput hasError' : 'accessGateInput authGateInput'}
               type="password"
               autoComplete="current-password"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'authGateLoginError' : undefined}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
@@ -140,7 +189,7 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
           <button type="submit" disabled={checking || email.length === 0 || password.length === 0}>
             {checking ? '확인 중' : '로그인'}
           </button>
-          <p className="accessGateError" role="status" aria-live="polite">
+          <p id="authGateLoginError" className="accessGateError" role="status" aria-live="polite">
             {error}
           </p>
         </form>
