@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const createClientMock = vi.fn(() => ({ marker: 'client' }));
 
@@ -7,6 +7,11 @@ vi.mock('@supabase/supabase-js', () => ({
 }));
 
 describe('supabaseClient', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.unstubAllEnvs();
+  });
+
   it('creates a browser client from public Vite env values', async () => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
     vi.stubEnv('VITE_SUPABASE_PUBLISHABLE_KEY', 'sb_publishable_test');
