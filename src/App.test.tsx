@@ -314,6 +314,57 @@ describe('App', () => {
     expect(screen.queryByText('삭제될고객')).not.toBeInTheDocument();
   });
 
+  it('does not write the previous workspace orders into the next workspace cache during a switch', async () => {
+    const workspaceOneOrder = createCapturedOrder({
+      id: 'workspace-1-order',
+      customerName: '작업실1고객',
+      updatedAt: '2026-07-06T10:00:00.000Z',
+    });
+    const workspaceTwoLoad = createDeferred<{ orders: CapturedOrder[]; settings: typeof DEFAULT_SETTINGS }>();
+    orderRepositoryMock.loadWorkspaceData
+      .mockResolvedValueOnce({ orders: [workspaceOneOrder], settings: DEFAULT_SETTINGS })
+      .mockReturnValueOnce(workspaceTwoLoad.promise);
+
+    const { rerender } = render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: /작업실1고객/ })).toBeInTheDocument();
+    await waitFor(() => {
+      const cache = JSON.parse(localStorage.getItem(localDraftCacheKeys.recentOrderCache) ?? '{}');
+      expect(cache).toEqual(
+        expect.objectContaining({
+          workspaceId: 'workspace-1',
+          orders: [expect.objectContaining({ id: 'workspace-1-order' })],
+        }),
+      );
+    });
+
+    rerender(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-2', workspaceName: '새 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await waitFor(() => expect(orderRepositoryMock.loadWorkspaceData).toHaveBeenCalledWith('workspace-2'));
+
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+    await act(async () => {
+      workspaceTwoLoad.reject(new Error('offline load failed'));
+      await workspaceTwoLoad.promise.catch(() => undefined);
+    });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('주문 데이터를 불러오지 못했습니다.');
+    expect(screen.queryByText('작업실1고객')).not.toBeInTheDocument();
+    const cache = JSON.parse(localStorage.getItem(localDraftCacheKeys.recentOrderCache) ?? '{}');
+    expect(cache.workspaceId).toBe('workspace-1');
+    expect(cache.orders).toEqual([expect.objectContaining({ id: 'workspace-1-order' })]);
+  });
+
   it('keeps the latest existing order edit when save responses resolve out of order', async () => {
     const user = userEvent.setup();
     const initialOrder = createCapturedOrder({ id: 'order-race', ownerMemo: '' });

@@ -65,6 +65,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const [orders, setOrders] = useState<CapturedOrder[]>([]);
   const [settings, setSettings] = useState<OrderSettings>(() => DEFAULT_SETTINGS);
   const [loadStatus, setLoadStatus] = useState<WorkspaceLoadStatus>('loading');
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [saveStatusMessage, setSaveStatusMessage] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<OrderSortMode>('desiredDate');
@@ -146,6 +147,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     settingsSaveSequenceRef.current = 0;
 
     setLoadStatus('loading');
+    setLoadedWorkspaceId(null);
     setSaveStatusMessage('');
     setSelectedId(null);
     setSourceFilter('전체');
@@ -159,6 +161,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
 
         setOrders(workspaceData.orders);
         setSettings(workspaceData.settings);
+        setLoadedWorkspaceId(workspaceId);
         setLoadStatus('ready');
       })
       .catch(() => {
@@ -172,6 +175,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
           if (cachedOrders.length > 0) {
             setOrders(cachedOrders);
             setSettings(DEFAULT_SETTINGS);
+            setLoadedWorkspaceId(workspaceId);
             setLoadStatus('offline-cache');
             return;
           }
@@ -188,12 +192,12 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   }, [membership.workspaceId, orderRepository]);
 
   useEffect(() => {
-    if (loadStatus !== 'ready' || navigator.onLine === false) {
+    if (loadStatus !== 'ready' || navigator.onLine === false || loadedWorkspaceId !== membership.workspaceId) {
       return;
     }
 
     saveRecentOrderCache(membership.workspaceId, orders);
-  }, [loadStatus, membership.workspaceId, orders]);
+  }, [loadStatus, loadedWorkspaceId, membership.workspaceId, orders]);
 
   const filteredOrders = useMemo(
     () => (sourceFilter === '전체' ? orders : orders.filter((order) => order.source === sourceFilter)),

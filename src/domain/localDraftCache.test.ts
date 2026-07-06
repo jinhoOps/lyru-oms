@@ -49,6 +49,7 @@ describe('localDraftCache', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.useRealTimers();
   });
 
@@ -182,5 +183,23 @@ describe('localDraftCache', () => {
 
     expect(loadSavedOrderDraft()).toBeNull();
     expect(loadRecentOrderCache('workspace-1')).toEqual([]);
+  });
+
+  it('does not throw when localStorage is blocked', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked get');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('blocked set');
+    });
+    vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(() => {
+      throw new Error('blocked remove');
+    });
+
+    expect(() => saveOrderDraft(createOrder())).not.toThrow();
+    expect(() => saveRecentOrderCache('workspace-1', [createOrder()])).not.toThrow();
+    expect(loadSavedOrderDraft()).toBeNull();
+    expect(loadRecentOrderCache('workspace-1')).toEqual([]);
+    expect(() => clearLocalOrderData()).not.toThrow();
   });
 });
