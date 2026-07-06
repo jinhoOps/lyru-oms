@@ -6,6 +6,7 @@ import type { OrderSortMode } from '../domain/orderSorting';
 
 export type OrderSourceFilter = '전체' | OrderSource;
 type OrderListViewMode = 'card' | 'list' | 'calendar';
+type CalendarRangeMode = 'day' | 'twoWeek' | 'month';
 
 interface OrderListProps {
   orders: CapturedOrder[];
@@ -20,6 +21,7 @@ interface OrderListProps {
 }
 
 const ORDER_LIST_VIEW_MODE_KEY = 'lyru-oms.orderList.viewMode.v1';
+const ORDER_LIST_CALENDAR_MODE_KEY = 'lyru-oms.orderList.calendarMode.v1';
 
 const sortOptions: Array<{ mode: OrderSortMode; label: string }> = [
   { mode: 'desiredDate', label: '희망일 빠른 순' },
@@ -31,6 +33,12 @@ const viewOptions: Array<{ mode: OrderListViewMode; label: string }> = [
   { mode: 'list', label: '목록형 보기' },
   { mode: 'card', label: '카드형 보기' },
   { mode: 'calendar', label: '달력형 보기' },
+];
+
+const calendarRangeOptions: Array<{ mode: CalendarRangeMode; label: string }> = [
+  { mode: 'day', label: '일별' },
+  { mode: 'twoWeek', label: '2주' },
+  { mode: 'month', label: '월별' },
 ];
 
 const sourceOptions: OrderSourceFilter[] = ['전체', ...ORDER_SOURCES];
@@ -57,6 +65,31 @@ const saveOrderListViewMode = (mode: OrderListViewMode) => {
     }
 
     localStorage.setItem(ORDER_LIST_VIEW_MODE_KEY, mode);
+  } catch {
+    // Ignore blocked storage; the in-memory state still updates.
+  }
+};
+
+const loadCalendarRangeMode = (): CalendarRangeMode => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return 'month';
+    }
+
+    const stored = localStorage.getItem(ORDER_LIST_CALENDAR_MODE_KEY);
+    return stored === 'day' || stored === 'twoWeek' || stored === 'month' ? stored : 'month';
+  } catch {
+    return 'month';
+  }
+};
+
+const saveCalendarRangeMode = (mode: CalendarRangeMode) => {
+  try {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+
+    localStorage.setItem(ORDER_LIST_CALENDAR_MODE_KEY, mode);
   } catch {
     // Ignore blocked storage; the in-memory state still updates.
   }
@@ -284,6 +317,7 @@ export function OrderList({
 }: OrderListProps) {
   const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
+  const [calendarRangeMode, setCalendarRangeModeState] = useState<CalendarRangeMode>(() => loadCalendarRangeMode());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [viewMenuOpen, setViewMenuOpen] = useState(false);
   const [actionMenuOpen, setActionMenuOpen] = useState(false);
@@ -329,6 +363,11 @@ export function OrderList({
     setViewModeState(mode);
     saveOrderListViewMode(mode);
     setViewMenuOpen(false);
+  }
+
+  function setCalendarRangeMode(mode: CalendarRangeMode) {
+    setCalendarRangeModeState(mode);
+    saveCalendarRangeMode(mode);
   }
 
   function toggleRawText(orderId: string) {
@@ -538,7 +577,24 @@ export function OrderList({
     return (
       <section className="orderListPanel" aria-label="주문 목록">
         {header}
-        <div className="orderCalendar" aria-label="등록일부터 희망일까지 주문 일정">
+        <div className="calendarModeControl" role="radiogroup" aria-label="달력 범위">
+          {calendarRangeOptions.map((option) => (
+            <label key={option.mode} className="calendarModeOption">
+              <input
+                type="radio"
+                name="order-calendar-range-mode"
+                checked={calendarRangeMode === option.mode}
+                onChange={() => setCalendarRangeMode(option.mode)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </div>
+        <div
+          className="orderCalendar"
+          role="grid"
+          aria-label={calendarRangeMode === 'month' ? '월별 주문 달력' : '주문 달력'}
+        >
           {calendarData.entries.map((entry) => (
             <section key={entry.isoDate} className="calendarDateRow" aria-labelledby={`calendar-date-${entry.isoDate}`}>
               <div className="calendarDateHeader">

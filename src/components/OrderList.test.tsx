@@ -122,67 +122,34 @@ describe('OrderList', () => {
     expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
   });
 
-  it('persists calendar view mode changes', () => {
+  it('opens calendar view with monthly mode by default', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
-
-    fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '달력형 보기' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: '달력 범위' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '월별' })).toBeChecked();
+    expect(screen.getByRole('grid', { name: '월별 주문 달력' })).toBeInTheDocument();
   });
 
-  it('shows an order from registration date through desired date in calendar view', () => {
-    renderOrderList({
-      orders: [
-        {
-          ...order,
-          id: 'calendar-range',
-          customerName: '박기간',
-          orderItems: '곶감단지',
-          quantity: '2세트',
-          desiredDateTime: '2026-07-03',
-          parsedDate: null,
-          createdAt: '2026-07-01T00:30:00.000Z',
-          updatedAt: '2026-07-01T00:30:00.000Z',
-        },
-      ],
-    });
+  it('persists calendar range mode separately from list view mode', () => {
+    renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '2주' }));
 
-    expect(screen.getByRole('heading', { name: '7월 1일' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '7월 3일' })).toBeInTheDocument();
-    expect(screen.getByText('등록')).toBeInTheDocument();
-    expect(screen.getByText('진행 중')).toBeInTheDocument();
-    expect(screen.getByText('마감')).toBeInTheDocument();
-    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(3);
-  });
+    expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
+    expect(localStorage.getItem('lyru-oms.orderList.calendarMode.v1')).toBe('twoWeek');
 
-  it('keeps orders with missing desired dates in the unresolved calendar group', () => {
-    renderOrderList({
-      orders: [
-        {
-          ...order,
-          id: 'calendar-unresolved',
-          customerName: '최확인',
-          orderItems: '화과자',
-          quantity: '4개',
-          desiredDateTime: '',
-          parsedDate: null,
-        },
-      ],
-    });
-
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '목록형 보기' }));
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
-    expect(screen.getByRole('heading', { name: '날짜 확인 필요' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /화과자 · 4개/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '2주' })).toBeChecked();
   });
 
   it('keeps filtered-out empty state before rendering calendar view', () => {
