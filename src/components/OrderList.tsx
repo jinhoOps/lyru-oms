@@ -718,21 +718,19 @@ export function OrderList({
           {calendarWindow ? (
             <div
               className={`calendarGrid ${calendarRangeMode}`}
-              role="grid"
+              role="group"
               aria-label={calendarRangeMode === 'month' ? '월별 주문 달력' : '2주 주문 달력'}
             >
-              <div className="calendarWeekHeader" role="row">
+              <div className="calendarWeekHeader">
                 {['일', '월', '화', '수', '목', '금', '토'].map((dayLabel) => (
-                  <span key={dayLabel} role="columnheader">
-                    {dayLabel}
-                  </span>
+                  <span key={dayLabel}>{dayLabel}</span>
                 ))}
               </div>
               {calendarWindow.rows.map((row) => (
-                <section key={row.id} className="calendarWeekRow" role="row" aria-label={`${formatCalendarDateLabel(row.dates[0])} 주`}>
+                <section key={row.id} className="calendarWeekRow" aria-label={`${formatCalendarDateLabel(row.dates[0])} 주`}>
                   <div className="calendarDayNumbers">
                     {row.dates.map((isoDate) => (
-                      <span key={isoDate} className="calendarDayNumber" role="gridcell">
+                      <span key={isoDate} className="calendarDayNumber">
                         {formatCalendarDateLabel(isoDate)}
                       </span>
                     ))}

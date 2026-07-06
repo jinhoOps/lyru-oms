@@ -625,6 +625,26 @@ pre {
   gap: 8px;
 }
 
+.calendarModeControl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.calendarModeOption {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #e4d7c5;
+  border-radius: 8px;
+  background: #fffdf9;
+  color: #1b2430;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .calendarGrid {
   display: grid;
   gap: 8px;
@@ -707,6 +727,7 @@ pre {
 }
 
 .calendarDateRow,
+.calendarDaily,
 .calendarUnresolved {
   display: grid;
   gap: 8px;
@@ -743,6 +764,35 @@ pre {
   min-width: 0;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.calendarDailyList {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.calendarDailyItem {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  border: 1px solid #e4d7c5;
+  border-radius: 8px;
+  background: #fffaf2;
+  color: #1b2430;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.calendarDailyItem strong,
+.calendarDailyItem span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.calendarDailyItem > span:not(.calendarRangeMeta) {
+  color: #746552;
+  font-size: 12px;
 }
 
 .calendarOrderChip {
