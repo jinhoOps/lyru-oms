@@ -122,19 +122,67 @@ describe('OrderList', () => {
     expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
   });
 
-  it('persists calendar view mode changes', () => {
+  it('opens calendar view with monthly mode by default', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
-
-    fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '달력형 보기' })).toBeChecked();
+    expect(screen.getByRole('radiogroup', { name: '달력 범위' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '월별' })).toBeChecked();
+    expect(screen.getByLabelText('월별 주문 달력')).toBeInTheDocument();
+    expect(screen.queryByRole('grid', { name: '월별 주문 달력' })).not.toBeInTheDocument();
   });
 
-  it('shows an order from registration date through desired date in calendar view', () => {
+  it('persists calendar range mode separately from list view mode', () => {
+    renderOrderList();
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '2주' }));
+
+    expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
+    expect(localStorage.getItem('lyru-oms.orderList.calendarMode.v1')).toBe('twoWeek');
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '목록형 보기' }));
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+
+    expect(screen.getByRole('radio', { name: '2주' })).toBeChecked();
+  });
+
+  it('shows the current Sunday through next Saturday in two-week calendar mode', () => {
+    vi.setSystemTime(new Date('2026-07-06T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'two-week-range',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-10',
+          parsedDate: null,
+          createdAt: '2026-07-05T00:30:00.000Z',
+          updatedAt: '2026-07-05T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '2주' }));
+
+    const calendar = screen.getByLabelText('2주 주문 달력');
+    expect(screen.queryByRole('grid', { name: '2주 주문 달력' })).not.toBeInTheDocument();
+    expect(within(calendar).getByText('7월 5일')).toBeInTheDocument();
+    expect(within(calendar).getByText('7월 18일')).toBeInTheDocument();
+    expect(within(calendar).queryByText('7월 19일')).not.toBeInTheDocument();
+  });
+
+  it('renders a multi-day order as one connected range per visible week instead of repeated daily chips', () => {
     renderOrderList({
       orders: [
         {
@@ -154,16 +202,89 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
-    expect(screen.getByRole('heading', { name: '7월 1일' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '7월 3일' })).toBeInTheDocument();
-    expect(screen.getByText('등록')).toBeInTheDocument();
-    expect(screen.getByText('진행 중')).toBeInTheDocument();
-    expect(screen.getByText('마감')).toBeInTheDocument();
-    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(3);
+    const rangeButton = screen.getByRole('button', { name: /곶감단지 · 2세트.*등록.*마감/ });
+    expect(rangeButton).toBeInTheDocument();
+    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
   });
 
-  it('keeps orders with missing desired dates in the unresolved calendar group', () => {
+  it('shows today orders once in daily mode with the correct range status', () => {
+    vi.setSystemTime(new Date('2026-07-02T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'daily-progress',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '일별' }));
+
+    expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*진행 중/ })).toBeInTheDocument();
+    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
+  });
+
+  it('marks today orders as registered in daily mode when today is the start date', () => {
+    vi.setSystemTime(new Date('2026-07-01T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'daily-start',
+          customerName: '박등록',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '일별' }));
+
+    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*등록/ })).toBeInTheDocument();
+  });
+
+  it('marks today orders as closing in daily mode when today is the end date', () => {
+    vi.setSystemTime(new Date('2026-07-03T03:00:00.000Z'));
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'daily-end',
+          customerName: '박마감',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '일별' }));
+
+    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*마감/ })).toBeInTheDocument();
+  });
+
+  it('keeps missing and invalid desired dates in the unresolved calendar group', () => {
     renderOrderList({
       orders: [
         {
@@ -175,14 +296,26 @@ describe('OrderList', () => {
           desiredDateTime: '',
           parsedDate: null,
         },
+        {
+          ...order,
+          id: 'calendar-invalid',
+          customerName: '문확인',
+          orderItems: '양갱',
+          quantity: '3개',
+          desiredDateTime: '2026-06-29',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
       ],
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
-    expect(screen.getByRole('heading', { name: '날짜 확인 필요' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /화과자 · 4개/ })).toBeInTheDocument();
+    const unresolved = screen.getByRole('region', { name: '날짜 확인 필요' });
+    expect(within(unresolved).getByRole('button', { name: /화과자 · 4개.*희망일 확인/ })).toBeInTheDocument();
+    expect(within(unresolved).getByRole('button', { name: /양갱 · 3개.*기간 확인/ })).toBeInTheDocument();
   });
 
   it('keeps filtered-out empty state before rendering calendar view', () => {
