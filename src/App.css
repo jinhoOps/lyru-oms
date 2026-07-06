@@ -210,6 +210,13 @@ textarea {
   padding: 18px;
 }
 
+.appStateShell {
+  display: grid;
+  place-items: center;
+  color: #4c3b25;
+  font-weight: 700;
+}
+
 .appHeader {
   max-width: 1120px;
   margin: 0 auto 16px;
@@ -217,6 +224,18 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.appPersistenceStatus {
+  max-width: 1120px;
+  margin: 0 auto 12px;
+  padding: 10px 12px;
+  border: 1px solid #ead8b8;
+  border-radius: 8px;
+  background: #fff8e8;
+  color: #6d4c1d;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .eyebrow {

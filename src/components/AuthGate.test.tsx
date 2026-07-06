@@ -89,6 +89,18 @@ describe('AuthGate', () => {
     expect(authRepository.signIn).toHaveBeenCalledWith('owner@lyru.test', 'secret');
   });
 
+  it('passes workspace membership to render function children', async () => {
+    const authRepository = createAuthRepositoryMock({ initialSession: session, workspaceMembership: membership });
+
+    render(
+      <AuthGate authRepository={authRepository}>
+        {(workspaceMembership) => <p>{workspaceMembership.workspaceName}</p>}
+      </AuthGate>,
+    );
+
+    expect(await screen.findByText('리루 작업실')).toBeInTheDocument();
+  });
+
   it('shows a login error when sign-in fails and keeps children hidden', async () => {
     const user = userEvent.setup();
     const authRepository = createAuthRepositoryMock({

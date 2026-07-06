@@ -1,8 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
+import { DEFAULT_SETTINGS } from './domain/orderTypes';
 
 const authRepositoryMock = {
   getSession: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
@@ -16,6 +17,13 @@ const authRepositoryMock = {
   onSessionChange: vi.fn(() => vi.fn()),
 };
 
+const orderRepositoryMock = {
+  loadWorkspaceData: vi.fn().mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS }),
+  saveOrder: vi.fn(async (_workspaceId, order) => order),
+  deleteAllOrders: vi.fn().mockResolvedValue(undefined),
+  saveSettings: vi.fn(async (_workspaceId, settings) => settings),
+};
+
 vi.mock('./lib/supabaseClient', () => ({
   createBrowserSupabaseClient: vi.fn(() => ({ marker: 'supabase-client' })),
 }));
@@ -24,9 +32,23 @@ vi.mock('./auth/authRepository', () => ({
   createAuthRepository: vi.fn(() => authRepositoryMock),
 }));
 
+vi.mock('./domain/orderRepository', () => ({
+  createOrderRepository: vi.fn(() => orderRepositoryMock),
+}));
+
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  authRepositoryMock.getSession.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
+  authRepositoryMock.getWorkspaceMembership.mockResolvedValue({
+    workspaceId: 'workspace-1',
+    workspaceName: '리루 작업실',
+    role: 'owner',
+  });
+  orderRepositoryMock.loadWorkspaceData.mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS });
+  orderRepositoryMock.saveOrder.mockImplementation(async (_workspaceId, order) => order);
+  orderRepositoryMock.deleteAllOrders.mockResolvedValue(undefined);
+  orderRepositoryMock.saveSettings.mockImplementation(async (_workspaceId, settings) => settings);
 });
 
 afterEach(() => {
@@ -41,6 +63,10 @@ async function renderUnlockedApp() {
 async function selectOrderListChannel(user: ReturnType<typeof userEvent.setup>, channel: string) {
   await user.click(screen.getByRole('button', { name: /^채널:/ }));
   await user.click(screen.getByRole('radio', { name: channel }));
+}
+
+function getCapturePanel() {
+  return within(screen.getByRole('region', { name: '주문 수집' }));
 }
 
 describe('App', () => {
@@ -60,13 +86,38 @@ describe('App', () => {
     expect(settingsButton).toHaveTextContent('⚙');
   });
 
-  it('starts an empty workspace with Yuriru and Nasdaq sample orders', async () => {
+  it('starts an empty authenticated workspace without sample orders', async () => {
     await renderUnlockedApp();
 
-    expect(screen.getByText(/유리루/)).toBeInTheDocument();
-    expect(screen.getByText(/곶감말이/)).toBeInTheDocument();
-    expect(screen.getByText(/나스닥3배/)).toBeInTheDocument();
-    expect(screen.getByText('2건')).toBeInTheDocument();
+    expect(screen.getByText('아직 저장된 주문이 없습니다.')).toBeInTheDocument();
+    expect(screen.queryByText(/유리루/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/나스닥3배/)).not.toBeInTheDocument();
+    expect(screen.getByText('0건')).toBeInTheDocument();
+    expect(orderRepositoryMock.loadWorkspaceData).toHaveBeenCalledWith('workspace-1');
+  });
+
+  it('shows a load failure alert when workspace data cannot be loaded', async () => {
+    orderRepositoryMock.loadWorkspaceData.mockRejectedValueOnce(new Error('load failed'));
+
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('주문 데이터를 불러오지 못했습니다.');
+    expect(screen.queryByRole('heading', { name: '주문 표준화 작업실' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a local draft and shows Korean status when a new order save fails', async () => {
+    const user = userEvent.setup();
+    const rawText = '성함: 저장실패고객\n곶감 1세트\n2026-07-06\n픽업';
+    orderRepositoryMock.saveOrder.mockRejectedValueOnce(new Error('save failed'));
+
+    await renderUnlockedApp();
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), rawText);
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByText('저장하지 못했습니다. 입력 내용은 임시 저장했어요.')).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem('lyru-oms.orderDraft.v1') ?? '{}').order.rawText).toBe(rawText);
+    expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
   });
 
   it('clears all orders from the list action menu', async () => {
@@ -176,21 +227,25 @@ describe('App', () => {
 
     await renderUnlockedApp();
 
-    await user.selectOptions(screen.getByLabelText('채널'), '네이버 스마트스토어');
-    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 스마트고객\n곶감 2세트\n2026-07-05\n픽업');
-    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.selectOptions(getCapturePanel().getByLabelText('채널'), '네이버 스마트스토어');
+    await user.type(getCapturePanel().getByLabelText('주문/문의 원문'), '성함: 스마트고객\n곶감 2세트\n2026-07-05\n픽업');
+    await user.click(getCapturePanel().getByRole('button', { name: '저장' }));
+    expect(await screen.findByText('스마트고객')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '주문 상세' })).not.toBeInTheDocument());
 
-    await user.selectOptions(screen.getByLabelText('채널'), '카카오톡 채널');
-    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
-    await user.click(screen.getByRole('button', { name: '저장' }));
+    await user.selectOptions(getCapturePanel().getByLabelText('채널'), '카카오톡 채널');
+    await user.type(getCapturePanel().getByLabelText('주문/문의 원문'), '성함: 카카오고객\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(getCapturePanel().getByRole('button', { name: '저장' }));
+    expect(await screen.findByText('카카오고객')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
+    expect(orderRepositoryMock.saveOrder).toHaveBeenCalledTimes(2);
 
     await selectOrderListChannel(user, '네이버 스마트스토어');
 
     expect(screen.getByText('주문 내용 미정 · 2세트')).toBeInTheDocument();
     expect(screen.queryByText('주문 내용 미정 · 1세트')).not.toBeInTheDocument();
-    expect(screen.getByText('2건')).toBeInTheDocument();
+    expect(screen.getByText('1건')).toBeInTheDocument();
   });
 
   it('keeps newly saved orders visible by moving the source filter to the saved source', async () => {

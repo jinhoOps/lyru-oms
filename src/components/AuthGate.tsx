@@ -1,9 +1,9 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
-import type { AuthRepository, AuthSession } from '../auth/authTypes';
+import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/authTypes';
 
 type AuthGateProps = {
   authRepository: AuthRepository;
-  children: ReactNode;
+  children: ReactNode | ((membership: WorkspaceMembership) => ReactNode);
 };
 
 type AuthGateStatus = 'loading' | 'signed-out' | 'blocked' | 'ready';
@@ -14,6 +14,7 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [blockedError, setBlockedError] = useState('');
+  const [membership, setMembership] = useState<WorkspaceMembership | null>(null);
   const [checking, setChecking] = useState(false);
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -33,6 +34,7 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
       if (!session) {
         if (isCurrentAuthRequest(requestId)) {
           setStatus('signed-out');
+          setMembership(null);
           setBlockedError('');
           setChecking(false);
         }
@@ -47,11 +49,13 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
       try {
         const membership = await authRepository.getWorkspaceMembership();
         if (isCurrentAuthRequest(requestId)) {
+          setMembership(membership);
           setStatus(membership ? 'ready' : 'blocked');
           setChecking(false);
         }
       } catch {
         if (isCurrentAuthRequest(requestId)) {
+          setMembership(null);
           setStatus('blocked');
           setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
           setChecking(false);
@@ -74,6 +78,7 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     } catch {
       if (isCurrentAuthRequest(requestId)) {
         setStatus('signed-out');
+        setMembership(null);
         setChecking(false);
       }
     }
@@ -117,10 +122,12 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     try {
       const membership = await authRepository.getWorkspaceMembership();
       if (isCurrentAuthRequest(requestId)) {
+        setMembership(membership);
         setStatus(session && membership ? 'ready' : 'blocked');
       }
     } catch {
       if (isCurrentAuthRequest(requestId)) {
+        setMembership(null);
         setStatus('blocked');
         setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
       }
@@ -140,6 +147,7 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
       if (isCurrentAuthRequest(requestId)) {
         setEmail('');
         setPassword('');
+        setMembership(null);
         setStatus('signed-out');
       }
     } catch {
@@ -149,8 +157,8 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     }
   }
 
-  if (status === 'ready') {
-    return <div className="appReveal">{children}</div>;
+  if (status === 'ready' && membership) {
+    return <div className="appReveal">{typeof children === 'function' ? children(membership) : children}</div>;
   }
 
   if (status === 'loading') {

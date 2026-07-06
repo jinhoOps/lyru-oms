@@ -12,7 +12,7 @@ interface OrderCaptureFormProps {
   existingRawTexts: string[];
   settings: OrderSettings;
   source: OrderSource;
-  onSave: (order: CapturedOrder) => void;
+  onSave: (order: CapturedOrder) => void | boolean | Promise<void | boolean>;
 }
 
 const createOrderId = () => {
@@ -29,7 +29,7 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
   const parsed = useMemo(() => parseRawText(rawText), [rawText]);
   const isDuplicate = rawText.trim() !== '' && hasSimilarRawText(rawText, existingRawTexts);
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
     if (!rawText.trim()) {
@@ -64,8 +64,10 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
       updatedAt: now,
     };
 
-    onSave(evaluateOrder(baseOrder, settings));
-    setRawText('');
+    const saved = await onSave(evaluateOrder(baseOrder, settings));
+    if (saved !== false) {
+      setRawText('');
+    }
   }
 
   return (
