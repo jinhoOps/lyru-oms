@@ -10,6 +10,14 @@ import {
 import type { CapturedOrder, OrderSettings } from './orderTypes';
 
 const workspaceId = '00000000-0000-4000-8000-000000000201';
+type ChangeRequestRowMock = {
+  id: string;
+  order_id: string;
+  note: string;
+  confirmed: boolean;
+  created_at: string;
+  updated_at: string;
+};
 
 const settings: OrderSettings = {
   requiredFields: ['orderItems', 'quantity'],
@@ -28,13 +36,15 @@ function createSupabaseMock({
   changeRequestRows = [],
   savedOrderRow,
   insertedChangeRequestRow = null,
+  updatedChangeRequestRow = null,
   savedSettingsRow,
 }: {
   orderRows?: OrderRow[];
   settingsRow?: WorkspaceSettingsRow | null;
-  changeRequestRows?: Array<{ id: string; order_id: string; note: string; confirmed: boolean; updated_at: string }>;
+  changeRequestRows?: ChangeRequestRowMock[];
   savedOrderRow?: OrderRow;
-  insertedChangeRequestRow?: { id: string; note: string; confirmed: boolean } | null;
+  insertedChangeRequestRow?: { id: string; note: string; confirmed: boolean; order_id?: string } | null;
+  updatedChangeRequestRow?: { id: string; note: string; confirmed: boolean; order_id?: string } | null;
   savedSettingsRow?: WorkspaceSettingsRow;
 } = {}) {
   const calls: Array<{ table: string; method: string; args: unknown[] }> = [];
@@ -43,6 +53,10 @@ function createSupabaseMock({
   };
 
   const createSelectQuery = (table: string) => {
+    const resolveRows = () => ({
+      data: table === 'orders' ? orderRows : changeRequestRows,
+      error: null,
+    });
     const query = {
       eq: vi.fn((column: string, value: unknown) => {
         record(table, 'eq', [column, value]);
@@ -50,15 +64,18 @@ function createSupabaseMock({
       }),
       order: vi.fn((column: string, options?: unknown) => {
         record(table, 'order', [column, options]);
-        return Promise.resolve({
-          data: table === 'orders' ? orderRows : changeRequestRows,
-          error: null,
-        });
+        return query;
+      }),
+      limit: vi.fn((count: number) => {
+        record(table, 'limit', [count]);
+        const rows = table === 'order_change_requests' ? changeRequestRows.slice(0, count) : orderRows.slice(0, count);
+        return Promise.resolve({ data: rows, error: null });
       }),
       maybeSingle: vi.fn(() => {
         record(table, 'maybeSingle', []);
         return Promise.resolve({ data: settingsRow, error: null });
       }),
+      then: vi.fn((resolve, reject) => Promise.resolve(resolveRows()).then(resolve, reject)),
     };
 
     return query;
@@ -77,7 +94,7 @@ function createSupabaseMock({
         }
 
         if (table === 'order_change_requests') {
-          return Promise.resolve({ data: insertedChangeRequestRow, error: null });
+          return Promise.resolve({ data: updatedChangeRequestRow ?? insertedChangeRequestRow, error: null });
         }
 
         return Promise.resolve({ data: savedSettingsRow ?? payload, error: null });
@@ -102,6 +119,10 @@ function createSupabaseMock({
     }),
     insert: vi.fn((payload: unknown) => {
       record(table, 'insert', [payload]);
+      return createMutationQuery(table, payload);
+    }),
+    update: vi.fn((payload: unknown) => {
+      record(table, 'update', [payload]);
       return createMutationQuery(table, payload);
     }),
     delete: vi.fn(() => {
@@ -146,6 +167,12 @@ describe('orderRepository', () => {
     });
   });
 
+  it('round-trips a mapped order row back to CapturedOrder without a change request', () => {
+    const order = createNasdaqSampleOrder();
+
+    expect(mapOrderFromRow(mapOrderToRow(order, workspaceId))).toEqual(order);
+  });
+
   it('loads workspace orders, latest change requests, and settings from Supabase', async () => {
     const nasdaq = createNasdaqSampleOrder();
     const supabase = createSupabaseMock({
@@ -157,6 +184,7 @@ describe('orderRepository', () => {
           order_id: nasdaq.id,
           note: '최신 요청',
           confirmed: false,
+          created_at: '2026-07-04T00:00:00.000Z',
           updated_at: '2026-07-04T00:00:00.000Z',
         },
         {
@@ -164,6 +192,7 @@ describe('orderRepository', () => {
           order_id: nasdaq.id,
           note: '이전 요청',
           confirmed: true,
+          created_at: '2026-07-03T00:00:00.000Z',
           updated_at: '2026-07-03T00:00:00.000Z',
         },
       ],
@@ -183,6 +212,13 @@ describe('orderRepository', () => {
     expect(supabase.from).toHaveBeenCalledWith('orders');
     expect(supabase.from).toHaveBeenCalledWith('workspace_settings');
     expect(supabase.from).toHaveBeenCalledWith('order_change_requests');
+    expect(supabase.calls).toEqual(
+      expect.arrayContaining([
+        { table: 'order_change_requests', method: 'order', args: ['updated_at', { ascending: false }] },
+        { table: 'order_change_requests', method: 'order', args: ['created_at', { ascending: false }] },
+        { table: 'order_change_requests', method: 'order', args: ['id', { ascending: false }] },
+      ]),
+    );
   });
 
   it('saves an order row and inserts a change request when note exists', async () => {
@@ -196,6 +232,7 @@ describe('orderRepository', () => {
       savedOrderRow: orderRow,
       insertedChangeRequestRow: {
         id: 'inserted-change',
+        order_id: order.id,
         note: '쇼핑백 2개로 변경',
         confirmed: false,
       },
@@ -224,6 +261,92 @@ describe('orderRepository', () => {
         },
       ],
     });
+  });
+
+  it('updates the latest change request instead of inserting duplicates', async () => {
+    const order = {
+      ...createNasdaqSampleOrder(),
+      changeRequestNote: '쇼핑백 2개로 변경',
+      changeRequestConfirmed: true,
+    };
+    const supabase = createSupabaseMock({
+      savedOrderRow: toOrderRow(order),
+      changeRequestRows: [
+        {
+          id: 'latest-change',
+          order_id: order.id,
+          note: '기존 요청',
+          confirmed: false,
+          created_at: '2026-07-04T00:00:00.000Z',
+          updated_at: '2026-07-04T00:00:00.000Z',
+        },
+      ],
+      updatedChangeRequestRow: {
+        id: 'latest-change',
+        order_id: order.id,
+        note: '쇼핑백 2개로 변경',
+        confirmed: true,
+      },
+    });
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.saveOrder(workspaceId, order)).resolves.toMatchObject({
+      changeRequestNote: '쇼핑백 2개로 변경',
+      changeRequestConfirmed: true,
+    });
+    expect(supabase.calls).toContainEqual({
+      table: 'order_change_requests',
+      method: 'update',
+      args: [{ note: '쇼핑백 2개로 변경', confirmed: true }],
+    });
+    expect(supabase.calls).toContainEqual({
+      table: 'order_change_requests',
+      method: 'eq',
+      args: ['id', 'latest-change'],
+    });
+    expect(supabase.calls.some((call) => call.table === 'order_change_requests' && call.method === 'insert')).toBe(false);
+  });
+
+  it('clears the active change request when note is empty', async () => {
+    const order = {
+      ...createNasdaqSampleOrder(),
+      changeRequestNote: '   ',
+      changeRequestConfirmed: false,
+    };
+    const supabase = createSupabaseMock({
+      savedOrderRow: toOrderRow(order),
+      changeRequestRows: [
+        {
+          id: 'latest-change',
+          order_id: order.id,
+          note: '삭제할 요청',
+          confirmed: false,
+          created_at: '2026-07-04T00:00:00.000Z',
+          updated_at: '2026-07-04T00:00:00.000Z',
+        },
+      ],
+    });
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.saveOrder(workspaceId, order)).resolves.toMatchObject({
+      changeRequestNote: '',
+      changeRequestConfirmed: false,
+    });
+    expect(supabase.calls).toContainEqual({ table: 'order_change_requests', method: 'delete', args: [] });
+    expect(supabase.calls).toContainEqual({
+      table: 'order_change_requests',
+      method: 'eq',
+      args: ['id', 'latest-change'],
+    });
+  });
+
+  it('deletes all orders in the workspace', async () => {
+    const supabase = createSupabaseMock();
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.deleteAllOrders(workspaceId)).resolves.toBeUndefined();
+    expect(supabase.calls).toContainEqual({ table: 'orders', method: 'delete', args: [] });
+    expect(supabase.calls).toContainEqual({ table: 'orders', method: 'eq', args: ['workspace_id', workspaceId] });
   });
 
   it('upserts workspace settings and returns saved settings', async () => {

@@ -66,25 +66,37 @@ interface LatestChangeRequest {
 
 interface ChangeRequestRow extends LatestChangeRequest {
   order_id: string;
+  created_at: string;
   updated_at: string;
 }
 
-type QueryResult<T> = Promise<{ data: T; error: Error | null }>;
+type QueryResultValue<T> = { data: T; error: Error | null };
+type QueryResult<T> = Promise<QueryResultValue<T>>;
 type SelectQuery<T> = {
   eq(column: string, value: unknown): SelectQuery<T>;
-  order(column: string, options?: unknown): QueryResult<T>;
+  order(column: string, options?: unknown): SelectQuery<T>;
+  limit(count: number): QueryResult<T>;
   maybeSingle(): QueryResult<T>;
+  then<TResult1 = QueryResultValue<T>, TResult2 = never>(
+    onfulfilled?: ((value: QueryResultValue<T>) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2>;
 };
 type MutationQuery<T> = {
   select(columns?: string): MutationQuery<T>;
   single(): QueryResult<T>;
-  eq(column: string, value: unknown): QueryResult<T>;
+  eq(column: string, value: unknown): MutationQuery<T>;
+  then<TResult1 = QueryResultValue<T>, TResult2 = never>(
+    onfulfilled?: ((value: QueryResultValue<T>) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): PromiseLike<TResult1 | TResult2>;
 };
 type SupabaseLike = {
   from(table: string): {
     select<T>(columns?: string): SelectQuery<T>;
     upsert<T>(payload: unknown): MutationQuery<T>;
     insert<T>(payload: unknown): MutationQuery<T>;
+    update<T>(payload: unknown): MutationQuery<T>;
     delete<T>(): MutationQuery<T>;
   };
 };
@@ -171,8 +183,8 @@ export const mapOrderFromRow = (row: OrderRow, latestChangeRequest?: LatestChang
   updatedAt: row.updated_at,
 });
 
-const selectOrders = (supabase: SupabaseLike, workspaceId: string): QueryResult<OrderRow[]> =>
-  supabase
+const selectOrders = async (supabase: SupabaseLike, workspaceId: string): QueryResult<OrderRow[]> =>
+  await supabase
     .from('orders')
     .select<OrderRow[]>('*')
     .eq('workspace_id', workspaceId)
@@ -185,12 +197,29 @@ const selectSettings = (supabase: SupabaseLike, workspaceId: string): QueryResul
     .eq('workspace_id', workspaceId)
     .maybeSingle();
 
-const selectChangeRequests = (supabase: SupabaseLike, workspaceId: string): QueryResult<ChangeRequestRow[]> =>
+const selectChangeRequests = async (supabase: SupabaseLike, workspaceId: string): QueryResult<ChangeRequestRow[]> =>
+  await supabase
+    .from('order_change_requests')
+    .select<ChangeRequestRow[]>('id, order_id, note, confirmed, created_at, updated_at')
+    .eq('workspace_id', workspaceId)
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false });
+
+const selectLatestChangeRequest = (
+  supabase: SupabaseLike,
+  workspaceId: string,
+  orderId: string,
+): QueryResult<ChangeRequestRow[]> =>
   supabase
     .from('order_change_requests')
-    .select<ChangeRequestRow[]>('id, order_id, note, confirmed, updated_at')
+    .select<ChangeRequestRow[]>('id, order_id, note, confirmed, created_at, updated_at')
     .eq('workspace_id', workspaceId)
-    .order('updated_at', { ascending: false });
+    .eq('order_id', orderId)
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(1);
 
 export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
   return {
@@ -227,29 +256,56 @@ export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
       throwIfError(orderResult.error);
 
       const note = order.changeRequestNote.trim();
+      const latestChangeRequestResult = await selectLatestChangeRequest(supabase, workspaceId, order.id);
+      throwIfError(latestChangeRequestResult.error);
+
+      const latestChangeRequest = latestChangeRequestResult.data?.[0] ?? null;
       if (!note) {
+        if (latestChangeRequest) {
+          const deleteResult = await supabase
+            .from('order_change_requests')
+            .delete<null>()
+            .eq('id', latestChangeRequest.id);
+
+          throwIfError(deleteResult.error);
+        }
+
         return mapOrderFromRow(orderResult.data);
       }
 
-      const changeRequestResult = (await supabase
+      if (latestChangeRequest) {
+        const changeRequestResult = await supabase
+          .from('order_change_requests')
+          .update<LatestChangeRequest>({
+            note,
+            confirmed: order.changeRequestConfirmed,
+          })
+          .eq('id', latestChangeRequest.id)
+          .select('id, note, confirmed')
+          .single();
+
+        throwIfError(changeRequestResult.error);
+
+        return mapOrderFromRow(orderResult.data, changeRequestResult.data);
+      }
+
+      const changeRequestResult = await supabase
         .from('order_change_requests')
-        .insert<LatestChangeRequest | null>({
+        .insert<LatestChangeRequest>({
           workspace_id: workspaceId,
           order_id: order.id,
           note,
           confirmed: order.changeRequestConfirmed,
         })
         .select('id, note, confirmed')
-        .single()) as { data: LatestChangeRequest | null; error: Error | null };
+        .single();
 
       throwIfError(changeRequestResult.error);
 
-      return mapOrderFromRow(orderResult.data, changeRequestResult.data ?? undefined);
+      return mapOrderFromRow(orderResult.data, changeRequestResult.data);
     },
     async deleteAllOrders(workspaceId) {
-      const result = (await supabase.from('orders').delete().eq('workspace_id', workspaceId)) as {
-        error: Error | null;
-      };
+      const result = await supabase.from('orders').delete<null>().eq('workspace_id', workspaceId);
 
       throwIfError(result.error);
     },
