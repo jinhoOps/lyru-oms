@@ -727,7 +727,7 @@ export function OrderList({
                 ))}
               </div>
               {calendarWindow.rows.map((row) => (
-                <section key={row.id} className="calendarWeekRow" aria-label={`${formatCalendarDateLabel(row.dates[0])} 주`}>
+                <section key={row.id} className="calendarWeekRow">
                   <div className="calendarDayNumbers">
                     {row.dates.map((isoDate) => (
                       <span key={isoDate} className="calendarDayNumber">
