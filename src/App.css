@@ -622,32 +622,49 @@ pre {
 
 .orderCalendar {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .calendarModeControl {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  border: 1px solid #e1d5c2;
+  border-radius: 8px;
+  background: #fffdf8;
+  padding: 4px;
 }
 
 .calendarModeOption {
-  display: inline-flex;
+  display: flex;
   min-height: 34px;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  border: 1px solid #e4d7c5;
-  border-radius: 8px;
-  background: #fffdf9;
-  color: #1b2430;
-  padding: 6px 10px;
+  border-radius: 6px;
+  color: #5b4322;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.calendarGrid {
+.calendarModeOption:has(input:checked) {
+  background: #f2e2ca;
+}
+
+.calendarModeOption input {
+  width: 14px;
+  min-height: 14px;
+}
+
+.calendarGrid,
+.calendarDaily,
+.calendarUnresolved {
   display: grid;
   gap: 8px;
+  border: 1px solid #eee3d2;
+  border-radius: 8px;
+  background: #fffdf9;
+  padding: 10px;
 }
 
 .calendarWeekHeader,
@@ -655,13 +672,13 @@ pre {
 .calendarRangeLayer {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
 }
 
 .calendarWeekHeader {
-  gap: 4px;
   color: #746552;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 900;
   text-align: center;
 }
 
@@ -671,70 +688,61 @@ pre {
 
 .calendarWeekRow {
   display: grid;
-  gap: 8px;
-  border: 1px solid #eee3d2;
-  border-radius: 8px;
-  background: #fffdf9;
-  padding: 10px;
-}
-
-.calendarDayNumbers {
   gap: 4px;
+  min-width: 0;
 }
 
 .calendarDayNumber {
   min-width: 0;
+  border-radius: 6px;
+  background: #fbf4e8;
   color: #5b4322;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.25;
+  padding: 4px 2px;
+  font-size: 11px;
+  font-weight: 800;
   text-align: center;
   overflow-wrap: anywhere;
 }
 
 .calendarRangeLayer {
-  gap: 6px 4px;
   align-items: stretch;
-  min-width: 0;
 }
 
 .calendarRangeBar {
   display: grid;
   min-width: 0;
   gap: 2px;
-  border: 1px solid #c9a45f;
-  border-radius: 8px;
+  border: 1px solid #d7c8ad;
+  border-radius: 6px;
   background: #fff7df;
   color: #1b2430;
-  padding: 7px 8px;
+  padding: 6px 7px;
   text-align: left;
 }
 
-.calendarRangeBar strong {
+.calendarRangeBar strong,
+.calendarDailyItem strong,
+.calendarOrderChip strong,
+.calendarOrderChip span {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 13px;
 }
 
-.calendarRangeMeta {
+.calendarRangeBar strong,
+.calendarDailyItem strong,
+.calendarOrderChip strong {
+  font-size: 12px;
+}
+
+.calendarRangeMeta,
+.calendarMarkerKind {
   width: fit-content;
   border-radius: 999px;
-  background: #c9a45f;
-  color: #fffaf2;
+  background: #f0e4d2;
+  color: #5b4322;
   padding: 2px 6px;
   font-size: 11px;
-  font-weight: 700;
-}
-
-.calendarDateRow,
-.calendarDaily,
-.calendarUnresolved {
-  display: grid;
-  gap: 8px;
-  border: 1px solid #eee3d2;
-  border-radius: 8px;
-  background: #fffdf9;
-  padding: 10px;
+  font-weight: 800;
 }
 
 .calendarDateHeader {
@@ -772,22 +780,22 @@ pre {
   gap: 6px;
 }
 
+.calendarMarkerList {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
 .calendarDailyItem {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
   border: 1px solid #e4d7c5;
   border-radius: 8px;
   background: #fffaf2;
   color: #1b2430;
-  padding: 8px 10px;
+  padding: 7px 8px;
   text-align: left;
-}
-
-.calendarDailyItem strong,
-.calendarDailyItem span {
-  min-width: 0;
-  overflow-wrap: anywhere;
 }
 
 .calendarDailyItem > span:not(.calendarRangeMeta) {
@@ -797,7 +805,7 @@ pre {
 
 .calendarOrderChip {
   display: grid;
-  min-width: min(100%, 168px);
+  min-width: 0;
   max-width: 100%;
   gap: 2px;
   border: 1px solid #e4d7c5;
@@ -831,22 +839,12 @@ pre {
 }
 
 .calendarOrderChip strong {
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .calendarOrderChip > span:not(.calendarMarkerKind) {
   color: #746552;
   font-size: 12px;
-}
-
-.calendarMarkerKind {
-  width: fit-content;
-  border-radius: 999px;
-  background: #f0e4d2;
-  color: #5b4322;
-  padding: 2px 6px;
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .calendarOrderChip.end .calendarMarkerKind {
@@ -1175,6 +1173,30 @@ pre {
   .sourceMenu {
     right: 0;
     left: auto;
+  }
+
+  .calendarModeControl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .calendarGrid,
+  .calendarDaily,
+  .calendarUnresolved {
+    padding: 8px;
+  }
+
+  .calendarWeekHeader,
+  .calendarDayNumbers,
+  .calendarRangeLayer {
+    gap: 3px;
+  }
+
+  .calendarDayNumber {
+    font-size: 10px;
+  }
+
+  .calendarRangeBar {
+    padding: 5px 6px;
   }
 
   .calendarMarkerList {
