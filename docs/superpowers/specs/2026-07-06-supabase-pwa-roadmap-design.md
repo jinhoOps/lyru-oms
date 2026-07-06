@@ -183,3 +183,9 @@ PWA work needs tests or manual verification for:
 - Multi-shop enterprise administration.
 - Offline-first editing with conflict resolution for saved orders.
 - Storing Supabase secret or service keys in the frontend.
+
+## Implementation Split
+
+The first implementation branch covers Supabase Auth, database persistence, RLS schema, development seed data, local drafts, and recent-order read cache.
+
+PWA installability, service-worker behavior, offline shell, and reconnect save retry remain a separate follow-up plan after this foundation is verified.

@@ -46,3 +46,29 @@ npm run test
 ```bash
 npm run test:watch
 ```
+
+---
+
+## Supabase Setup
+
+Lyru OMS는 GitHub Pages 정적 프론트엔드와 Supabase Auth/Postgres/RLS를 함께 사용합니다.
+
+프론트엔드에 필요한 공개 환경변수:
+
+```dotenv
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_public_key
+```
+
+Supabase `service_role` key, secret key, database password, RLS를 우회하는 credential은 커밋하거나 브라우저 번들에 넣지 않습니다.
+
+로컬 개발 순서:
+
+1. Supabase 프로젝트를 생성합니다.
+2. `supabase/migrations/20260706000000_initial_auth_workspace_schema.sql`을 적용합니다.
+3. Supabase에서 개발용 auth 사용자를 생성합니다.
+4. 개발 workspace를 만들고 해당 사용자를 `workspace_members`에 연결합니다.
+5. `supabase/seed.dev.sql`은 개발 DB에만 명시적으로 실행합니다.
+6. `.env.local`에 공개 Supabase env를 넣고 `npm run dev`로 실행합니다.
+
+운영 DB는 빈 상태로 시작합니다. 개발 seed 데이터는 production에 실행하지 않습니다.
