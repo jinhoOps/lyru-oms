@@ -340,10 +340,10 @@ for update
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
 
-create policy "Owners can delete change requests"
+create policy "Members can delete change requests"
 on public.order_change_requests
 for delete
-using (public.is_workspace_owner(workspace_id));
+using (public.is_workspace_member(workspace_id));
 
 create policy "Members can read checklist items"
 on public.order_checklist_items
