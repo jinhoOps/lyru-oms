@@ -625,6 +625,87 @@ pre {
   gap: 8px;
 }
 
+.calendarGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.calendarWeekHeader,
+.calendarDayNumbers,
+.calendarRangeLayer {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendarWeekHeader {
+  gap: 4px;
+  color: #746552;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.calendarWeekHeader span {
+  min-width: 0;
+}
+
+.calendarWeekRow {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #eee3d2;
+  border-radius: 8px;
+  background: #fffdf9;
+  padding: 10px;
+}
+
+.calendarDayNumbers {
+  gap: 4px;
+}
+
+.calendarDayNumber {
+  min-width: 0;
+  color: #5b4322;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.calendarRangeLayer {
+  gap: 6px 4px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.calendarRangeBar {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+  border: 1px solid #c9a45f;
+  border-radius: 8px;
+  background: #fff7df;
+  color: #1b2430;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.calendarRangeBar strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.calendarRangeMeta {
+  width: fit-content;
+  border-radius: 999px;
+  background: #c9a45f;
+  color: #fffaf2;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .calendarDateRow,
 .calendarUnresolved {
   display: grid;
