@@ -189,6 +189,10 @@ begin
     );
   end if;
 
+  if should_check then
+    lock table public.workspace_members in share row exclusive mode;
+  end if;
+
   if should_check and not exists (
       select 1
       from public.workspace_members wm
