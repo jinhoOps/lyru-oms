@@ -16,49 +16,68 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
   const [blockedError, setBlockedError] = useState('');
   const [checking, setChecking] = useState(false);
   const mountedRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  const startAuthRequest = useCallback(() => {
+    requestIdRef.current += 1;
+    return requestIdRef.current;
+  }, []);
+
+  const isCurrentAuthRequest = useCallback(
+    (requestId: number) => mountedRef.current && requestIdRef.current === requestId,
+    [],
+  );
 
   const resolveWorkspace = useCallback(
-    async (session: AuthSession | null) => {
+    async (session: AuthSession | null, requestId: number) => {
       if (!session) {
-        if (mountedRef.current) {
+        if (isCurrentAuthRequest(requestId)) {
           setStatus('signed-out');
+          setBlockedError('');
+          setChecking(false);
         }
         return;
       }
 
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setStatus('loading');
         setBlockedError('');
       }
 
       try {
         const membership = await authRepository.getWorkspaceMembership();
-        if (mountedRef.current) {
+        if (isCurrentAuthRequest(requestId)) {
           setStatus(membership ? 'ready' : 'blocked');
+          setChecking(false);
         }
       } catch {
-        if (mountedRef.current) {
+        if (isCurrentAuthRequest(requestId)) {
           setStatus('blocked');
+          setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
+          setChecking(false);
         }
       }
     },
-    [authRepository],
+    [authRepository, isCurrentAuthRequest],
   );
 
   const loadSession = useCallback(async () => {
-    if (mountedRef.current) {
+    const requestId = startAuthRequest();
+
+    if (isCurrentAuthRequest(requestId)) {
       setStatus('loading');
       setBlockedError('');
     }
 
     try {
-      await resolveWorkspace(await authRepository.getSession());
+      await resolveWorkspace(await authRepository.getSession(), requestId);
     } catch {
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setStatus('signed-out');
+        setChecking(false);
       }
     }
-  }, [authRepository, resolveWorkspace]);
+  }, [authRepository, isCurrentAuthRequest, resolveWorkspace, startAuthRequest]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -66,50 +85,65 @@ export function AuthGate({ authRepository, children }: AuthGateProps) {
     void loadSession();
 
     const unsubscribe = authRepository.onSessionChange((nextSession) => {
-      void resolveWorkspace(nextSession);
+      const requestId = startAuthRequest();
+      void resolveWorkspace(nextSession, requestId);
     });
 
     return () => {
       mountedRef.current = false;
       unsubscribe();
     };
-  }, [authRepository, loadSession, resolveWorkspace]);
+  }, [authRepository, loadSession, resolveWorkspace, startAuthRequest]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const requestId = startAuthRequest();
     setChecking(true);
     setError('');
 
+    let session: AuthSession;
+
     try {
-      const session = await authRepository.signIn(email, password);
+      session = await authRepository.signIn(email, password);
+    } catch {
+      if (isCurrentAuthRequest(requestId)) {
+        setStatus('signed-out');
+        setError('로그인 정보를 확인해 주세요.');
+        setChecking(false);
+      }
+      return;
+    }
+
+    try {
       const membership = await authRepository.getWorkspaceMembership();
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setStatus(session && membership ? 'ready' : 'blocked');
       }
     } catch {
-      if (mountedRef.current) {
-        setStatus('signed-out');
-        setError('로그인 정보를 확인해 주세요.');
+      if (isCurrentAuthRequest(requestId)) {
+        setStatus('blocked');
+        setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
       }
     } finally {
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setChecking(false);
       }
     }
   }
 
   async function handleSignOut() {
+    const requestId = startAuthRequest();
     setBlockedError('');
 
     try {
       await authRepository.signOut();
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setEmail('');
         setPassword('');
         setStatus('signed-out');
       }
     } catch {
-      if (mountedRef.current) {
+      if (isCurrentAuthRequest(requestId)) {
         setBlockedError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       }
     }

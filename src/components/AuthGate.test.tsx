@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/authTypes';
@@ -20,12 +20,14 @@ function createAuthRepositoryMock({
   initialSession = null,
   signInSession = session,
   workspaceMembership = membership,
+  workspaceMembershipError = null,
   signInError = null,
   signOutError = null,
 }: {
   initialSession?: AuthSession | null;
   signInSession?: AuthSession;
   workspaceMembership?: WorkspaceMembership | null;
+  workspaceMembershipError?: Error | null;
   signInError?: Error | null;
   signOutError?: Error | null;
 } = {}): AuthRepository {
@@ -33,9 +35,20 @@ function createAuthRepositoryMock({
     getSession: vi.fn().mockResolvedValue(initialSession),
     signIn: signInError ? vi.fn().mockRejectedValue(signInError) : vi.fn().mockResolvedValue(signInSession),
     signOut: signOutError ? vi.fn().mockRejectedValue(signOutError) : vi.fn().mockResolvedValue(undefined),
-    getWorkspaceMembership: vi.fn().mockResolvedValue(workspaceMembership),
+    getWorkspaceMembership: workspaceMembershipError
+      ? vi.fn().mockRejectedValue(workspaceMembershipError)
+      : vi.fn().mockResolvedValue(workspaceMembership),
     onSessionChange: vi.fn(() => vi.fn()),
   };
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve;
+  });
+
+  return { promise, resolve };
 }
 
 afterEach(() => {
@@ -98,6 +111,31 @@ describe('AuthGate', () => {
     expect(await screen.findByText('로그인 정보를 확인해 주세요.')).toBeInTheDocument();
     expect(emailInput).toHaveAttribute('aria-invalid', 'true');
     expect(passwordInput).toHaveAttribute('aria-describedby', 'authGateLoginError');
+    expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
+  });
+
+  it('shows blocked recovery when sign-in succeeds but workspace lookup fails', async () => {
+    const user = userEvent.setup();
+    const authRepository = createAuthRepositoryMock({
+      initialSession: null,
+      workspaceMembershipError: new Error('membership failed'),
+    });
+
+    render(
+      <AuthGate authRepository={authRepository}>
+        <p>주문 표준화 작업실</p>
+      </AuthGate>,
+    );
+
+    await user.type(await screen.findByLabelText('이메일'), 'owner@lyru.test');
+    await user.type(screen.getByLabelText('비밀번호'), 'secret');
+    await user.click(screen.getByRole('button', { name: '로그인' }));
+
+    expect(await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' })).toBeInTheDocument();
+    expect(screen.getByText('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(screen.queryByText('로그인 정보를 확인해 주세요.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '로그아웃' })).toBeInTheDocument();
     expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
   });
 
@@ -180,5 +218,42 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText('주문 표준화 작업실')).toBeInTheDocument();
     expect(authRepository.getWorkspaceMembership).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not let an older slow membership lookup overwrite a newer signed-out state', async () => {
+    const slowMembership = createDeferred<WorkspaceMembership | null>();
+    let sessionChangeCallback: ((nextSession: AuthSession | null) => void) | null = null;
+    const authRepository: AuthRepository = {
+      getSession: vi.fn().mockResolvedValue(session),
+      signIn: vi.fn().mockResolvedValue(session),
+      signOut: vi.fn().mockResolvedValue(undefined),
+      getWorkspaceMembership: vi.fn().mockReturnValue(slowMembership.promise),
+      onSessionChange: vi.fn((callback) => {
+        sessionChangeCallback = callback;
+        return vi.fn();
+      }),
+    };
+
+    render(
+      <AuthGate authRepository={authRepository}>
+        <p>주문 표준화 작업실</p>
+      </AuthGate>,
+    );
+
+    await waitFor(() => expect(authRepository.getWorkspaceMembership).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      sessionChangeCallback?.(null);
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
+
+    await act(async () => {
+      slowMembership.resolve(membership);
+      await slowMembership.promise;
+    });
+
+    expect(screen.getByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
+    expect(screen.queryByText('주문 표준화 작업실')).not.toBeInTheDocument();
   });
 });

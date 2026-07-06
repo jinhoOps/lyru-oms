@@ -21,14 +21,18 @@ function createSupabaseMock({
   membershipRows = [],
   getSessionError = null,
   signInError = null,
+  signOutError = null,
+  membershipError = null,
 }: {
   currentSession?: SupabaseSessionMock | null;
   signInSession?: SupabaseSessionMock | null;
   membershipRows?: WorkspaceMembershipRowMock[];
   getSessionError?: Error | null;
   signInError?: Error | null;
+  signOutError?: Error | null;
+  membershipError?: Error | null;
 } = {}) {
-  const limit = vi.fn().mockResolvedValue({ data: membershipRows, error: null });
+  const limit = vi.fn().mockResolvedValue({ data: membershipRows, error: membershipError });
   const order = vi.fn(() => ({ limit }));
   const eq = vi.fn(() => ({ order }));
   const select = vi.fn(() => ({ eq }));
@@ -39,7 +43,7 @@ function createSupabaseMock({
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: currentSession }, error: getSessionError }),
       signInWithPassword: vi.fn().mockResolvedValue({ data: { session: signInSession }, error: signInError }),
-      signOut: vi.fn().mockResolvedValue({ error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: signOutError }),
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe } } })),
     },
     from,
@@ -92,6 +96,14 @@ describe('authRepository', () => {
     await expect(repository.signIn('owner@lyru.test', 'secret')).rejects.toThrow('sign in failed');
   });
 
+  it('throws Supabase signOut errors', async () => {
+    const error = new Error('sign out failed');
+    const supabase = createSupabaseMock({ signOutError: error });
+    const repository = createAuthRepository(supabase as never);
+
+    await expect(repository.signOut()).rejects.toThrow('sign out failed');
+  });
+
   it('returns null membership when there is no current session', async () => {
     const supabase = createSupabaseMock({ currentSession: null });
     const repository = createAuthRepository(supabase as never);
@@ -106,6 +118,14 @@ describe('authRepository', () => {
 
     await expect(repository.getWorkspaceMembership()).resolves.toBeNull();
     expect(supabase.from).toHaveBeenCalledWith('workspace_members');
+  });
+
+  it('throws Supabase membership query errors', async () => {
+    const error = new Error('membership failed');
+    const supabase = createSupabaseMock({ membershipError: error });
+    const repository = createAuthRepository(supabase as never);
+
+    await expect(repository.getWorkspaceMembership()).rejects.toThrow('membership failed');
   });
 
   it('returns workspace membership with workspace name', async () => {
