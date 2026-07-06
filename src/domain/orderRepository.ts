@@ -256,23 +256,21 @@ export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
       throwIfError(orderResult.error);
 
       const note = order.changeRequestNote.trim();
+      if (!note) {
+        const deleteResult = await supabase
+          .from('order_change_requests')
+          .delete<null>()
+          .eq('workspace_id', workspaceId)
+          .eq('order_id', order.id);
+
+        throwIfError(deleteResult.error);
+        return mapOrderFromRow(orderResult.data);
+      }
+
       const latestChangeRequestResult = await selectLatestChangeRequest(supabase, workspaceId, order.id);
       throwIfError(latestChangeRequestResult.error);
 
       const latestChangeRequest = latestChangeRequestResult.data?.[0] ?? null;
-      if (!note) {
-        if (latestChangeRequest) {
-          const deleteResult = await supabase
-            .from('order_change_requests')
-            .delete<null>()
-            .eq('id', latestChangeRequest.id);
-
-          throwIfError(deleteResult.error);
-        }
-
-        return mapOrderFromRow(orderResult.data);
-      }
-
       if (latestChangeRequest) {
         const changeRequestResult = await supabase
           .from('order_change_requests')

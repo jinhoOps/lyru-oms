@@ -307,7 +307,7 @@ describe('orderRepository', () => {
     expect(supabase.calls.some((call) => call.table === 'order_change_requests' && call.method === 'insert')).toBe(false);
   });
 
-  it('clears the active change request when note is empty', async () => {
+  it('clears all active change request rows for the order when note is empty', async () => {
     const order = {
       ...createNasdaqSampleOrder(),
       changeRequestNote: '   ',
@@ -319,10 +319,18 @@ describe('orderRepository', () => {
         {
           id: 'latest-change',
           order_id: order.id,
-          note: '삭제할 요청',
+          note: '최신 삭제 대상 요청',
           confirmed: false,
           created_at: '2026-07-04T00:00:00.000Z',
           updated_at: '2026-07-04T00:00:00.000Z',
+        },
+        {
+          id: 'older-change',
+          order_id: order.id,
+          note: '이전 삭제 대상 요청',
+          confirmed: true,
+          created_at: '2026-07-03T00:00:00.000Z',
+          updated_at: '2026-07-03T00:00:00.000Z',
         },
       ],
     });
@@ -334,6 +342,16 @@ describe('orderRepository', () => {
     });
     expect(supabase.calls).toContainEqual({ table: 'order_change_requests', method: 'delete', args: [] });
     expect(supabase.calls).toContainEqual({
+      table: 'order_change_requests',
+      method: 'eq',
+      args: ['workspace_id', workspaceId],
+    });
+    expect(supabase.calls).toContainEqual({
+      table: 'order_change_requests',
+      method: 'eq',
+      args: ['order_id', order.id],
+    });
+    expect(supabase.calls).not.toContainEqual({
       table: 'order_change_requests',
       method: 'eq',
       args: ['id', 'latest-change'],
