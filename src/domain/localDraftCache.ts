@@ -36,6 +36,7 @@ export interface SavedOrderDraft {
 }
 
 interface RecentOrderCachePayload {
+  workspaceId: string;
   cachedAt: string;
   orders: CapturedOrder[];
 }
@@ -156,7 +157,10 @@ const isCapturedOrder = (value: unknown): value is CapturedOrder =>
   typeof value.desiredDateTime === 'string';
 
 const isRecentOrderCachePayload = (value: unknown): value is RecentOrderCachePayload =>
-  isRecord(value) && typeof value.cachedAt === 'string' && Array.isArray(value.orders);
+  isRecord(value) &&
+  typeof value.workspaceId === 'string' &&
+  typeof value.cachedAt === 'string' &&
+  Array.isArray(value.orders);
 
 const isInDesiredShippingWindow = (order: CapturedOrder, now: Date) => {
   const parsedDate = parseExplicitDate(order.desiredDateTime, now);
@@ -197,8 +201,7 @@ export const loadSavedOrderDraft = (): SavedOrderDraft | null => {
   return isSavedOrderDraft(parsed) ? parsed : null;
 };
 
-export const saveRecentOrderCache = (orders: CapturedOrder[]): void => {
-  const now = new Date();
+export const saveRecentOrderCache = (workspaceId: string, orders: CapturedOrder[], now = new Date()): void => {
   const selectedOrdersById = new Map<string, CapturedOrder>();
 
   for (const order of orders) {
@@ -212,6 +215,7 @@ export const saveRecentOrderCache = (orders: CapturedOrder[]): void => {
   }
 
   const payload: RecentOrderCachePayload = {
+    workspaceId,
     cachedAt: now.toISOString(),
     orders: sortByUpdatedDesc([...selectedOrdersById.values()]),
   };
@@ -219,14 +223,18 @@ export const saveRecentOrderCache = (orders: CapturedOrder[]): void => {
   writeLocalStorage(RECENT_ORDER_CACHE_KEY, JSON.stringify(payload));
 };
 
-export const loadRecentOrderCache = (): CapturedOrder[] => {
+export const loadRecentOrderCache = (workspaceId: string, now = new Date()): CapturedOrder[] => {
   const parsed = parseJson(readLocalStorage(RECENT_ORDER_CACHE_KEY));
 
   if (!isRecentOrderCachePayload(parsed)) {
     return [];
   }
 
-  if (Date.now() - toDateTime(parsed.cachedAt) > CACHE_TTL_MS) {
+  if (parsed.workspaceId !== workspaceId) {
+    return [];
+  }
+
+  if (now.getTime() - toDateTime(parsed.cachedAt) > CACHE_TTL_MS) {
     return [];
   }
 

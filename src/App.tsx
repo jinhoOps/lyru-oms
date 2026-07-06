@@ -160,7 +160,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
         setOrders(workspaceData.orders);
         setSettings(workspaceData.settings);
         setLoadStatus('ready');
-        saveRecentOrderCache(workspaceData.orders);
       })
       .catch(() => {
         if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
@@ -168,7 +167,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
         }
 
         if (navigator.onLine === false) {
-          const cachedOrders = loadRecentOrderCache();
+          const cachedOrders = loadRecentOrderCache(workspaceId);
 
           if (cachedOrders.length > 0) {
             setOrders(cachedOrders);
@@ -187,6 +186,14 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
       }
     };
   }, [membership.workspaceId, orderRepository]);
+
+  useEffect(() => {
+    if (loadStatus !== 'ready' || navigator.onLine === false) {
+      return;
+    }
+
+    saveRecentOrderCache(membership.workspaceId, orders);
+  }, [loadStatus, membership.workspaceId, orders]);
 
   const filteredOrders = useMemo(
     () => (sourceFilter === '전체' ? orders : orders.filter((order) => order.source === sourceFilter)),

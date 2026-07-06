@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EMPTY_ORDER_FIELDS, type CapturedOrder } from './orderTypes';
 import {
   clearLocalOrderData,
@@ -46,6 +46,10 @@ describe('localDraftCache', () => {
     localStorage.clear();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-06T12:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('saves and loads a minimal order draft without review-only payloads', () => {
@@ -109,9 +113,9 @@ describe('localDraftCache', () => {
       ),
     ];
 
-    saveRecentOrderCache(orders);
+    saveRecentOrderCache('workspace-1', orders);
 
-    const cachedOrders = loadRecentOrderCache();
+    const cachedOrders = loadRecentOrderCache('workspace-1');
     expect(cachedOrders.map((order) => order.id)).toEqual([
       'undated-recent',
       'recent-0',
@@ -151,25 +155,32 @@ describe('localDraftCache', () => {
     expect(cachedOrders.find((order) => order.id === 'undated-old')).toBeUndefined();
 
     const stored = JSON.parse(localStorage.getItem('lyru-oms.recentOrderCache.v1') ?? '{}');
+    expect(stored.workspaceId).toBe('workspace-1');
     expect(stored.cachedAt).toBe('2026-07-06T12:00:00.000Z');
     expect(stored.orders).toHaveLength(32);
   });
 
   it('returns an empty cache after the 24 hour TTL expires', () => {
-    saveRecentOrderCache([createOrder()]);
+    saveRecentOrderCache('workspace-1', [createOrder()]);
 
     vi.setSystemTime(new Date('2026-07-07T12:00:00.001Z'));
 
-    expect(loadRecentOrderCache()).toEqual([]);
+    expect(loadRecentOrderCache('workspace-1')).toEqual([]);
+  });
+
+  it('returns an empty cache when the stored workspace does not match', () => {
+    saveRecentOrderCache('workspace-1', [createOrder()]);
+
+    expect(loadRecentOrderCache('workspace-2')).toEqual([]);
   });
 
   it('clears both draft and recent-order cache', () => {
     saveOrderDraft(createOrder());
-    saveRecentOrderCache([createOrder()]);
+    saveRecentOrderCache('workspace-1', [createOrder()]);
 
     clearLocalOrderData();
 
     expect(loadSavedOrderDraft()).toBeNull();
-    expect(loadRecentOrderCache()).toEqual([]);
+    expect(loadRecentOrderCache('workspace-1')).toEqual([]);
   });
 });

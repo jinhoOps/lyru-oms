@@ -170,6 +170,7 @@ describe('App', () => {
     localStorage.setItem(
       localDraftCacheKeys.recentOrderCache,
       JSON.stringify({
+        workspaceId: 'workspace-1',
         cachedAt: new Date().toISOString(),
         orders: [cachedOrder],
       }),
@@ -187,6 +188,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
 
     expect(await screen.findByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
+    expect(screen.getByLabelText('주문/문의 원문')).toHaveValue('성함: 오프라인저장\n곶감 1세트\n2026-07-06\n픽업');
     expect(orderRepositoryMock.saveOrder).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: /캐시고객/ }));
@@ -241,7 +243,7 @@ describe('App', () => {
     const user = userEvent.setup();
     authRepositoryMock.getWorkspaceMembership.mockResolvedValueOnce(null);
     saveOrderDraft(createCapturedOrder());
-    saveRecentOrderCache([createCapturedOrder()]);
+    saveRecentOrderCache('workspace-1', [createCapturedOrder()]);
 
     render(<App />);
 
@@ -254,6 +256,62 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
     expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).toBeNull();
+  });
+
+  it('updates the recent-order cache after a successful new order save', async () => {
+    const user = userEvent.setup();
+    const rawText = '성함: 캐시저장고객\n곶감 1세트\n2026-07-06\n픽업';
+    orderRepositoryMock.saveOrder.mockImplementationOnce(async (_workspaceId, order) =>
+      createCapturedOrder({
+        ...order,
+        id: 'saved-cache-order',
+        rawText,
+        customerName: '캐시저장고객',
+        updatedAt: '2026-07-06T11:00:00.000Z',
+      }),
+    );
+
+    await renderUnlockedApp();
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), rawText);
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    await waitFor(() => {
+      const cache = JSON.parse(localStorage.getItem(localDraftCacheKeys.recentOrderCache) ?? '{}');
+      expect(cache).toEqual(
+        expect.objectContaining({
+          workspaceId: 'workspace-1',
+          orders: [expect.objectContaining({ id: 'saved-cache-order', customerName: '캐시저장고객' })],
+        }),
+      );
+    });
+  });
+
+  it('updates the recent-order cache after clearing orders so stale orders do not reappear offline', async () => {
+    const user = userEvent.setup();
+    const existingOrder = createCapturedOrder({ id: 'clear-cache-order', customerName: '삭제될고객' });
+    window.confirm = () => true;
+    orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [existingOrder], settings: DEFAULT_SETTINGS });
+
+    await renderUnlockedApp();
+
+    expect(screen.getByRole('button', { name: /삭제될고객/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '작업' }));
+    await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
+
+    await waitFor(() => {
+      const cache = JSON.parse(localStorage.getItem(localDraftCacheKeys.recentOrderCache) ?? '{}');
+      expect(cache).toEqual(expect.objectContaining({ workspaceId: 'workspace-1', orders: [] }));
+    });
+
+    cleanup();
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: false });
+    orderRepositoryMock.loadWorkspaceData.mockRejectedValueOnce(new Error('load failed'));
+
+    render(<App />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('주문 데이터를 불러오지 못했습니다.');
+    expect(screen.queryByText('삭제될고객')).not.toBeInTheDocument();
   });
 
   it('keeps the latest existing order edit when save responses resolve out of order', async () => {
