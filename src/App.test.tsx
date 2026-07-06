@@ -167,7 +167,20 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
 
     expect(await screen.findByText('저장하지 못했습니다. 입력 내용은 임시 저장했어요.')).toBeInTheDocument();
-    expect(JSON.parse(localStorage.getItem('lyru-oms.orderDraft.v1') ?? '{}').order.rawText).toBe(rawText);
+    const draft = JSON.parse(localStorage.getItem('lyru-oms.orderDraft.v1') ?? '{}');
+    expect(draft).toEqual(
+      expect.objectContaining({
+        rawText,
+        source: '카카오톡 채널',
+        fields: expect.objectContaining({
+          customerName: '저장실패고객',
+        }),
+        savedAt: expect.any(String),
+      }),
+    );
+    expect(draft).not.toHaveProperty('order');
+    expect(draft).not.toHaveProperty('reviewReasons');
+    expect(draft).not.toHaveProperty('menuMatches');
     expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
   });
 

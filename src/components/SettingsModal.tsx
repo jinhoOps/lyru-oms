@@ -11,7 +11,7 @@ interface SettingsModalProps {
   open: boolean;
   settings: OrderSettings;
   onClose: () => void;
-  onSave: (settings: OrderSettings) => void;
+  onSave: (settings: OrderSettings) => void | Promise<void>;
 }
 
 const configurableRequiredFields: OrderFieldKey[] = [
@@ -55,6 +55,9 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const isSavingRef = useRef(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   useEffect(() => {
     if (!open) {
@@ -65,6 +68,9 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
     setRequiredFields([...settings.requiredFields]);
     setBulkQuantityThreshold(String(settings.quantityRules.bulkRealUnitThreshold));
     setMinimumOrderRules(toMinimumOrderRuleDrafts(settings.quantityRules.minimumOrderRules));
+    setIsSaving(false);
+    setSaveError('');
+    isSavingRef.current = false;
     closeButtonRef.current?.focus();
 
     return () => {
@@ -89,7 +95,11 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
     );
   }
 
-  function handleSave() {
+  async function handleSave() {
+    if (isSavingRef.current) {
+      return;
+    }
+
     const parsedThreshold = parsePositiveInteger(bulkQuantityThreshold);
     const nextMinimumOrderRules = settings.quantityRules.minimumOrderRules.map((previousRule, index) => {
       const draftRule = minimumOrderRules[index];
@@ -115,8 +125,20 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
       },
     };
 
-    onSave(nextSettings);
-    onClose();
+    isSavingRef.current = true;
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      await onSave(nextSettings);
+      isSavingRef.current = false;
+      setIsSaving(false);
+      onClose();
+    } catch {
+      isSavingRef.current = false;
+      setIsSaving(false);
+      setSaveError('설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   }
 
   function handleDialogKeyDown(event: KeyboardEvent<HTMLElement>) {
@@ -235,13 +257,14 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
         </fieldset>
 
         <p className="settingsNote">택배 주소는 수령 방식이 택배일 때만 추가 확인 항목으로 봅니다.</p>
+        {saveError ? <p role="alert">{saveError}</p> : null}
 
         <div className="modalActions">
           <button type="button" className="secondaryButton" onClick={onClose}>
             취소
           </button>
-          <button type="button" onClick={handleSave}>
-            저장
+          <button type="button" disabled={isSaving} onClick={handleSave}>
+            {isSaving ? '저장 중' : '저장'}
           </button>
         </div>
       </section>
