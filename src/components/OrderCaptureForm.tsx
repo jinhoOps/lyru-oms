@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useRef, useState } from 'react';
 import {
   EMPTY_ORDER_FIELDS,
   type CapturedOrder,
@@ -25,6 +25,8 @@ const createOrderId = () => {
 
 export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }: OrderCaptureFormProps) {
   const [rawText, setRawText] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const parsed = useMemo(() => parseRawText(rawText), [rawText]);
   const isDuplicate = rawText.trim() !== '' && hasSimilarRawText(rawText, existingRawTexts);
@@ -32,9 +34,12 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    if (!rawText.trim()) {
+    if (isSavingRef.current || !rawText.trim()) {
       return;
     }
+
+    isSavingRef.current = true;
+    setIsSaving(true);
 
     const now = new Date().toISOString();
     const baseOrder: CapturedOrder = {
@@ -64,9 +69,14 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
       updatedAt: now,
     };
 
-    const saved = await onSave(evaluateOrder(baseOrder, settings));
-    if (saved !== false) {
-      setRawText('');
+    try {
+      const saved = await onSave(evaluateOrder(baseOrder, settings));
+      if (saved !== false) {
+        setRawText('');
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
     }
   }
 
@@ -89,8 +99,8 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
         <span>선물 용도: {parsed.purpose || '-'}</span>
         <span>수령 방식: {parsed.fulfillmentType || '-'}</span>
       </div>
-      <button type="submit" disabled={!rawText.trim()}>
-        저장
+      <button type="submit" disabled={isSaving || !rawText.trim()}>
+        {isSaving ? '저장 중' : '저장'}
       </button>
     </form>
   );

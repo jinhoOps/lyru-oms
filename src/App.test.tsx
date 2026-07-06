@@ -1,9 +1,9 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import App from './App';
-import { DEFAULT_SETTINGS } from './domain/orderTypes';
+import App, { WorkspaceApp } from './App';
+import { DEFAULT_SETTINGS, EMPTY_ORDER_FIELDS, type CapturedOrder } from './domain/orderTypes';
 
 const authRepositoryMock = {
   getSession: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
@@ -39,12 +39,24 @@ vi.mock('./domain/orderRepository', () => ({
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  authRepositoryMock.getSession.mockReset();
+  authRepositoryMock.signIn.mockReset();
+  authRepositoryMock.signOut.mockReset();
+  authRepositoryMock.getWorkspaceMembership.mockReset();
+  authRepositoryMock.onSessionChange.mockReset();
+  orderRepositoryMock.loadWorkspaceData.mockReset();
+  orderRepositoryMock.saveOrder.mockReset();
+  orderRepositoryMock.deleteAllOrders.mockReset();
+  orderRepositoryMock.saveSettings.mockReset();
   authRepositoryMock.getSession.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
+  authRepositoryMock.signIn.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
+  authRepositoryMock.signOut.mockResolvedValue(undefined);
   authRepositoryMock.getWorkspaceMembership.mockResolvedValue({
     workspaceId: 'workspace-1',
     workspaceName: '리루 작업실',
     role: 'owner',
   });
+  authRepositoryMock.onSessionChange.mockImplementation(() => vi.fn());
   orderRepositoryMock.loadWorkspaceData.mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS });
   orderRepositoryMock.saveOrder.mockImplementation(async (_workspaceId, order) => order);
   orderRepositoryMock.deleteAllOrders.mockResolvedValue(undefined);
@@ -67,6 +79,45 @@ async function selectOrderListChannel(user: ReturnType<typeof userEvent.setup>, 
 
 function getCapturePanel() {
   return within(screen.getByRole('region', { name: '주문 수집' }));
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
+
+function createCapturedOrder(overrides: Partial<CapturedOrder> = {}): CapturedOrder {
+  const now = '2026-07-06T00:00:00.000Z';
+
+  return {
+    id: 'order-1',
+    source: '카카오톡 채널',
+    rawText: '성함: 레이스고객\n곶감 1세트\n2026-07-06\n픽업',
+    ...EMPTY_ORDER_FIELDS,
+    customerName: '레이스고객',
+    orderItems: '곶감',
+    quantity: '1세트',
+    fulfillmentType: '픽업',
+    desiredDateTime: '2026-07-06',
+    menuMatches: [],
+    quantityCandidates: [],
+    parsedDate: null,
+    manuallyEditedFields: [],
+    reparseDifferences: [],
+    missingFields: [],
+    reviewReasons: [],
+    warningLevel: 'none',
+    status: '신규',
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
 }
 
 describe('App', () => {
@@ -118,6 +169,83 @@ describe('App', () => {
     expect(await screen.findByText('저장하지 못했습니다. 입력 내용은 임시 저장했어요.')).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem('lyru-oms.orderDraft.v1') ?? '{}').order.rawText).toBe(rawText);
     expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
+  });
+
+  it('keeps the latest existing order edit when save responses resolve out of order', async () => {
+    const user = userEvent.setup();
+    const initialOrder = createCapturedOrder({ id: 'order-race', ownerMemo: '' });
+    const slowSave = createDeferred<CapturedOrder>();
+    const fastSave = createDeferred<CapturedOrder>();
+    orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [initialOrder], settings: DEFAULT_SETTINGS });
+    orderRepositoryMock.saveOrder.mockReturnValueOnce(slowSave.promise).mockReturnValueOnce(fastSave.promise);
+
+    render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await user.click(await screen.findByRole('button', { name: /레이스고객/ }));
+
+    const ownerMemoInput = screen.getByLabelText('사장님 내부 메모');
+    fireEvent.change(ownerMemoInput, { target: { value: '느린 저장' } });
+    fireEvent.change(ownerMemoInput, { target: { value: '최신 저장' } });
+
+    expect(orderRepositoryMock.saveOrder).toHaveBeenCalledTimes(2);
+    expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
+
+    await act(async () => {
+      fastSave.resolve(createCapturedOrder({ id: 'order-race', ownerMemo: '최신 저장' }));
+      await fastSave.promise;
+    });
+
+    expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
+
+    await act(async () => {
+      slowSave.resolve(createCapturedOrder({ id: 'order-race', ownerMemo: '느린 저장' }));
+      await slowSave.promise;
+    });
+
+    expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
+  });
+
+  it('ignores a new order save response after the workspace changes', async () => {
+    const user = userEvent.setup();
+    const slowSave = createDeferred<CapturedOrder>();
+    orderRepositoryMock.loadWorkspaceData
+      .mockResolvedValueOnce({ orders: [], settings: DEFAULT_SETTINGS })
+      .mockResolvedValueOnce({ orders: [], settings: DEFAULT_SETTINGS });
+    orderRepositoryMock.saveOrder.mockReturnValueOnce(slowSave.promise);
+    const { rerender } = render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 늦은고객\n곶감 1세트\n2026-07-06\n픽업');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    rerender(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-2', workspaceName: '새 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await waitFor(() => expect(orderRepositoryMock.loadWorkspaceData).toHaveBeenCalledWith('workspace-2'));
+    expect(await screen.findByText('아직 저장된 주문이 없습니다.')).toBeInTheDocument();
+
+    await act(async () => {
+      slowSave.resolve(createCapturedOrder({ id: 'late-order', customerName: '늦은고객' }));
+      await slowSave.promise;
+    });
+
+    expect(screen.queryByText('늦은고객')).not.toBeInTheDocument();
+    expect(screen.getByText('아직 저장된 주문이 없습니다.')).toBeInTheDocument();
   });
 
   it('clears all orders from the list action menu', async () => {

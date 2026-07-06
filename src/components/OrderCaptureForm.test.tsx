@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../domain/orderTypes';
@@ -8,6 +8,17 @@ import { OrderCaptureForm } from './OrderCaptureForm';
 afterEach(() => {
   cleanup();
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 describe('OrderCaptureForm', () => {
   it('shows future smart store API automation guidance above raw input', () => {
@@ -51,6 +62,26 @@ describe('OrderCaptureForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
     expect(onSave).toHaveBeenCalled();
+  });
+
+  it('prevents duplicate submits while a save is pending', async () => {
+    const user = userEvent.setup();
+    const pendingSave = createDeferred<boolean>();
+    const onSave = vi.fn(() => pendingSave.promise);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 중복방지고객');
+    await user.dblClick(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: '저장 중' })).toBeDisabled();
+
+    await act(async () => {
+      pendingSave.resolve(true);
+      await pendingSave.promise;
+    });
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
   });
 
   it('keeps the extraction preview focused on order content fields', async () => {
