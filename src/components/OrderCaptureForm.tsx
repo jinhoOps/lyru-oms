@@ -42,10 +42,11 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
     setIsSaving(true);
 
     const now = new Date().toISOString();
+    const submittedRawText = rawText;
     const baseOrder: CapturedOrder = {
       id: createOrderId(),
       source,
-      rawText,
+      rawText: submittedRawText,
       ...EMPTY_ORDER_FIELDS,
       ...parsed,
       manuallyEditedFields: [],
@@ -72,7 +73,7 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
     try {
       const saved = await onSave(evaluateOrder(baseOrder, settings));
       if (saved !== false) {
-        setRawText('');
+        setRawText((currentRawText) => (currentRawText === submittedRawText ? '' : currentRawText));
       }
     } finally {
       isSavingRef.current = false;

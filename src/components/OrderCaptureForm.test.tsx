@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../domain/orderTypes';
@@ -82,6 +82,27 @@ describe('OrderCaptureForm', () => {
     });
 
     expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+  });
+
+  it('does not clear newer raw text when an older pending save succeeds', async () => {
+    const user = userEvent.setup();
+    const pendingSave = createDeferred<boolean>();
+    const onSave = vi.fn(() => pendingSave.promise);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    const rawTextInput = screen.getByLabelText('주문/문의 원문');
+    await user.type(rawTextInput, '성함: 첫고객');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    fireEvent.change(rawTextInput, { target: { value: '성함: 새고객' } });
+    expect(rawTextInput).toHaveValue('성함: 새고객');
+
+    await act(async () => {
+      pendingSave.resolve(true);
+      await pendingSave.promise;
+    });
+
+    expect(rawTextInput).toHaveValue('성함: 새고객');
   });
 
   it('keeps the extraction preview focused on order content fields', async () => {

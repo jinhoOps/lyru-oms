@@ -276,6 +276,57 @@ describe('App', () => {
     expect(screen.queryByText(/나스닥3배/)).not.toBeInTheDocument();
   });
 
+  it('keeps an order saved after clear starts when the clear response resolves later', async () => {
+    const user = userEvent.setup();
+    const existingOrder = createCapturedOrder({ id: 'old-order', customerName: '기존고객' });
+    const clearOrders = createDeferred<void>();
+    const saveOrder = createDeferred<CapturedOrder>();
+    const rawText = '성함: 새고객\n곶감 1세트\n2026-07-06\n픽업';
+    window.confirm = () => true;
+    orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [existingOrder], settings: DEFAULT_SETTINGS });
+    orderRepositoryMock.deleteAllOrders.mockReturnValueOnce(clearOrders.promise);
+    orderRepositoryMock.saveOrder.mockReturnValueOnce(saveOrder.promise);
+
+    render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: /기존고객/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '작업' }));
+    await user.click(screen.getByRole('menuitem', { name: '전체 삭제' }));
+    expect(orderRepositoryMock.deleteAllOrders).toHaveBeenCalledWith('workspace-1');
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), rawText);
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    await act(async () => {
+      saveOrder.resolve(
+        createCapturedOrder({
+          id: 'new-after-clear',
+          rawText,
+          customerName: '새고객',
+          orderItems: '곶감',
+          quantity: '1세트',
+        }),
+      );
+      await saveOrder.promise;
+    });
+
+    expect(await screen.findByText('새고객')).toBeInTheDocument();
+
+    await act(async () => {
+      clearOrders.resolve();
+      await clearOrders.promise;
+    });
+
+    expect(screen.getByText('새고객')).toBeInTheDocument();
+    expect(screen.queryByText('아직 저장된 주문이 없습니다.')).not.toBeInTheDocument();
+  });
+
   it('collapses order capture and restores the draft state from localStorage', async () => {
     const user = userEvent.setup();
 

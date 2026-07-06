@@ -108,12 +108,16 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const workspaceGenerationRef = useRef(0);
   const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
   const settingsSaveSequenceRef = useRef(0);
+  const workspaceMutationSequenceRef = useRef(0);
+  const clearGenerationRef = useRef(0);
 
   if (currentWorkspaceIdRef.current !== membership.workspaceId) {
     currentWorkspaceIdRef.current = membership.workspaceId;
     workspaceGenerationRef.current += 1;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
+    workspaceMutationSequenceRef.current = 0;
+    clearGenerationRef.current = 0;
   }
 
   const isCurrentWorkspaceGeneration = (workspaceId: string, generation: number) =>
@@ -139,6 +143,18 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const isLatestSettingsSave = (workspaceId: string, generation: number, sequence: number) =>
     isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
 
+  const nextWorkspaceMutationSequence = () => {
+    workspaceMutationSequenceRef.current += 1;
+
+    return workspaceMutationSequenceRef.current;
+  };
+
+  const isLatestWorkspaceMutation = (workspaceId: string, generation: number, sequence: number) =>
+    isCurrentWorkspaceGeneration(workspaceId, generation) && workspaceMutationSequenceRef.current === sequence;
+
+  const isOrderMutationCurrent = (workspaceId: string, generation: number, clearGeneration: number) =>
+    isCurrentWorkspaceGeneration(workspaceId, generation) && clearGenerationRef.current === clearGeneration;
+
   useEffect(() => {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current + 1;
@@ -146,6 +162,8 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     currentWorkspaceIdRef.current = workspaceId;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
+    workspaceMutationSequenceRef.current = 0;
+    clearGenerationRef.current = 0;
 
     setLoadStatus('loading');
     setSaveStatusMessage('');
@@ -191,11 +209,13 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   async function handleSaveOrder(order: CapturedOrder) {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
+    const clearGeneration = clearGenerationRef.current;
+    nextWorkspaceMutationSequence();
 
     try {
       const savedOrder = await orderRepository.saveOrder(workspaceId, order);
 
-      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+      if (!isOrderMutationCurrent(workspaceId, generation, clearGeneration)) {
         return false;
       }
 
@@ -205,7 +225,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
       setSaveStatusMessage('');
       return true;
     } catch {
-      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+      if (!isOrderMutationCurrent(workspaceId, generation, clearGeneration)) {
         return false;
       }
 
@@ -222,11 +242,13 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
 
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
+    clearGenerationRef.current += 1;
+    const mutationSequence = nextWorkspaceMutationSequence();
 
     try {
       await orderRepository.deleteAllOrders(workspaceId);
 
-      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+      if (!isLatestWorkspaceMutation(workspaceId, generation, mutationSequence)) {
         return;
       }
 
@@ -235,7 +257,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
       setSourceFilter('전체');
       setSaveStatusMessage('');
     } catch {
-      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+      if (!isLatestWorkspaceMutation(workspaceId, generation, mutationSequence)) {
         return;
       }
 
@@ -258,21 +280,29 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   async function handleChangeOrder(nextOrder: CapturedOrder) {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
+    const clearGeneration = clearGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
+    nextWorkspaceMutationSequence();
 
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
 
     try {
       const savedOrder = await orderRepository.saveOrder(workspaceId, nextOrder);
 
-      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+      if (
+        !isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence) ||
+        !isOrderMutationCurrent(workspaceId, generation, clearGeneration)
+      ) {
         return;
       }
 
       setOrders((current) => current.map((order) => (order.id === savedOrder.id ? savedOrder : order)));
       setSaveStatusMessage('');
     } catch {
-      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+      if (
+        !isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence) ||
+        !isOrderMutationCurrent(workspaceId, generation, clearGeneration)
+      ) {
         return;
       }
 
