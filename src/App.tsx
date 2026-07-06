@@ -108,14 +108,12 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const workspaceGenerationRef = useRef(0);
   const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
   const settingsSaveSequenceRef = useRef(0);
-  const clearGenerationRef = useRef(0);
 
   if (currentWorkspaceIdRef.current !== membership.workspaceId) {
     currentWorkspaceIdRef.current = membership.workspaceId;
     workspaceGenerationRef.current += 1;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
-    clearGenerationRef.current = 0;
   }
 
   const isCurrentWorkspaceGeneration = (workspaceId: string, generation: number) =>
@@ -141,9 +139,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   const isLatestSettingsSave = (workspaceId: string, generation: number, sequence: number) =>
     isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
 
-  const isOrderMutationCurrent = (workspaceId: string, generation: number, clearGeneration: number) =>
-    isCurrentWorkspaceGeneration(workspaceId, generation) && clearGenerationRef.current === clearGeneration;
-
   useEffect(() => {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current + 1;
@@ -151,7 +146,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     currentWorkspaceIdRef.current = workspaceId;
     orderSaveSequenceByIdRef.current.clear();
     settingsSaveSequenceRef.current = 0;
-    clearGenerationRef.current = 0;
 
     setLoadStatus('loading');
     setSaveStatusMessage('');
@@ -197,12 +191,11 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   async function handleSaveOrder(order: CapturedOrder) {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
-    const clearGeneration = clearGenerationRef.current;
 
     try {
       const savedOrder = await orderRepository.saveOrder(workspaceId, order);
 
-      if (!isOrderMutationCurrent(workspaceId, generation, clearGeneration)) {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return false;
       }
 
@@ -212,7 +205,7 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
       setSaveStatusMessage('');
       return true;
     } catch {
-      if (!isOrderMutationCurrent(workspaceId, generation, clearGeneration)) {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
         return false;
       }
 
@@ -230,7 +223,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const orderIdsAtClearStart = new Set(orders.map((order) => order.id));
-    clearGenerationRef.current += 1;
 
     try {
       await orderRepository.deleteAllOrders(workspaceId);
@@ -268,7 +260,6 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
   async function handleChangeOrder(nextOrder: CapturedOrder) {
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
-    const clearGeneration = clearGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
 
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
@@ -276,20 +267,14 @@ export function WorkspaceApp({ membership, orderRepository }: WorkspaceAppProps)
     try {
       const savedOrder = await orderRepository.saveOrder(workspaceId, nextOrder);
 
-      if (
-        !isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence) ||
-        !isOrderMutationCurrent(workspaceId, generation, clearGeneration)
-      ) {
+      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
         return;
       }
 
       setOrders((current) => current.map((order) => (order.id === savedOrder.id ? savedOrder : order)));
       setSaveStatusMessage('');
     } catch {
-      if (
-        !isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence) ||
-        !isOrderMutationCurrent(workspaceId, generation, clearGeneration)
-      ) {
+      if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
         return;
       }
 
