@@ -296,8 +296,18 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
+    let previousOrder: CapturedOrder | null = null;
 
-    setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
+    setOrders((current) =>
+      current.map((order) => {
+        if (order.id !== nextOrder.id) {
+          return order;
+        }
+
+        previousOrder = order;
+        return nextOrder;
+      }),
+    );
 
     await enqueueOrderSave(nextOrder.id, async () => {
       if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
@@ -319,6 +329,10 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
         }
 
         saveOrderDraft(nextOrder);
+        const restoredOrder = previousOrder;
+        if (restoredOrder) {
+          setOrders((current) => current.map((order) => (order.id === nextOrder.id ? restoredOrder : order)));
+        }
         setSaveStatusMessage('변경 내용을 저장하지 못했습니다. 임시 저장했어요.');
       }
     });

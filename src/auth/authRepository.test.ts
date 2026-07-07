@@ -32,7 +32,8 @@ function createSupabaseMock({
   signOutError?: Error | null;
   membershipError?: Error | null;
 } = {}) {
-  const limit = vi.fn().mockResolvedValue({ data: membershipRows, error: membershipError });
+  const maybeSingle = vi.fn().mockResolvedValue({ data: membershipRows[0] ?? null, error: membershipError });
+  const limit = vi.fn(() => ({ maybeSingle }));
   const order = vi.fn(() => ({ limit }));
   const eq = vi.fn(() => ({ order }));
   const select = vi.fn(() => ({ eq }));
@@ -47,7 +48,7 @@ function createSupabaseMock({
       onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe } } })),
     },
     from,
-    mocks: { eq, from, limit, order, select, unsubscribe },
+    mocks: { eq, from, limit, maybeSingle, order, select, unsubscribe },
   };
 }
 
@@ -148,5 +149,6 @@ describe('authRepository', () => {
     expect(supabase.mocks.eq).toHaveBeenCalledWith('user_id', 'user-1');
     expect(supabase.mocks.order).toHaveBeenCalledWith('created_at', { ascending: true });
     expect(supabase.mocks.limit).toHaveBeenCalledWith(1);
+    expect(supabase.mocks.maybeSingle).toHaveBeenCalledTimes(1);
   });
 });

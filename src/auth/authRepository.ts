@@ -71,13 +71,14 @@ export function createAuthRepository(supabase: SupabaseClient): AuthRepository {
         .select('workspace_id, role, workspaces(name)')
         .eq('user_id', session.userId)
         .order('created_at', { ascending: true })
-        .limit(1);
+        .limit(1)
+        .maybeSingle<WorkspaceMembershipRow>();
 
       if (error) {
         throw error;
       }
 
-      const row = (Array.isArray(data) ? data[0] : data) as WorkspaceMembershipRow | null | undefined;
+      const row = data;
       if (!row) {
         return null;
       }

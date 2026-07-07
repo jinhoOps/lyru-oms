@@ -433,6 +433,33 @@ describe('App', () => {
     expect(screen.getByDisplayValue('최신 저장')).toBeInTheDocument();
   });
 
+  it('rolls back an existing order edit when save fails', async () => {
+    const user = userEvent.setup();
+    const initialOrder = createCapturedOrder({ id: 'order-fail', ownerMemo: '기존 메모' });
+    orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [initialOrder], settings: DEFAULT_SETTINGS });
+    orderRepositoryMock.saveOrder.mockRejectedValueOnce(new Error('save failed'));
+
+    render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await user.click(await screen.findByRole('button', { name: /레이스고객/ }));
+
+    const ownerMemoInput = screen.getByLabelText('사장님 내부 메모');
+    fireEvent.change(ownerMemoInput, { target: { value: '저장 실패 메모' } });
+
+    await waitFor(() => expect(orderRepositoryMock.saveOrder).toHaveBeenCalledWith(
+      'workspace-1',
+      expect.objectContaining({ ownerMemo: '저장 실패 메모' }),
+    ));
+    expect(await screen.findByText('변경 내용을 저장하지 못했습니다. 임시 저장했어요.')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('기존 메모')).toBeInTheDocument();
+  });
+
   it('ignores a new order save response after the workspace changes', async () => {
     const user = userEvent.setup();
     const slowSave = createDeferred<CapturedOrder>();
