@@ -397,7 +397,19 @@ const getDailyRangeStatus = (item: CalendarRangeItem, today: string) => {
     return '마감';
   }
 
-  return '진행 중';
+  return '진행';
+};
+
+const getCalendarSegmentStatus = (segment: CalendarRangeSegment) => {
+  if (segment.endsInView) {
+    return '마감';
+  }
+
+  if (segment.startsInView) {
+    return '등록';
+  }
+
+  return '진행';
 };
 
 const buildDailyItems = (rangeItems: CalendarRangeItem[], today: string) =>
@@ -756,27 +768,30 @@ export function OrderList({
                     ))}
                   </div>
                   <div className="calendarRangeLayer">
-                    {(segmentsByRow[row.id] ?? []).map((segment) => (
-                      <button
-                        key={`${row.id}-${segment.order.id}-${segment.startDate}-${segment.endDate}`}
-                        type="button"
-                        className="calendarRangeBar"
-                        style={{ gridColumn: `${segment.columnStart} / ${segment.columnEnd}` }}
-                        aria-label={`${getCalendarOrderTitle(segment.order)} 수량 ${getCalendarQuantityLabel(segment.order) || '미정'} ${formatCalendarDateLabel(segment.startDate)}부터 ${formatCalendarDateLabel(segment.endDate)}까지 ${segment.startsInView ? '등록' : '계속'} ${segment.endsInView ? '마감' : '진행 중'}`}
-                        onClick={() => onSelect(segment.order.id)}
-                      >
-                        <span className="calendarRangeMeta" aria-hidden="true">
-                          <span>{segment.startsInView ? '등록' : '계속'}</span>
-                          {segment.endsInView ? <span>마감</span> : null}
-                        </span>
-                        <span className="calendarOrderSummary">
-                          <strong>{getCalendarOrderTitle(segment.order)}</strong>
-                          {getCalendarQuantityLabel(segment.order) ? (
-                            <span className="calendarQuantityBadge">{getCalendarQuantityLabel(segment.order)}</span>
-                          ) : null}
-                        </span>
-                      </button>
-                    ))}
+                    {(segmentsByRow[row.id] ?? []).map((segment) => {
+                      const status = getCalendarSegmentStatus(segment);
+
+                      return (
+                        <button
+                          key={`${row.id}-${segment.order.id}-${segment.startDate}-${segment.endDate}`}
+                          type="button"
+                          className="calendarRangeBar"
+                          style={{ gridColumn: `${segment.columnStart} / ${segment.columnEnd}` }}
+                          aria-label={`${getCalendarOrderTitle(segment.order)} 수량 ${getCalendarQuantityLabel(segment.order) || '미정'} ${formatCalendarDateLabel(segment.startDate)}부터 ${formatCalendarDateLabel(segment.endDate)}까지 ${status}`}
+                          onClick={() => onSelect(segment.order.id)}
+                        >
+                          <span className="calendarRangeMeta" aria-hidden="true">
+                            <span>{status}</span>
+                          </span>
+                          <span className="calendarOrderSummary">
+                            <strong>{getCalendarOrderTitle(segment.order)}</strong>
+                            {getCalendarQuantityLabel(segment.order) ? (
+                              <span className="calendarQuantityBadge">{getCalendarQuantityLabel(segment.order)}</span>
+                            ) : null}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </section>
               ))}

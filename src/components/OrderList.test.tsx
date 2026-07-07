@@ -202,7 +202,7 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
-    const rangeButton = screen.getByRole('button', { name: /곶감단지 수량 2.*등록.*마감/ });
+    const rangeButton = screen.getByRole('button', { name: /곶감단지 수량 2.*마감/ });
     expect(rangeButton).toBeInTheDocument();
     expect(within(rangeButton).getByText('곶감단지')).toBeInTheDocument();
     expect(within(rangeButton).getByText('2')).toHaveClass('calendarQuantityBadge');
@@ -232,7 +232,7 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
     expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
-    const dailyButton = screen.getByRole('button', { name: /곶감단지 수량 2.*진행 중/ });
+    const dailyButton = screen.getByRole('button', { name: /곶감단지 수량 2.*진행/ });
     expect(dailyButton).toBeInTheDocument();
     expect(within(dailyButton).getByText('2')).toHaveClass('calendarQuantityBadge');
   });
