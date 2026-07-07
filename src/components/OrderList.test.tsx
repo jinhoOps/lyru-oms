@@ -202,9 +202,11 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
-    const rangeButton = screen.getByRole('button', { name: /곶감단지 · 2세트.*등록.*마감/ });
+    const rangeButton = screen.getByRole('button', { name: /곶감단지 수량 2.*등록.*마감/ });
     expect(rangeButton).toBeInTheDocument();
-    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
+    expect(within(rangeButton).getByText('곶감단지')).toBeInTheDocument();
+    expect(within(rangeButton).getByText('2')).toHaveClass('calendarQuantityBadge');
+    expect(within(rangeButton).queryByText('2세트')).not.toBeInTheDocument();
   });
 
   it('shows today orders once in daily mode with the correct range status', () => {
@@ -230,8 +232,9 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
     expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*진행 중/ })).toBeInTheDocument();
-    expect(screen.getAllByText('곶감단지 · 2세트')).toHaveLength(1);
+    const dailyButton = screen.getByRole('button', { name: /곶감단지 수량 2.*진행 중/ });
+    expect(dailyButton).toBeInTheDocument();
+    expect(within(dailyButton).getByText('2')).toHaveClass('calendarQuantityBadge');
   });
 
   it('marks today orders as registered in daily mode when today is the start date', () => {
@@ -256,7 +259,7 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
-    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*등록/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /곶감단지 수량 2.*등록/ })).toBeInTheDocument();
   });
 
   it('marks today orders as closing in daily mode when today is the end date', () => {
@@ -281,7 +284,7 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
-    expect(screen.getByRole('button', { name: /곶감단지 · 2세트.*마감/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /곶감단지 수량 2.*마감/ })).toBeInTheDocument();
   });
 
   it('keeps missing and invalid desired dates in the unresolved calendar group', () => {
@@ -314,8 +317,8 @@ describe('OrderList', () => {
     fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
 
     const unresolved = screen.getByRole('region', { name: '날짜 확인 필요' });
-    expect(within(unresolved).getByRole('button', { name: /화과자 · 4개.*희망일 확인/ })).toBeInTheDocument();
-    expect(within(unresolved).getByRole('button', { name: /양갱 · 3개.*기간 확인/ })).toBeInTheDocument();
+    expect(within(unresolved).getByRole('button', { name: /화과자 수량 4.*희망일 확인/ })).toBeInTheDocument();
+    expect(within(unresolved).getByRole('button', { name: /양갱 수량 3.*기간 확인/ })).toBeInTheDocument();
   });
 
   it('keeps filtered-out empty state before rendering calendar view', () => {

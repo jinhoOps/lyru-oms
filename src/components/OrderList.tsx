@@ -102,6 +102,24 @@ const summarizeOrder = (order: CapturedOrder) => {
   return `${item} · ${quantity}`;
 };
 
+const getCalendarQuantityLabel = (order: CapturedOrder) => {
+  const explicitQuantity = order.quantity.match(/\d+/)?.[0];
+
+  if (explicitQuantity) {
+    return explicitQuantity;
+  }
+
+  const candidate = order.quantityCandidates[0]?.value;
+
+  if (candidate !== undefined) {
+    return String(candidate);
+  }
+
+  return '';
+};
+
+const getCalendarOrderTitle = (order: CapturedOrder) => fallback(order.orderItems, '주문 내용 미정');
+
 const closeMenuAfterFocusLeaves = (event: FocusEvent<HTMLDivElement>, closeMenu: () => void) => {
   const menuWrap = event.currentTarget;
   const nextFocus = event.relatedTarget;
@@ -744,14 +762,19 @@ export function OrderList({
                         type="button"
                         className="calendarRangeBar"
                         style={{ gridColumn: `${segment.columnStart} / ${segment.columnEnd}` }}
-                        aria-label={`${summarizeOrder(segment.order)} ${formatCalendarDateLabel(segment.startDate)}부터 ${formatCalendarDateLabel(segment.endDate)}까지 ${segment.startsInView ? '등록' : '계속'} ${segment.endsInView ? '마감' : '진행 중'}`}
+                        aria-label={`${getCalendarOrderTitle(segment.order)} 수량 ${getCalendarQuantityLabel(segment.order) || '미정'} ${formatCalendarDateLabel(segment.startDate)}부터 ${formatCalendarDateLabel(segment.endDate)}까지 ${segment.startsInView ? '등록' : '계속'} ${segment.endsInView ? '마감' : '진행 중'}`}
                         onClick={() => onSelect(segment.order.id)}
                       >
-                        <span className="calendarRangeMeta">
-                          {segment.startsInView ? '등록' : '계속'}
-                          {segment.endsInView ? ' · 마감' : ''}
+                        <span className="calendarRangeMeta" aria-hidden="true">
+                          <span>{segment.startsInView ? '등록' : '계속'}</span>
+                          {segment.endsInView ? <span>마감</span> : null}
                         </span>
-                        <strong>{summarizeOrder(segment.order)}</strong>
+                        <span className="calendarOrderSummary">
+                          <strong>{getCalendarOrderTitle(segment.order)}</strong>
+                          {getCalendarQuantityLabel(segment.order) ? (
+                            <span className="calendarQuantityBadge">{getCalendarQuantityLabel(segment.order)}</span>
+                          ) : null}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -774,11 +797,20 @@ export function OrderList({
                       key={item.order.id}
                       type="button"
                       className="calendarDailyItem"
-                      aria-label={`${summarizeOrder(item.order)} ${status}`}
+                      aria-label={`${getCalendarOrderTitle(item.order)} 수량 ${getCalendarQuantityLabel(item.order) || '미정'} ${status}`}
                       onClick={() => onSelect(item.order.id)}
                     >
-                      <span className="calendarRangeMeta">{status}</span>
-                      <strong>{summarizeOrder(item.order)}</strong>
+                      <span className="calendarOrderLine">
+                        <span className="calendarRangeMeta" aria-hidden="true">
+                          <span>{status}</span>
+                        </span>
+                        <span className="calendarOrderSummary">
+                          <strong>{getCalendarOrderTitle(item.order)}</strong>
+                          {getCalendarQuantityLabel(item.order) ? (
+                            <span className="calendarQuantityBadge">{getCalendarQuantityLabel(item.order)}</span>
+                          ) : null}
+                        </span>
+                      </span>
                       <span>{fallback(item.order.customerName, '고객명 미정')}</span>
                     </button>
                   );
@@ -795,11 +827,16 @@ export function OrderList({
                     key={item.order.id}
                     type="button"
                     className="calendarOrderChip unresolved"
-                    aria-label={`${summarizeOrder(item.order)} ${getUnresolvedReasonLabel(item.reason)}`}
+                    aria-label={`${getCalendarOrderTitle(item.order)} 수량 ${getCalendarQuantityLabel(item.order) || '미정'} ${getUnresolvedReasonLabel(item.reason)}`}
                     onClick={() => onSelect(item.order.id)}
                   >
                     <span className="calendarMarkerKind">{getUnresolvedReasonLabel(item.reason)}</span>
-                    <strong>{summarizeOrder(item.order)}</strong>
+                    <span className="calendarOrderSummary">
+                      <strong>{getCalendarOrderTitle(item.order)}</strong>
+                      {getCalendarQuantityLabel(item.order) ? (
+                        <span className="calendarQuantityBadge">{getCalendarQuantityLabel(item.order)}</span>
+                      ) : null}
+                    </span>
                     <span>{fallback(item.order.customerName, '고객명 미정')}</span>
                   </button>
                 ))}

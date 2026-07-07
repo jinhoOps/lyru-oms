@@ -719,13 +719,27 @@ pre {
 .calendarWeekRow {
   display: grid;
   gap: 4px;
+  position: relative;
+  min-height: 82px;
   min-width: 0;
+  border: 1px solid rgba(238, 227, 210, 0.72);
+  border-radius: 7px;
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0,
+      transparent calc((100% / 7) - 1px),
+      rgba(183, 165, 137, 0.18) calc((100% / 7) - 1px),
+      rgba(183, 165, 137, 0.18) calc(100% / 7)
+    ),
+    #fffdf9;
+  padding: 4px;
 }
 
 .calendarDayNumber {
   min-width: 0;
   border-radius: 6px;
-  background: #fbf4e8;
+  background: rgba(251, 244, 232, 0.84);
   color: #5b4322;
   padding: 4px 2px;
   font-size: 11px;
@@ -736,12 +750,14 @@ pre {
 
 .calendarRangeLayer {
   align-items: stretch;
+  min-height: 42px;
 }
 
 .calendarRangeBar {
-  display: grid;
+  display: flex;
+  align-items: center;
   min-width: 0;
-  gap: 2px;
+  gap: 6px;
   border: 1px solid #d7c8ad;
   border-radius: 6px;
   background: #fff7df;
@@ -750,7 +766,7 @@ pre {
   text-align: left;
 }
 
-.calendarRangeBar strong,
+.calendarOrderSummary,
 .calendarDailyItem strong,
 .calendarOrderChip strong,
 .calendarOrderChip span {
@@ -758,13 +774,65 @@ pre {
   overflow-wrap: anywhere;
 }
 
-.calendarRangeBar strong,
+.calendarOrderSummary strong,
 .calendarDailyItem strong,
 .calendarOrderChip strong {
   font-size: 12px;
 }
 
-.calendarRangeMeta,
+.calendarOrderSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 1 1 auto;
+  white-space: nowrap;
+}
+
+.calendarOrderLine {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.calendarOrderSummary strong {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.calendarQuantityBadge {
+  flex: 0 0 auto;
+  min-width: 18px;
+  border: 1px solid #e0c892;
+  border-radius: 999px;
+  background: #f9efd6;
+  color: #8a611f;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.calendarRangeMeta {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 3px;
+  color: #5b4322;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.calendarRangeMeta span + span::before {
+  content: "/";
+  margin-right: 3px;
+  color: #b7a589;
+}
+
 .calendarMarkerKind {
   width: fit-content;
   border-radius: 999px;
@@ -831,6 +899,10 @@ pre {
 .calendarDailyItem > span:not(.calendarRangeMeta) {
   color: #746552;
   font-size: 12px;
+}
+
+.calendarDailyItem > .calendarOrderLine {
+  color: #1b2430;
 }
 
 .calendarOrderChip {
