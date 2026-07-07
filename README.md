@@ -72,3 +72,23 @@ Supabase `service_role` key, secret key, database password, RLS를 우회하는 
 6. `.env.local`에 공개 Supabase env를 넣고 `npm run dev`로 실행합니다.
 
 운영 DB는 빈 상태로 시작합니다. 개발 seed 데이터는 production에 실행하지 않습니다.
+
+### GitHub Pages 배포 연결
+
+GitHub Pages는 정적 파일만 서빙하므로 `.env.local`을 읽지 않습니다. 배포용 Supabase 공개 설정은 GitHub Actions 빌드 시점에 Repository Variables로 주입합니다.
+
+GitHub 저장소에서 `Settings` → `Secrets and variables` → `Actions` → `Variables`에 아래 값을 추가합니다.
+
+```dotenv
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_public_key
+```
+
+그 다음 `Deploy GitHub Pages` workflow를 다시 실행하면 `import.meta.env.VITE_*` 값이 빌드 결과 JS에 포함됩니다.
+
+Supabase Dashboard의 `Authentication` URL 설정에는 아래 값을 등록합니다.
+
+```text
+Site URL: https://jinhoops.github.io/lyru-oms/
+Redirect URLs: https://jinhoops.github.io/lyru-oms/**
+```
