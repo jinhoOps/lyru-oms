@@ -162,6 +162,24 @@ describe('localDraftCache', () => {
     expect(stored.orders).toHaveLength(32);
   });
 
+  it('uses saved parsedDate metadata when selecting date-window cache orders', () => {
+    const order = createOrder({
+      id: 'parsed-date-window',
+      desiredDateTime: '',
+      parsedDate: {
+        isoDate: '2026-08-20',
+        timeText: '',
+        originalText: '수정된 날짜',
+        isRelative: false,
+      },
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    saveRecentOrderCache('workspace-1', [order]);
+
+    expect(loadRecentOrderCache('workspace-1')).toEqual([expect.objectContaining({ id: 'parsed-date-window' })]);
+  });
+
   it('returns an empty cache after the 24 hour TTL expires', () => {
     saveRecentOrderCache('workspace-1', [createOrder()]);
 

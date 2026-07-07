@@ -12,6 +12,7 @@ interface OrderCaptureFormProps {
   existingRawTexts: string[];
   settings: OrderSettings;
   source: OrderSource;
+  initialRawText?: string;
   onSave: (order: CapturedOrder) => void | boolean | Promise<void | boolean>;
 }
 
@@ -37,8 +38,14 @@ const createOrderId = () => {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
-export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }: OrderCaptureFormProps) {
-  const [rawText, setRawText] = useState('');
+export function OrderCaptureForm({
+  existingRawTexts,
+  settings,
+  source,
+  initialRawText = '',
+  onSave,
+}: OrderCaptureFormProps) {
+  const [rawText, setRawText] = useState(initialRawText);
   const [isSaving, setIsSaving] = useState(false);
   const isSavingRef = useRef(false);
 

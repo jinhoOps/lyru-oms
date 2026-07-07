@@ -30,6 +30,21 @@ describe('OrderCaptureForm', () => {
     expect(screen.getByText('네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.')).toBeInTheDocument();
   });
 
+  it('pre-populates raw text from a recovered draft', () => {
+    render(
+      <OrderCaptureForm
+        existingRawTexts={[]}
+        settings={DEFAULT_SETTINGS}
+        source="카카오톡 채널"
+        initialRawText="성함: 임시저장고객"
+        onSave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('주문/문의 원문')).toHaveValue('성함: 임시저장고객');
+    expect(screen.getByText('주문 내용: -')).toBeInTheDocument();
+  });
+
   it('saves raw text even when required fields are missing', async () => {
     const onSave = vi.fn();
     render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="네이버 스마트스토어" onSave={onSave} />);

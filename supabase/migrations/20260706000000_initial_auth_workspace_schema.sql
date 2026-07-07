@@ -194,7 +194,13 @@ begin
     lock table public.workspace_members in share row exclusive mode;
   end if;
 
-  if should_check and not exists (
+  if should_check
+    and exists (
+      select 1
+      from public.workspaces w
+      where w.id = old.workspace_id
+    )
+    and not exists (
       select 1
       from public.workspace_members wm
       where wm.workspace_id = old.workspace_id
@@ -307,62 +313,169 @@ with check (public.is_workspace_owner(workspace_id));
 create policy "Members can read orders"
 on public.orders
 for select
-using (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = orders.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can insert orders"
 on public.orders
 for insert
-with check (public.is_workspace_member(workspace_id));
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = orders.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can update orders"
 on public.orders
 for update
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = orders.workspace_id
+      and wm.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = orders.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Owners can delete orders"
 on public.orders
 for delete
-using (public.is_workspace_owner(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = orders.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role = 'owner'
+  )
+);
 
 create policy "Members can read change requests"
 on public.order_change_requests
 for select
-using (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_change_requests.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can insert change requests"
 on public.order_change_requests
 for insert
-with check (public.is_workspace_member(workspace_id));
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_change_requests.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can update change requests"
 on public.order_change_requests
 for update
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_change_requests.workspace_id
+      and wm.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_change_requests.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can delete change requests"
 on public.order_change_requests
 for delete
-using (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_change_requests.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can read checklist items"
 on public.order_checklist_items
 for select
-using (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_checklist_items.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can insert checklist items"
 on public.order_checklist_items
 for insert
-with check (public.is_workspace_member(workspace_id));
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_checklist_items.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Members can update checklist items"
 on public.order_checklist_items
 for update
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_checklist_items.workspace_id
+      and wm.user_id = auth.uid()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_checklist_items.workspace_id
+      and wm.user_id = auth.uid()
+  )
+);
 
 create policy "Owners can delete checklist items"
 on public.order_checklist_items
 for delete
-using (public.is_workspace_owner(workspace_id));
+using (
+  exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = order_checklist_items.workspace_id
+      and wm.user_id = auth.uid()
+      and wm.role = 'owner'
+  )
+);

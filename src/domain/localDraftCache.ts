@@ -169,7 +169,7 @@ const isRecentOrderCachePayload = (value: unknown): value is RecentOrderCachePay
   Array.isArray(value.orders);
 
 const isInDesiredShippingWindow = (order: CapturedOrder, now: Date) => {
-  const parsedDate = parseExplicitDate(order.desiredDateTime, now);
+  const parsedDate = order.parsedDate ?? parseExplicitDate(order.desiredDateTime, now);
 
   if (!parsedDate || parsedDate.isRelative || !parsedDate.isoDate) {
     return false;
@@ -261,6 +261,10 @@ export const loadRecentOrderCache = (workspaceId: string, now = new Date()): Cap
 export const clearLocalOrderData = (): void => {
   removeLocalStorage(ORDER_DRAFT_KEY);
   removeLocalStorage(RECENT_ORDER_CACHE_KEY);
+};
+
+export const clearSavedOrderDraft = (): void => {
+  removeLocalStorage(ORDER_DRAFT_KEY);
 };
 
 export const localDraftCacheKeys = {

@@ -15,8 +15,10 @@ import {
   type OrderSource,
 } from './domain/orderTypes';
 import {
+  clearSavedOrderDraft,
   clearLocalOrderData,
   loadRecentOrderCacheSnapshot,
+  loadSavedOrderDraft,
   saveOrderDraft,
   saveRecentOrderCache,
 } from './domain/localDraftCache';
@@ -68,9 +70,10 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
   const [loadStatus, setLoadStatus] = useState<WorkspaceLoadStatus>('loading');
   const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
   const [saveStatusMessage, setSaveStatusMessage] = useState('');
+  const [savedOrderDraft, setSavedOrderDraft] = useState(() => loadSavedOrderDraft());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<OrderSortMode>('desiredDate');
-  const [captureSource, setCaptureSource] = useState<OrderSource>('카카오톡 채널');
+  const [captureSource, setCaptureSource] = useState<OrderSource>(savedOrderDraft?.source ?? '카카오톡 채널');
   const [sourceFilter, setSourceFilter] = useState<OrderSourceFilter>('전체');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
@@ -79,14 +82,6 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
   const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
   const orderSaveChainByIdRef = useRef(new Map<string, Promise<void>>());
   const settingsSaveSequenceRef = useRef(0);
-
-  if (currentWorkspaceIdRef.current !== membership.workspaceId) {
-    currentWorkspaceIdRef.current = membership.workspaceId;
-    workspaceGenerationRef.current += 1;
-    orderSaveSequenceByIdRef.current.clear();
-    orderSaveChainByIdRef.current.clear();
-    settingsSaveSequenceRef.current = 0;
-  }
 
   const isCurrentWorkspaceGeneration = (workspaceId: string, generation: number) =>
     currentWorkspaceIdRef.current === workspaceId && workspaceGenerationRef.current === generation;
@@ -196,7 +191,11 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
       return;
     }
 
-    saveRecentOrderCache(membership.workspaceId, orders);
+    const cacheWriteId = window.setTimeout(() => {
+      saveRecentOrderCache(membership.workspaceId, orders);
+    }, 250);
+
+    return () => window.clearTimeout(cacheWriteId);
   }, [loadStatus, loadedWorkspaceId, membership.workspaceId, orders]);
 
   const filteredOrders = useMemo(
@@ -227,6 +226,8 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
       setOrders((current) => [savedOrder, ...current]);
       setSourceFilter(savedOrder.source);
       setSelectedId(savedOrder.id);
+      clearSavedOrderDraft();
+      setSavedOrderDraft(null);
       setSaveStatusMessage('');
       return true;
     } catch {
@@ -427,6 +428,11 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
             {saveStatusMessage}
           </p>
         ) : null}
+        {savedOrderDraft ? (
+          <p className="appPersistenceStatus" role="status" aria-live="polite">
+            임시 저장된 주문 원문을 복구했어요.
+          </p>
+        ) : null}
 
         <div className="workspaceLayout">
           <section className="capturePanel" aria-label="주문 수집">
@@ -463,6 +469,7 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
                   existingRawTexts={orders.map((order) => order.rawText)}
                   settings={settings}
                   source={captureSource}
+                  initialRawText={savedOrderDraft?.rawText}
                   onSave={handleSaveOrder}
                 />
               </div>

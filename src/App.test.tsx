@@ -290,6 +290,29 @@ describe('App', () => {
     expect(screen.queryByText('저장실패고객')).not.toBeInTheDocument();
   });
 
+  it('restores a saved draft into the capture form and clears it after a successful save', async () => {
+    const user = userEvent.setup();
+    saveOrderDraft(
+      createCapturedOrder({
+        source: '네이버 스마트스토어',
+        rawText: '성함: 복구고객\n곶감 1세트\n2026-07-06\n픽업',
+        customerName: '복구고객',
+      }),
+    );
+
+    await renderUnlockedApp();
+
+    expect(screen.getByText('임시 저장된 주문 원문을 복구했어요.')).toBeInTheDocument();
+    expect(screen.getByLabelText('주문/문의 원문')).toHaveValue('성함: 복구고객\n곶감 1세트\n2026-07-06\n픽업');
+    expect(getCapturePanel().getByLabelText('채널')).toHaveValue('네이버 스마트스토어');
+
+    await user.click(getCapturePanel().getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByText('복구고객')).toBeInTheDocument();
+    expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
+    expect(screen.queryByText('임시 저장된 주문 원문을 복구했어요.')).not.toBeInTheDocument();
+  });
+
   it('clears local draft and recent-order cache on blocked-screen logout', async () => {
     const user = userEvent.setup();
     authRepositoryMock.getWorkspaceMembership.mockResolvedValueOnce(null);
