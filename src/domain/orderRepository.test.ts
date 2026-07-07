@@ -7,7 +7,7 @@ import {
   type OrderRow,
   type WorkspaceSettingsRow,
 } from './orderRepository';
-import type { CapturedOrder, OrderSettings } from './orderTypes';
+import { DEFAULT_SETTINGS, type CapturedOrder, type OrderSettings } from './orderTypes';
 
 const workspaceId = '00000000-0000-4000-8000-000000000201';
 type ChangeRequestRowMock = {
@@ -223,6 +223,27 @@ describe('orderRepository', () => {
         { table: 'order_change_requests', method: 'order', args: ['id', { ascending: false }] },
       ]),
     );
+  });
+
+  it('falls back for malformed workspace settings fields instead of failing load', async () => {
+    const supabase = createSupabaseMock({
+      settingsRow: {
+        workspace_id: workspaceId,
+        settings: {
+          requiredFields: ['quantity'],
+        } as unknown as OrderSettings,
+      },
+    });
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.loadWorkspaceData(workspaceId)).resolves.toEqual({
+      orders: [],
+      settings: {
+        requiredFields: ['quantity'],
+        conditionalRequiredFields: DEFAULT_SETTINGS.conditionalRequiredFields,
+        quantityRules: DEFAULT_SETTINGS.quantityRules,
+      },
+    });
   });
 
   it('saves an order row and upserts a change request when note exists', async () => {

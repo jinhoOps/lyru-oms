@@ -103,13 +103,18 @@ type SupabaseLike = {
 };
 
 const cloneSettings = (settings: OrderSettings): OrderSettings => ({
-  requiredFields: [...settings.requiredFields],
+  requiredFields: [...(settings.requiredFields ?? DEFAULT_SETTINGS.requiredFields)],
   conditionalRequiredFields: Object.fromEntries(
-    Object.entries(settings.conditionalRequiredFields).map(([field, rule]) => [field, rule ? { ...rule } : rule]),
+    Object.entries(settings.conditionalRequiredFields ?? DEFAULT_SETTINGS.conditionalRequiredFields).map(
+      ([field, rule]) => [field, rule ? { ...rule } : rule],
+    ),
   ),
   quantityRules: {
-    bulkRealUnitThreshold: settings.quantityRules.bulkRealUnitThreshold,
-    minimumOrderRules: settings.quantityRules.minimumOrderRules.map((rule) => ({ ...rule })),
+    bulkRealUnitThreshold:
+      settings.quantityRules?.bulkRealUnitThreshold ?? DEFAULT_SETTINGS.quantityRules.bulkRealUnitThreshold,
+    minimumOrderRules: (
+      settings.quantityRules?.minimumOrderRules ?? DEFAULT_SETTINGS.quantityRules.minimumOrderRules
+    ).map((rule) => ({ ...rule })),
   },
 });
 

@@ -510,6 +510,7 @@ describe('App', () => {
   it('rolls back an existing order edit when save fails', async () => {
     const user = userEvent.setup();
     const initialOrder = createCapturedOrder({ id: 'order-fail', ownerMemo: '기존 메모' });
+    saveOrderDraft(createCapturedOrder({ rawText: '성함: 기존임시고객', customerName: '기존임시고객' }));
     orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [initialOrder], settings: DEFAULT_SETTINGS });
     orderRepositoryMock.saveOrder.mockRejectedValueOnce(new Error('save failed'));
 
@@ -532,6 +533,8 @@ describe('App', () => {
     ));
     expect(await screen.findByText('변경 내용을 저장하지 못했습니다. 임시 저장했어요.')).toBeInTheDocument();
     expect(screen.getByDisplayValue('기존 메모')).toBeInTheDocument();
+    const draft = JSON.parse(localStorage.getItem(localDraftCacheKeys.orderDraft) ?? '{}');
+    expect(draft.rawText).toBe('성함: 기존임시고객');
   });
 
   it('ignores a new order save response after the workspace changes', async () => {

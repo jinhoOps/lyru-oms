@@ -319,7 +319,6 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
           return;
         }
 
-        saveOrderDraft(nextOrder);
         const restoredOrder = previousOrder;
         if (restoredOrder) {
           setOrders((current) => current.map((order) => (order.id === nextOrder.id ? restoredOrder : order)));
