@@ -31,14 +31,24 @@ function createAuthRepositoryMock({
   signInError?: Error | null;
   signOutError?: Error | null;
 } = {}): AuthRepository {
+  let sessionChangeCallback: ((nextSession: AuthSession | null) => void) | null = null;
+
   return {
     getSession: vi.fn().mockResolvedValue(initialSession),
-    signIn: signInError ? vi.fn().mockRejectedValue(signInError) : vi.fn().mockResolvedValue(signInSession),
+    signIn: signInError
+      ? vi.fn().mockRejectedValue(signInError)
+      : vi.fn(async () => {
+          sessionChangeCallback?.(signInSession);
+          return signInSession;
+        }),
     signOut: signOutError ? vi.fn().mockRejectedValue(signOutError) : vi.fn().mockResolvedValue(undefined),
     getWorkspaceMembership: workspaceMembershipError
       ? vi.fn().mockRejectedValue(workspaceMembershipError)
       : vi.fn().mockResolvedValue(workspaceMembership),
-    onSessionChange: vi.fn(() => vi.fn()),
+    onSessionChange: vi.fn((callback) => {
+      sessionChangeCallback = callback;
+      return vi.fn();
+    }),
   };
 }
 
@@ -87,6 +97,7 @@ describe('AuthGate', () => {
 
     expect(await screen.findByText('주문 표준화 작업실')).toBeInTheDocument();
     expect(authRepository.signIn).toHaveBeenCalledWith('owner@lyru.test', 'secret');
+    expect(authRepository.getWorkspaceMembership).toHaveBeenCalledTimes(1);
   });
 
   it('passes workspace membership to render function children', async () => {

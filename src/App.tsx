@@ -170,16 +170,14 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
           return;
         }
 
-        if (navigator.onLine === false) {
-          const cachedSnapshot = loadRecentOrderCacheSnapshot(workspaceId);
+        const cachedSnapshot = loadRecentOrderCacheSnapshot(workspaceId);
 
-          if (cachedSnapshot) {
-            setOrders(cachedSnapshot.orders);
-            setSettings(DEFAULT_SETTINGS);
-            setLoadedWorkspaceId(workspaceId);
-            setLoadStatus('offline-cache');
-            return;
-          }
+        if (cachedSnapshot) {
+          setOrders(cachedSnapshot.orders);
+          setSettings(DEFAULT_SETTINGS);
+          setLoadedWorkspaceId(workspaceId);
+          setLoadStatus('offline-cache');
+          return;
         }
 
         setLoadStatus('error');
@@ -296,18 +294,9 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
     const workspaceId = membership.workspaceId;
     const generation = workspaceGenerationRef.current;
     const sequence = nextOrderSaveSequence(nextOrder.id);
-    let previousOrder: CapturedOrder | null = null;
+    const previousOrder = orders.find((order) => order.id === nextOrder.id) ?? null;
 
-    setOrders((current) =>
-      current.map((order) => {
-        if (order.id !== nextOrder.id) {
-          return order;
-        }
-
-        previousOrder = order;
-        return nextOrder;
-      }),
-    );
+    setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
 
     await enqueueOrderSave(nextOrder.id, async () => {
       if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
@@ -515,7 +504,12 @@ export default function App() {
   return (
     <AuthGate authRepository={authRepository} onBeforeSignOut={clearLocalOrderData}>
       {(membership, { signOut }) => (
-        <WorkspaceApp membership={membership} orderRepository={orderRepository} onSignOut={signOut} />
+        <WorkspaceApp
+          key={membership.workspaceId}
+          membership={membership}
+          orderRepository={orderRepository}
+          onSignOut={signOut}
+        />
       )}
     </AuthGate>
   );

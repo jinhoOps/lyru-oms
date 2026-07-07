@@ -117,8 +117,8 @@ function createSupabaseMock({
       record(table, 'select', [columns]);
       return createSelectQuery(table);
     }),
-    upsert: vi.fn((payload: unknown) => {
-      record(table, 'upsert', [payload]);
+    upsert: vi.fn((payload: unknown, options?: unknown) => {
+      record(table, 'upsert', options === undefined ? [payload] : [payload, options]);
       return createMutationQuery(table, payload);
     }),
     insert: vi.fn((payload: unknown) => {
@@ -225,7 +225,7 @@ describe('orderRepository', () => {
     );
   });
 
-  it('saves an order row and inserts a change request when note exists', async () => {
+  it('saves an order row and upserts a change request when note exists', async () => {
     const order = {
       ...createNasdaqSampleOrder(),
       changeRequestNote: '쇼핑백 2개로 변경',
@@ -255,7 +255,7 @@ describe('orderRepository', () => {
     });
     expect(supabase.calls).toContainEqual({
       table: 'order_change_requests',
-      method: 'insert',
+      method: 'upsert',
       args: [
         {
           workspace_id: workspaceId,
@@ -263,11 +263,12 @@ describe('orderRepository', () => {
           note: '쇼핑백 2개로 변경',
           confirmed: false,
         },
+        { onConflict: 'workspace_id,order_id' },
       ],
     });
   });
 
-  it('updates the latest change request instead of inserting duplicates', async () => {
+  it('upserts a change request instead of selecting and updating the latest row', async () => {
     const order = {
       ...createNasdaqSampleOrder(),
       changeRequestNote: '쇼핑백 2개로 변경',
@@ -300,14 +301,19 @@ describe('orderRepository', () => {
     });
     expect(supabase.calls).toContainEqual({
       table: 'order_change_requests',
-      method: 'update',
-      args: [{ note: '쇼핑백 2개로 변경', confirmed: true }],
+      method: 'upsert',
+      args: [
+        {
+          workspace_id: workspaceId,
+          order_id: order.id,
+          note: '쇼핑백 2개로 변경',
+          confirmed: true,
+        },
+        { onConflict: 'workspace_id,order_id' },
+      ],
     });
-    expect(supabase.calls).toContainEqual({
-      table: 'order_change_requests',
-      method: 'eq',
-      args: ['id', 'latest-change'],
-    });
+    expect(supabase.calls.some((call) => call.table === 'order_change_requests' && call.method === 'select')).toBe(false);
+    expect(supabase.calls.some((call) => call.table === 'order_change_requests' && call.method === 'update')).toBe(false);
     expect(supabase.calls.some((call) => call.table === 'order_change_requests' && call.method === 'insert')).toBe(false);
   });
 

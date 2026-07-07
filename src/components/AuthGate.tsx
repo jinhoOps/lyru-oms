@@ -111,33 +111,12 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
     setChecking(true);
     setError('');
 
-    let session: AuthSession;
-
     try {
-      session = await authRepository.signIn(email, password);
+      await authRepository.signIn(email, password);
     } catch {
       if (isCurrentAuthRequest(requestId)) {
         setStatus('signed-out');
         setError('로그인 정보를 확인해 주세요.');
-        setChecking(false);
-      }
-      return;
-    }
-
-    try {
-      const membership = await authRepository.getWorkspaceMembership();
-      if (isCurrentAuthRequest(requestId)) {
-        setMembership(membership);
-        setStatus(session && membership ? 'ready' : 'blocked');
-      }
-    } catch {
-      if (isCurrentAuthRequest(requestId)) {
-        setMembership(null);
-        setStatus('blocked');
-        setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
-      }
-    } finally {
-      if (isCurrentAuthRequest(requestId)) {
         setChecking(false);
       }
     }

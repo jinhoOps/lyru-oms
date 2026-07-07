@@ -71,7 +71,8 @@ create table public.order_change_requests (
   confirmed boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  foreign key (order_id, workspace_id) references public.orders(id, workspace_id) on delete cascade
+  foreign key (order_id, workspace_id) references public.orders(id, workspace_id) on delete cascade,
+  unique (workspace_id, order_id)
 );
 
 create table public.order_checklist_items (

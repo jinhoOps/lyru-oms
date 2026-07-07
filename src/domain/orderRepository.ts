@@ -95,7 +95,7 @@ type MutationQuery<T> = {
 type SupabaseLike = {
   from(table: string): {
     select<T>(columns?: string): SelectQuery<T>;
-    upsert<T>(payload: unknown): MutationQuery<T>;
+    upsert<T>(payload: unknown, options?: unknown): MutationQuery<T>;
     insert<T>(payload: unknown): MutationQuery<T>;
     update<T>(payload: unknown): MutationQuery<T>;
     delete<T>(): MutationQuery<T>;
@@ -207,21 +207,6 @@ const selectChangeRequests = async (supabase: SupabaseLike, workspaceId: string)
     .order('created_at', { ascending: false })
     .order('id', { ascending: false });
 
-const selectLatestChangeRequest = (
-  supabase: SupabaseLike,
-  workspaceId: string,
-  orderId: string,
-): QueryResult<ChangeRequestRow[]> =>
-  supabase
-    .from('order_change_requests')
-    .select<ChangeRequestRow[]>('id, order_id, note, confirmed, created_at, updated_at')
-    .eq('workspace_id', workspaceId)
-    .eq('order_id', orderId)
-    .order('updated_at', { ascending: false })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false })
-    .limit(1);
-
 export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
   return {
     async loadWorkspaceData(workspaceId) {
@@ -268,34 +253,17 @@ export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
         return mapOrderFromRow(orderResult.data);
       }
 
-      const latestChangeRequestResult = await selectLatestChangeRequest(supabase, workspaceId, order.id);
-      throwIfError(latestChangeRequestResult.error);
-
-      const latestChangeRequest = latestChangeRequestResult.data?.[0] ?? null;
-      if (latestChangeRequest) {
-        const changeRequestResult = await supabase
-          .from('order_change_requests')
-          .update<LatestChangeRequest>({
-            note,
-            confirmed: order.changeRequestConfirmed,
-          })
-          .eq('id', latestChangeRequest.id)
-          .select('id, note, confirmed')
-          .single();
-
-        throwIfError(changeRequestResult.error);
-
-        return mapOrderFromRow(orderResult.data, changeRequestResult.data);
-      }
-
       const changeRequestResult = await supabase
         .from('order_change_requests')
-        .insert<LatestChangeRequest>({
-          workspace_id: workspaceId,
-          order_id: order.id,
-          note,
-          confirmed: order.changeRequestConfirmed,
-        })
+        .upsert<LatestChangeRequest>(
+          {
+            workspace_id: workspaceId,
+            order_id: order.id,
+            note,
+            confirmed: order.changeRequestConfirmed,
+          },
+          { onConflict: 'workspace_id,order_id' },
+        )
         .select('id, note, confirmed')
         .single();
 

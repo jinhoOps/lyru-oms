@@ -211,6 +211,25 @@ describe('App', () => {
     expect(orderRepositoryMock.saveSettings).not.toHaveBeenCalled();
   });
 
+  it('falls back to cached orders when workspace loading fails while the browser reports online', async () => {
+    const cachedOrder = createCapturedOrder({
+      id: 'online-cache-order',
+      customerName: '온라인캐시고객',
+      updatedAt: '2026-07-06T10:00:00.000Z',
+    });
+    Object.defineProperty(window.navigator, 'onLine', { configurable: true, value: true });
+    saveRecentOrderCache('workspace-1', [cachedOrder]);
+    orderRepositoryMock.loadWorkspaceData.mockRejectedValueOnce(new Error('server timeout'));
+
+    render(<App />);
+
+    expect(
+      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /온라인캐시고객/ })).toBeInTheDocument();
+    expect(screen.queryByText('주문 데이터를 불러오지 못했습니다.')).not.toBeInTheDocument();
+  });
+
   it('keeps a local draft and shows Korean status when a new order save fails', async () => {
     const user = userEvent.setup();
     const rawText = '성함: 저장실패고객\n곶감 1세트\n2026-07-06\n픽업';
