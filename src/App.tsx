@@ -128,6 +128,7 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
     isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
 
   const isOfflineCacheReadonly = loadStatus === 'offline-cache';
+  const canManageWorkspace = membership.role === 'owner';
 
   const blockOfflineCacheMutation = () => {
     if (!isOfflineCacheReadonly) {
@@ -398,15 +399,17 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
           </div>
           <div className="headerActions">
             <QuestionNote />
-            <button
-              type="button"
-              className="secondaryButton iconButton settingsIconButton"
-              aria-label="관리 설정"
-              title="관리 설정"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <span aria-hidden="true">⚙</span>
-            </button>
+            {canManageWorkspace ? (
+              <button
+                type="button"
+                className="secondaryButton iconButton settingsIconButton"
+                aria-label="관리 설정"
+                title="관리 설정"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <span aria-hidden="true">⚙</span>
+              </button>
+            ) : null}
             {onSignOut ? (
               <button type="button" className="secondaryButton compactTextButton" onClick={onSignOut}>
                 로그아웃
@@ -475,7 +478,7 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
             onSortModeChange={setSortMode}
             onSourceFilterChange={handleSourceFilterChange}
             onSelect={setSelectedId}
-            onClearOrders={handleClearOrders}
+            onClearOrders={canManageWorkspace ? handleClearOrders : undefined}
           />
 
           <OrderDetail

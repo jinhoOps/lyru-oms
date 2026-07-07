@@ -150,6 +150,38 @@ describe('App', () => {
     expect(orderRepositoryMock.loadWorkspaceData).toHaveBeenCalledWith('workspace-1');
   });
 
+  it('hides owner-only workspace actions for staff members', async () => {
+    const existingOrder = createCapturedOrder({
+      id: 'staff-order',
+      customerName: '직원확인고객',
+    });
+    orderRepositoryMock.loadWorkspaceData.mockResolvedValueOnce({ orders: [existingOrder], settings: DEFAULT_SETTINGS });
+
+    render(
+      <WorkspaceApp
+        membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'staff' }}
+        orderRepository={orderRepositoryMock}
+      />,
+    );
+
+    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+
+    expect(screen.queryByRole('button', { name: '관리 설정' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '작업' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /직원확인고객/ }));
+    fireEvent.change(screen.getByLabelText('사장님 내부 메모'), { target: { value: '직원 메모' } });
+
+    await waitFor(() =>
+      expect(orderRepositoryMock.saveOrder).toHaveBeenCalledWith(
+        'workspace-1',
+        expect.objectContaining({ ownerMemo: '직원 메모' }),
+      ),
+    );
+    expect(orderRepositoryMock.deleteOrders).not.toHaveBeenCalled();
+    expect(orderRepositoryMock.saveSettings).not.toHaveBeenCalled();
+  });
+
   it('shows a load failure alert when workspace data cannot be loaded', async () => {
     orderRepositoryMock.loadWorkspaceData.mockRejectedValueOnce(new Error('load failed'));
 
