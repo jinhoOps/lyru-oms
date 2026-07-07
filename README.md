@@ -66,17 +66,21 @@ Supabase `service_role` key, secret key, database password, RLS를 우회하는 
 
 1. Supabase 프로젝트를 생성합니다.
 2. `supabase/migrations/20260706000000_initial_auth_workspace_schema.sql`을 적용합니다.
-3. Supabase에서 개발용 auth 사용자를 생성합니다.
-4. `supabase/bootstrap.owner.sql`의 `owner_email`을 로그인 이메일로 바꿔 실행해 workspace를 만들고 해당 사용자를 `workspace_members`에 연결합니다.
-5. 실제 로그인 계정의 workspace에 샘플 주문을 넣고 싶으면 `supabase/seed.owner-samples.sql`의 `owner_email`을 바꿔 실행합니다.
-6. `supabase/seed.dev.sql`은 고정 개발 workspace용 seed이므로 개발 DB에만 명시적으로 실행합니다.
-7. `.env.local`에 공개 Supabase env를 넣고 `npm run dev`로 실행합니다.
+3. `supabase/migrations/20260707000000_workspace_admin_rpc.sql`을 적용합니다.
+4. Supabase에서 개발용 auth 사용자를 생성합니다.
+5. `supabase/bootstrap.owner.sql`의 `owner_email`을 로그인 이메일로 바꿔 실행해 workspace를 만들고 해당 사용자를 `workspace_members`에 연결합니다.
+6. `supabase/grant.initial-admins.sql`을 실행해 `okho04@gmail.com`, `jsss2536@naver.com`에 owner 권한을 부여합니다.
+7. 실제 로그인 계정의 workspace에 샘플 주문을 넣고 싶으면 `supabase/seed.owner-samples.sql`의 `owner_email`을 바꿔 실행합니다.
+8. `supabase/seed.dev.sql`은 고정 개발 workspace용 seed이므로 개발 DB에만 명시적으로 실행합니다.
+9. `.env.local`에 공개 Supabase env를 넣고 `npm run dev`로 실행합니다.
 
 운영 DB는 빈 상태로 시작합니다. 개발 seed 데이터는 production에 실행하지 않습니다.
 
 초기 운영 계정 연결 쿼리는 `supabase/bootstrap.owner.sql`에 주석과 함께 보관합니다. 나중에 새 Supabase 프로젝트를 만들 때는 migration을 먼저 실행한 뒤 해당 파일을 SQL Editor에 붙여넣으면 됩니다.
 
 샘플 주문 데이터는 `supabase/seed.owner-samples.sql`에 보관합니다. 이미 만든 Auth 계정 이메일로 workspace를 찾아 넣는 방식이라, Supabase Dashboard에서 만든 실제 개발 계정에도 사용할 수 있습니다.
+
+관리자 페이지에서 멤버 권한을 부여하려면 `supabase/migrations/20260707000000_workspace_admin_rpc.sql`이 먼저 적용되어 있어야 합니다. 이 RPC는 owner 권한 사용자인지 DB에서 확인한 뒤 `auth.users` 이메일을 찾아 `workspace_members`를 갱신합니다.
 
 ### GitHub Pages 배포 연결
 

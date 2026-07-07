@@ -10,10 +10,18 @@ const authRepositoryMock = {
   getSession: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
   signIn: vi.fn().mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' }),
   signOut: vi.fn().mockResolvedValue(undefined),
+  changePassword: vi.fn().mockResolvedValue(undefined),
   getWorkspaceMembership: vi.fn().mockResolvedValue({
     workspaceId: 'workspace-1',
     workspaceName: '리루 작업실',
     role: 'owner',
+  }),
+  listWorkspaceMembers: vi.fn().mockResolvedValue([]),
+  upsertWorkspaceMemberByEmail: vi.fn().mockResolvedValue({
+    userId: 'user-2',
+    email: 'staff@lyru.test',
+    role: 'staff',
+    createdAt: '2026-07-07T00:00:00.000Z',
   }),
   onSessionChange: vi.fn(() => vi.fn()),
 };
@@ -44,7 +52,10 @@ beforeEach(() => {
   authRepositoryMock.getSession.mockReset();
   authRepositoryMock.signIn.mockReset();
   authRepositoryMock.signOut.mockReset();
+  authRepositoryMock.changePassword.mockReset();
   authRepositoryMock.getWorkspaceMembership.mockReset();
+  authRepositoryMock.listWorkspaceMembers.mockReset();
+  authRepositoryMock.upsertWorkspaceMemberByEmail.mockReset();
   authRepositoryMock.onSessionChange.mockReset();
   orderRepositoryMock.loadWorkspaceData.mockReset();
   orderRepositoryMock.saveOrder.mockReset();
@@ -53,10 +64,18 @@ beforeEach(() => {
   authRepositoryMock.getSession.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
   authRepositoryMock.signIn.mockResolvedValue({ userId: 'user-1', email: 'owner@lyru.test' });
   authRepositoryMock.signOut.mockResolvedValue(undefined);
+  authRepositoryMock.changePassword.mockResolvedValue(undefined);
   authRepositoryMock.getWorkspaceMembership.mockResolvedValue({
     workspaceId: 'workspace-1',
     workspaceName: '리루 작업실',
     role: 'owner',
+  });
+  authRepositoryMock.listWorkspaceMembers.mockResolvedValue([]);
+  authRepositoryMock.upsertWorkspaceMemberByEmail.mockResolvedValue({
+    userId: 'user-2',
+    email: 'staff@lyru.test',
+    role: 'staff',
+    createdAt: '2026-07-07T00:00:00.000Z',
   });
   authRepositoryMock.onSessionChange.mockImplementation(() => vi.fn());
   orderRepositoryMock.loadWorkspaceData.mockResolvedValue({ orders: [], settings: DEFAULT_SETTINGS });
@@ -150,6 +169,16 @@ describe('App', () => {
     expect(orderRepositoryMock.loadWorkspaceData).toHaveBeenCalledWith('workspace-1');
   });
 
+  it('opens account management from the header', async () => {
+    const user = userEvent.setup();
+
+    await renderUnlockedApp();
+    await user.click(screen.getByRole('button', { name: /계정 관리 owner@lyru.test/ }));
+
+    expect(screen.getByRole('dialog', { name: '로그인 계정 관리' })).toBeInTheDocument();
+    expect(screen.getByText('owner@lyru.test')).toBeInTheDocument();
+  });
+
   it('hides owner-only workspace actions for staff members', async () => {
     const existingOrder = createCapturedOrder({
       id: 'staff-order',
@@ -160,6 +189,8 @@ describe('App', () => {
     render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'staff' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -421,6 +452,8 @@ describe('App', () => {
     const { rerender } = render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -439,6 +472,8 @@ describe('App', () => {
     rerender(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-2', workspaceName: '새 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -469,6 +504,8 @@ describe('App', () => {
     render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -517,6 +554,8 @@ describe('App', () => {
     render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -547,6 +586,8 @@ describe('App', () => {
     const { rerender } = render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -558,6 +599,8 @@ describe('App', () => {
     rerender(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-2', workspaceName: '새 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -603,6 +646,8 @@ describe('App', () => {
     render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );
@@ -655,6 +700,8 @@ describe('App', () => {
     render(
       <WorkspaceApp
         membership={{ workspaceId: 'workspace-1', workspaceName: '리루 작업실', role: 'owner' }}
+        currentEmail="owner@lyru.test"
+        authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
       />,
     );

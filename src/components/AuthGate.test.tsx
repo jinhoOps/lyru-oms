@@ -42,9 +42,17 @@ function createAuthRepositoryMock({
           return signInSession;
         }),
     signOut: signOutError ? vi.fn().mockRejectedValue(signOutError) : vi.fn().mockResolvedValue(undefined),
+    changePassword: vi.fn().mockResolvedValue(undefined),
     getWorkspaceMembership: workspaceMembershipError
       ? vi.fn().mockRejectedValue(workspaceMembershipError)
       : vi.fn().mockResolvedValue(workspaceMembership),
+    listWorkspaceMembers: vi.fn().mockResolvedValue([]),
+    upsertWorkspaceMemberByEmail: vi.fn().mockResolvedValue({
+      userId: 'user-2',
+      email: 'staff@lyru.test',
+      role: 'staff',
+      createdAt: '2026-07-07T00:00:00.000Z',
+    }),
     onSessionChange: vi.fn((callback) => {
       sessionChangeCallback = callback;
       return vi.fn();
@@ -293,7 +301,15 @@ describe('AuthGate', () => {
       getSession: vi.fn().mockResolvedValue(session),
       signIn: vi.fn().mockResolvedValue(session),
       signOut: vi.fn().mockResolvedValue(undefined),
+      changePassword: vi.fn().mockResolvedValue(undefined),
       getWorkspaceMembership: vi.fn().mockReturnValue(slowMembership.promise),
+      listWorkspaceMembers: vi.fn().mockResolvedValue([]),
+      upsertWorkspaceMemberByEmail: vi.fn().mockResolvedValue({
+        userId: 'user-2',
+        email: 'staff@lyru.test',
+        role: 'staff',
+        createdAt: '2026-07-07T00:00:00.000Z',
+      }),
       onSessionChange: vi.fn((callback) => {
         sessionChangeCallback = callback;
         return vi.fn();

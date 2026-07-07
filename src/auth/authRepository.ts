@@ -1,10 +1,23 @@
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
-import type { AuthRepository, AuthSession, WorkspaceMembership, WorkspaceRole } from './authTypes';
+import type {
+  AuthRepository,
+  AuthSession,
+  WorkspaceMembership,
+  WorkspaceMemberSummary,
+  WorkspaceRole,
+} from './authTypes';
 
 type WorkspaceMembershipRow = {
   workspace_id: string;
   role: WorkspaceRole;
   workspaces: { name: string } | { name: string }[] | null;
+};
+
+type WorkspaceMemberRpcRow = {
+  user_id: string;
+  email: string;
+  role: WorkspaceRole;
+  created_at: string;
 };
 
 export function toAuthSession(session: Session | null): AuthSession | null {
@@ -24,6 +37,15 @@ function getWorkspaceName(workspaces: WorkspaceMembershipRow['workspaces']) {
   }
 
   return workspaces?.name ?? '';
+}
+
+function mapWorkspaceMember(row: WorkspaceMemberRpcRow): WorkspaceMemberSummary {
+  return {
+    userId: row.user_id,
+    email: row.email,
+    role: row.role,
+    createdAt: row.created_at,
+  };
 }
 
 export function createAuthRepository(supabase: SupabaseClient): AuthRepository {
@@ -60,6 +82,19 @@ export function createAuthRepository(supabase: SupabaseClient): AuthRepository {
         throw error;
       }
     },
+    async changePassword(email, currentPassword, newPassword) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password: currentPassword });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+
+      if (updateError) {
+        throw updateError;
+      }
+    },
     async getWorkspaceMembership() {
       const session = await getSession();
       if (!session) {
@@ -90,6 +125,35 @@ export function createAuthRepository(supabase: SupabaseClient): AuthRepository {
       };
 
       return membership;
+    },
+    async listWorkspaceMembers(workspaceId) {
+      const { data, error } = await supabase.rpc('list_workspace_members', {
+        target_workspace_id: workspaceId,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      return ((data ?? []) as WorkspaceMemberRpcRow[]).map(mapWorkspaceMember);
+    },
+    async upsertWorkspaceMemberByEmail(workspaceId, email, role) {
+      const { data, error } = await supabase.rpc('upsert_workspace_member_by_email', {
+        target_workspace_id: workspaceId,
+        target_email: email,
+        target_role: role,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const [row] = (data ?? []) as WorkspaceMemberRpcRow[];
+      if (!row) {
+        throw new Error('멤버 권한 저장 결과를 확인할 수 없습니다.');
+      }
+
+      return mapWorkspaceMember(row);
     },
     onSessionChange(callback) {
       const { data } = supabase.auth.onAuthStateChange((_event, session) => {

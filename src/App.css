@@ -1720,6 +1720,98 @@ pre {
   margin-bottom: 12px;
 }
 
+.accountModal {
+  gap: 16px;
+}
+
+.accountSection {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #eee3d2;
+  border-radius: 8px;
+  background: #fffdf9;
+  padding: 12px;
+}
+
+.accountSection h3 {
+  margin: 0;
+  color: #1b2430;
+  font-size: 15px;
+}
+
+.accountSection p {
+  margin: 3px 0 0;
+  color: #746552;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.accountForm,
+.accountMemberForm {
+  display: grid;
+  gap: 10px;
+}
+
+.accountForm label,
+.accountMemberForm label {
+  display: grid;
+  gap: 5px;
+  color: #5b4322;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.accountForm input,
+.accountMemberForm input,
+.accountMemberForm select {
+  width: 100%;
+  border: 1px solid #d7c8ad;
+  border-radius: 8px;
+  background: #fffaf2;
+  color: #1b2430;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.accountMemberForm {
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  align-items: end;
+}
+
+.accountStatus {
+  color: #2f6b47;
+  font-weight: 800;
+}
+
+.accountMemberList {
+  display: grid;
+  gap: 6px;
+}
+
+.accountMemberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #eee3d2;
+  border-radius: 8px;
+  background: #fbf4e8;
+  padding: 8px 10px;
+  color: #1b2430;
+  font-size: 13px;
+}
+
+.accountMemberRow span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.accountMemberRow strong {
+  flex: 0 0 auto;
+  color: #8a611f;
+  font-size: 12px;
+}
+
 .quantityRuleList {
   display: grid;
   gap: 8px;
@@ -1766,6 +1858,10 @@ pre {
 }
 
 @media (max-width: 640px) {
+  .accountMemberForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .detailModalBackdrop {
     place-items: end center;
     padding: 10px;

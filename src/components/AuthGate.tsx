@@ -3,7 +3,7 @@ import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/a
 
 type AuthGateProps = {
   authRepository: AuthRepository;
-  children: ReactNode | ((membership: WorkspaceMembership, actions: AuthGateActions) => ReactNode);
+  children: ReactNode | ((membership: WorkspaceMembership, actions: AuthGateActions, session: AuthSession) => ReactNode);
   onBeforeSignOut?: () => void | Promise<void>;
 };
 
@@ -20,6 +20,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
   const [error, setError] = useState('');
   const [blockedError, setBlockedError] = useState('');
   const [membership, setMembership] = useState<WorkspaceMembership | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [checking, setChecking] = useState(false);
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -40,6 +41,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
         if (isCurrentAuthRequest(requestId)) {
           setStatus('signed-out');
           setMembership(null);
+          setAuthSession(null);
           setBlockedError('');
           setChecking(false);
         }
@@ -55,12 +57,14 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
         const membership = await authRepository.getWorkspaceMembership();
         if (isCurrentAuthRequest(requestId)) {
           setMembership(membership);
+          setAuthSession(session);
           setStatus(membership ? 'ready' : 'blocked');
           setChecking(false);
         }
       } catch {
         if (isCurrentAuthRequest(requestId)) {
           setMembership(null);
+          setAuthSession(null);
           setStatus('blocked');
           setBlockedError('작업실 권한을 확인하지 못했습니다. 다시 시도해 주세요.');
           setChecking(false);
@@ -84,6 +88,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
       if (isCurrentAuthRequest(requestId)) {
         setStatus('signed-out');
         setMembership(null);
+        setAuthSession(null);
         setChecking(false);
       }
     }
@@ -138,6 +143,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
         setEmail('');
         setPassword('');
         setMembership(null);
+        setAuthSession(null);
         setStatus('signed-out');
       }
     } catch {
@@ -147,10 +153,10 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
     }
   }
 
-  if (status === 'ready' && membership) {
+  if (status === 'ready' && membership && authSession) {
     return (
       <div className="appReveal">
-        {typeof children === 'function' ? children(membership, { signOut: handleSignOut }) : children}
+        {typeof children === 'function' ? children(membership, { signOut: handleSignOut }, authSession) : children}
       </div>
     );
   }

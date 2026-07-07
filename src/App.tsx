@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createAuthRepository } from './auth/authRepository';
-import type { WorkspaceMembership } from './auth/authTypes';
+import type { AuthRepository, WorkspaceMembership } from './auth/authTypes';
+import { AccountModal } from './components/AccountModal';
 import { AuthGate } from './components/AuthGate';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
 import { OrderDetail } from './components/OrderDetail';
@@ -60,11 +61,13 @@ type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
 
 interface WorkspaceAppProps {
   membership: WorkspaceMembership;
+  currentEmail: string;
+  authRepository: AuthRepository;
   orderRepository: OrderRepository;
   onSignOut?: () => Promise<void>;
 }
 
-export function WorkspaceApp({ membership, orderRepository, onSignOut }: WorkspaceAppProps) {
+export function WorkspaceApp({ membership, currentEmail, authRepository, orderRepository, onSignOut }: WorkspaceAppProps) {
   const [orders, setOrders] = useState<CapturedOrder[]>([]);
   const [settings, setSettings] = useState<OrderSettings>(() => DEFAULT_SETTINGS);
   const [loadStatus, setLoadStatus] = useState<WorkspaceLoadStatus>('loading');
@@ -76,6 +79,7 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
   const [captureSource, setCaptureSource] = useState<OrderSource>(savedOrderDraft?.source ?? '카카오톡 채널');
   const [sourceFilter, setSourceFilter] = useState<OrderSourceFilter>('전체');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
   const currentWorkspaceIdRef = useRef(membership.workspaceId);
   const workspaceGenerationRef = useRef(0);
@@ -399,6 +403,14 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
           </div>
           <div className="headerActions">
             <QuestionNote />
+            <button
+              type="button"
+              className="secondaryButton compactTextButton"
+              aria-label={`계정 관리 ${currentEmail}`}
+              onClick={() => setAccountOpen(true)}
+            >
+              계정
+            </button>
             {canManageWorkspace ? (
               <button
                 type="button"
@@ -501,6 +513,13 @@ export function WorkspaceApp({ membership, orderRepository, onSignOut }: Workspa
           onClose={() => setSettingsOpen(false)}
           onSave={handleSaveSettings}
         />
+        <AccountModal
+          open={accountOpen}
+          currentEmail={currentEmail}
+          membership={membership}
+          authRepository={authRepository}
+          onClose={() => setAccountOpen(false)}
+        />
       </main>
   );
 }
@@ -512,10 +531,12 @@ export default function App() {
 
   return (
     <AuthGate authRepository={authRepository} onBeforeSignOut={clearLocalOrderData}>
-      {(membership, { signOut }) => (
+      {(membership, { signOut }, session) => (
         <WorkspaceApp
           key={membership.workspaceId}
           membership={membership}
+          currentEmail={session.email}
+          authRepository={authRepository}
           orderRepository={orderRepository}
           onSignOut={signOut}
         />
