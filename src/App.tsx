@@ -1,101 +1,36 @@
-import { type KeyboardEvent, useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { createAuthRepository } from './auth/authRepository';
+import type { WorkspaceMembership } from './auth/authTypes';
+import { AuthGate } from './components/AuthGate';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
-import { AccessGate } from './components/AccessGate';
 import { OrderDetail } from './components/OrderDetail';
 import { OrderList } from './components/OrderList';
 import { QuestionNote } from './components/QuestionNote';
 import { SettingsModal } from './components/SettingsModal';
 import {
-  EMPTY_ORDER_FIELDS,
+  DEFAULT_SETTINGS,
   ORDER_SOURCES,
   type CapturedOrder,
   type OrderSettings,
   type OrderSource,
 } from './domain/orderTypes';
+import {
+  clearSavedOrderDraft,
+  clearLocalOrderData,
+  loadRecentOrderCacheSnapshot,
+  loadSavedOrderDraft,
+  saveOrderDraft,
+  saveRecentOrderCache,
+} from './domain/localDraftCache';
+import { createOrderRepository, type OrderRepository } from './domain/orderRepository';
 import { evaluateOrder } from './domain/reviewRules';
 import { sortOrders, type OrderSortMode } from './domain/orderSorting';
-import { loadOrders, loadSettings, saveOrders, saveSettings } from './domain/storage';
+import { createBrowserSupabaseClient } from './lib/supabaseClient';
 import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
-
-const createYuriruSampleOrder = (): CapturedOrder => ({
-  ...EMPTY_ORDER_FIELDS,
-  id: 'sample-yuriru',
-  source: '인스타그램',
-  rawText: '성함: 유리루\n상품: 곶감말이 4구 세트\n수량: 2세트\n희망일: 2026-07-04\n수령 방식: 픽업',
-  customerName: '유리루',
-  orderItems: '곶감말이 4구 세트',
-  quantity: '2세트',
-  fulfillmentType: '픽업',
-  desiredDateTime: '2026-07-04',
-  pickupTime: '15:00',
-  menuMatches: [],
-  quantityCandidates: [{ value: 2, unit: '세트', rawText: '2세트' }],
-  parsedDate: {
-    isoDate: '2026-07-04',
-    timeText: '',
-    originalText: '2026-07-04',
-    isRelative: false,
-  },
-  manuallyEditedFields: [],
-  reparseDifferences: [],
-  missingFields: [],
-  reviewReasons: [],
-  warningLevel: 'none',
-  status: '신규',
-  createdAt: '2026-07-03T00:00:00.000Z',
-  updatedAt: '2026-07-03T00:00:00.000Z',
-});
-
-const createNasdaqSampleOrder = (): CapturedOrder => ({
-  ...EMPTY_ORDER_FIELDS,
-  id: 'sample-nasdaq-3x',
-  source: '네이버 스마트스토어',
-  rawText:
-    '성함: 나스닥3배\n연락처: 010-3333-7777\n상품: 화과자 4구 세트\n수량: 2세트\n선물 용도: 감사 선물\n수령 방식: 픽업\n희망일: 2026-07-05\n픽업 시간: 14:00\n알레르기: 없음\n추가 옵션: 보자기 포장\n요청사항: 선물용 쇼핑백 부탁드립니다.',
-  customerName: '나스닥3배',
-  phone: '010-3333-7777',
-  orderItems: '화과자 4구 세트',
-  quantity: '2세트',
-  purpose: '감사 선물',
-  fulfillmentType: '픽업',
-  desiredDateTime: '2026-07-05',
-  pickupTime: '14:00',
-  allergyNote: '없음',
-  options: '보자기 포장',
-  customerRequestNote: '선물용 쇼핑백 부탁드립니다.',
-  ownerMemo: '정석 입력 예시',
-  menuMatches: [
-    {
-      menuId: 'sample-wagashi-4',
-      label: '화과자 4구 세트',
-      unitCount: 4,
-      confidence: 'exact',
-    },
-  ],
-  quantityCandidates: [{ value: 2, unit: '세트', rawText: '2세트' }],
-  parsedDate: {
-    isoDate: '2026-07-05',
-    timeText: '',
-    originalText: '2026-07-05',
-    isRelative: false,
-  },
-  manuallyEditedFields: [],
-  reparseDifferences: [],
-  missingFields: [],
-  reviewReasons: [],
-  warningLevel: 'none',
-  status: '신규',
-  createdAt: '2026-07-03T00:05:00.000Z',
-  updatedAt: '2026-07-03T00:05:00.000Z',
-});
-
-const loadInitialOrders = () => {
-  const storedOrders = loadOrders();
-
-  return storedOrders.length > 0 ? storedOrders : [createNasdaqSampleOrder(), createYuriruSampleOrder()];
-};
+const OFFLINE_CACHE_STATUS_MESSAGE = '오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.';
+const READ_ONLY_CACHE_MUTATION_MESSAGE = '오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.';
 
 const loadCapturePanelCollapsed = () => {
   try {
@@ -121,23 +56,147 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
   }
 };
 
-export default function App() {
-  const [orders, setOrders] = useState<CapturedOrder[]>(() => loadInitialOrders());
-  const [settings, setSettings] = useState<OrderSettings>(() => loadSettings());
+type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
+
+interface WorkspaceAppProps {
+  membership: WorkspaceMembership;
+  orderRepository: OrderRepository;
+  onSignOut?: () => Promise<void>;
+}
+
+export function WorkspaceApp({ membership, orderRepository, onSignOut }: WorkspaceAppProps) {
+  const [orders, setOrders] = useState<CapturedOrder[]>([]);
+  const [settings, setSettings] = useState<OrderSettings>(() => DEFAULT_SETTINGS);
+  const [loadStatus, setLoadStatus] = useState<WorkspaceLoadStatus>('loading');
+  const [loadedWorkspaceId, setLoadedWorkspaceId] = useState<string | null>(null);
+  const [saveStatusMessage, setSaveStatusMessage] = useState('');
+  const [savedOrderDraft, setSavedOrderDraft] = useState(() => loadSavedOrderDraft());
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sortMode, setSortMode] = useState<OrderSortMode>('desiredDate');
-  const [captureSource, setCaptureSource] = useState<OrderSource>('카카오톡 채널');
+  const [captureSource, setCaptureSource] = useState<OrderSource>(savedOrderDraft?.source ?? '카카오톡 채널');
   const [sourceFilter, setSourceFilter] = useState<OrderSourceFilter>('전체');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
+  const currentWorkspaceIdRef = useRef(membership.workspaceId);
+  const workspaceGenerationRef = useRef(0);
+  const orderSaveSequenceByIdRef = useRef(new Map<string, number>());
+  const orderSaveChainByIdRef = useRef(new Map<string, Promise<void>>());
+  const settingsSaveSequenceRef = useRef(0);
+
+  const isCurrentWorkspaceGeneration = (workspaceId: string, generation: number) =>
+    currentWorkspaceIdRef.current === workspaceId && workspaceGenerationRef.current === generation;
+
+  const nextOrderSaveSequence = (orderId: string) => {
+    const nextSequence = (orderSaveSequenceByIdRef.current.get(orderId) ?? 0) + 1;
+    orderSaveSequenceByIdRef.current.set(orderId, nextSequence);
+
+    return nextSequence;
+  };
+
+  const isLatestOrderSave = (workspaceId: string, generation: number, orderId: string, sequence: number) =>
+    isCurrentWorkspaceGeneration(workspaceId, generation) &&
+    orderSaveSequenceByIdRef.current.get(orderId) === sequence;
+
+  const enqueueOrderSave = (orderId: string, task: () => Promise<void>) => {
+    const previousSave = orderSaveChainByIdRef.current.get(orderId) ?? Promise.resolve();
+    const nextSave = previousSave.catch(() => undefined).then(task);
+    orderSaveChainByIdRef.current.set(orderId, nextSave);
+
+    nextSave
+      .finally(() => {
+        if (orderSaveChainByIdRef.current.get(orderId) === nextSave) {
+          orderSaveChainByIdRef.current.delete(orderId);
+        }
+      })
+      .catch(() => undefined);
+
+    return nextSave;
+  };
+
+  const nextSettingsSaveSequence = () => {
+    settingsSaveSequenceRef.current += 1;
+
+    return settingsSaveSequenceRef.current;
+  };
+
+  const isLatestSettingsSave = (workspaceId: string, generation: number, sequence: number) =>
+    isCurrentWorkspaceGeneration(workspaceId, generation) && settingsSaveSequenceRef.current === sequence;
+
+  const isOfflineCacheReadonly = loadStatus === 'offline-cache';
+  const canManageWorkspace = membership.role === 'owner';
+
+  const blockOfflineCacheMutation = () => {
+    if (!isOfflineCacheReadonly) {
+      return false;
+    }
+
+    setSaveStatusMessage(READ_ONLY_CACHE_MUTATION_MESSAGE);
+    return true;
+  };
 
   useEffect(() => {
-    saveOrders(orders);
-  }, [orders]);
+    const workspaceId = membership.workspaceId;
+    const generation = workspaceGenerationRef.current + 1;
+    workspaceGenerationRef.current = generation;
+    currentWorkspaceIdRef.current = workspaceId;
+    orderSaveSequenceByIdRef.current.clear();
+    orderSaveChainByIdRef.current.clear();
+    settingsSaveSequenceRef.current = 0;
+
+    setLoadStatus('loading');
+    setLoadedWorkspaceId(null);
+    setSaveStatusMessage('');
+    setSelectedId(null);
+    setSourceFilter('전체');
+
+    orderRepository
+      .loadWorkspaceData(workspaceId)
+      .then((workspaceData) => {
+        if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+          return;
+        }
+
+        setOrders(workspaceData.orders);
+        setSettings(workspaceData.settings);
+        setLoadedWorkspaceId(workspaceId);
+        setLoadStatus('ready');
+      })
+      .catch(() => {
+        if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+          return;
+        }
+
+        const cachedSnapshot = loadRecentOrderCacheSnapshot(workspaceId);
+
+        if (cachedSnapshot) {
+          setOrders(cachedSnapshot.orders);
+          setSettings(DEFAULT_SETTINGS);
+          setLoadedWorkspaceId(workspaceId);
+          setLoadStatus('offline-cache');
+          return;
+        }
+
+        setLoadStatus('error');
+      });
+
+    return () => {
+      if (isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        workspaceGenerationRef.current += 1;
+      }
+    };
+  }, [membership.workspaceId, orderRepository]);
 
   useEffect(() => {
-    saveSettings(settings);
-  }, [settings]);
+    if (loadStatus !== 'ready' || navigator.onLine === false || loadedWorkspaceId !== membership.workspaceId) {
+      return;
+    }
+
+    const cacheWriteId = window.setTimeout(() => {
+      saveRecentOrderCache(membership.workspaceId, orders);
+    }, 250);
+
+    return () => window.clearTimeout(cacheWriteId);
+  }, [loadStatus, loadedWorkspaceId, membership.workspaceId, orders]);
 
   const filteredOrders = useMemo(
     () => (sourceFilter === '전체' ? orders : orders.filter((order) => order.source === sourceFilter)),
@@ -149,20 +208,72 @@ export default function App() {
   );
   const displayOrders = useMemo(() => sortOrders(filteredOrders, sortMode), [filteredOrders, sortMode]);
 
-  function handleSaveOrder(order: CapturedOrder) {
-    setOrders((current) => [order, ...current]);
-    setSourceFilter(order.source);
-    setSelectedId(order.id);
+  async function handleSaveOrder(order: CapturedOrder) {
+    if (blockOfflineCacheMutation()) {
+      return false;
+    }
+
+    const workspaceId = membership.workspaceId;
+    const generation = workspaceGenerationRef.current;
+
+    try {
+      const savedOrder = await orderRepository.saveOrder(workspaceId, order);
+
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        return false;
+      }
+
+      setOrders((current) => [savedOrder, ...current]);
+      setSourceFilter(savedOrder.source);
+      setSelectedId(savedOrder.id);
+      clearSavedOrderDraft();
+      setSavedOrderDraft(null);
+      setSaveStatusMessage('');
+      return true;
+    } catch {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        return false;
+      }
+
+      saveOrderDraft(order);
+      setSaveStatusMessage('저장하지 못했습니다. 입력 내용은 임시 저장했어요.');
+      return false;
+    }
   }
 
-  function handleClearOrders() {
+  async function handleClearOrders() {
+    if (blockOfflineCacheMutation()) {
+      return;
+    }
+
     if (!window.confirm('저장된 주문을 모두 삭제할까요?')) {
       return;
     }
 
-    setOrders([]);
-    setSelectedId(null);
-    setSourceFilter('전체');
+    const workspaceId = membership.workspaceId;
+    const generation = workspaceGenerationRef.current;
+    const orderIdsAtClearStart = orders.map((order) => order.id);
+    const orderIdsAtClearStartSet = new Set(orderIdsAtClearStart);
+
+    try {
+      await orderRepository.deleteOrders(workspaceId, orderIdsAtClearStart);
+
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        return;
+      }
+
+      setOrders((current) => current.filter((order) => !orderIdsAtClearStartSet.has(order.id)));
+      setSelectedId((currentSelectedId) =>
+        currentSelectedId && orderIdsAtClearStartSet.has(currentSelectedId) ? null : currentSelectedId,
+      );
+      setSaveStatusMessage('');
+    } catch {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        return;
+      }
+
+      setSaveStatusMessage('주문을 삭제하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    }
   }
 
   function handleSourceFilterChange(nextSourceFilter: OrderSourceFilter) {
@@ -177,13 +288,73 @@ export default function App() {
     });
   }
 
-  function handleChangeOrder(nextOrder: CapturedOrder) {
+  async function handleChangeOrder(nextOrder: CapturedOrder) {
+    if (blockOfflineCacheMutation()) {
+      return;
+    }
+
+    const workspaceId = membership.workspaceId;
+    const generation = workspaceGenerationRef.current;
+    const sequence = nextOrderSaveSequence(nextOrder.id);
+    const previousOrder = orders.find((order) => order.id === nextOrder.id) ?? null;
+
     setOrders((current) => current.map((order) => (order.id === nextOrder.id ? nextOrder : order)));
+
+    await enqueueOrderSave(nextOrder.id, async () => {
+      if (!isCurrentWorkspaceGeneration(workspaceId, generation)) {
+        return;
+      }
+
+      try {
+        const savedOrder = await orderRepository.saveOrder(workspaceId, nextOrder);
+
+        if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+          return;
+        }
+
+        setOrders((current) => current.map((order) => (order.id === savedOrder.id ? savedOrder : order)));
+        setSaveStatusMessage('');
+      } catch {
+        if (!isLatestOrderSave(workspaceId, generation, nextOrder.id, sequence)) {
+          return;
+        }
+
+        const restoredOrder = previousOrder;
+        if (restoredOrder) {
+          setOrders((current) => current.map((order) => (order.id === nextOrder.id ? restoredOrder : order)));
+        }
+        setSaveStatusMessage('변경 내용을 저장하지 못했습니다. 임시 저장했어요.');
+      }
+    });
   }
 
-  function handleSaveSettings(nextSettings: OrderSettings) {
-    setSettings(nextSettings);
-    setOrders((current) => current.map((order) => evaluateOrder(order, nextSettings)));
+  async function handleSaveSettings(nextSettings: OrderSettings) {
+    if (blockOfflineCacheMutation()) {
+      throw new Error(READ_ONLY_CACHE_MUTATION_MESSAGE);
+    }
+
+    const workspaceId = membership.workspaceId;
+    const generation = workspaceGenerationRef.current;
+    const sequence = nextSettingsSaveSequence();
+
+    try {
+      const savedSettings = await orderRepository.saveSettings(workspaceId, nextSettings);
+
+      if (!isLatestSettingsSave(workspaceId, generation, sequence)) {
+        return;
+      }
+
+      setSettings(savedSettings);
+      setOrders((current) => current.map((order) => evaluateOrder(order, savedSettings)));
+      setSaveStatusMessage('');
+    } catch (error) {
+      if (!isLatestSettingsSave(workspaceId, generation, sequence)) {
+        return;
+      }
+
+      setSaveStatusMessage('설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      throw error;
+    }
   }
 
   function toggleCapturePanel() {
@@ -201,8 +372,25 @@ export default function App() {
     }
   }
 
+  if (loadStatus === 'loading') {
+    return (
+      <main className="appShell appStateShell">
+        <p role="status" aria-live="polite">
+          주문 데이터를 불러오고 있어요.
+        </p>
+      </main>
+    );
+  }
+
+  if (loadStatus === 'error') {
+    return (
+      <main className="appShell appStateShell">
+        <p role="alert">주문 데이터를 불러오지 못했습니다.</p>
+      </main>
+    );
+  }
+
   return (
-    <AccessGate>
       <main className="appShell">
         <header className="appHeader">
           <div>
@@ -211,17 +399,39 @@ export default function App() {
           </div>
           <div className="headerActions">
             <QuestionNote />
-            <button
-              type="button"
-              className="secondaryButton iconButton settingsIconButton"
-              aria-label="관리 설정"
-              title="관리 설정"
-              onClick={() => setSettingsOpen(true)}
-            >
-              <span aria-hidden="true">⚙</span>
-            </button>
+            {canManageWorkspace ? (
+              <button
+                type="button"
+                className="secondaryButton iconButton settingsIconButton"
+                aria-label="관리 설정"
+                title="관리 설정"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <span aria-hidden="true">⚙</span>
+              </button>
+            ) : null}
+            {onSignOut ? (
+              <button type="button" className="secondaryButton compactTextButton" onClick={onSignOut}>
+                로그아웃
+              </button>
+            ) : null}
           </div>
         </header>
+        {isOfflineCacheReadonly ? (
+          <p className="appPersistenceStatus" role="status" aria-live="polite">
+            {OFFLINE_CACHE_STATUS_MESSAGE}
+          </p>
+        ) : null}
+        {saveStatusMessage ? (
+          <p className="appPersistenceStatus" role="status" aria-live="polite">
+            {saveStatusMessage}
+          </p>
+        ) : null}
+        {savedOrderDraft ? (
+          <p className="appPersistenceStatus" role="status" aria-live="polite">
+            임시 저장된 주문 원문을 복구했어요.
+          </p>
+        ) : null}
 
         <div className="workspaceLayout">
           <section className="capturePanel" aria-label="주문 수집">
@@ -258,6 +468,7 @@ export default function App() {
                   existingRawTexts={orders.map((order) => order.rawText)}
                   settings={settings}
                   source={captureSource}
+                  initialRawText={savedOrderDraft?.rawText}
                   onSave={handleSaveOrder}
                 />
               </div>
@@ -273,7 +484,7 @@ export default function App() {
             onSortModeChange={setSortMode}
             onSourceFilterChange={handleSourceFilterChange}
             onSelect={setSelectedId}
-            onClearOrders={handleClearOrders}
+            onClearOrders={canManageWorkspace ? handleClearOrders : undefined}
           />
 
           <OrderDetail
@@ -291,6 +502,24 @@ export default function App() {
           onSave={handleSaveSettings}
         />
       </main>
-    </AccessGate>
+  );
+}
+
+export default function App() {
+  const supabase = useMemo(() => createBrowserSupabaseClient(), []);
+  const authRepository = useMemo(() => createAuthRepository(supabase), [supabase]);
+  const orderRepository = useMemo(() => createOrderRepository(supabase as never), [supabase]);
+
+  return (
+    <AuthGate authRepository={authRepository} onBeforeSignOut={clearLocalOrderData}>
+      {(membership, { signOut }) => (
+        <WorkspaceApp
+          key={membership.workspaceId}
+          membership={membership}
+          orderRepository={orderRepository}
+          onSignOut={signOut}
+        />
+      )}
+    </AuthGate>
   );
 }

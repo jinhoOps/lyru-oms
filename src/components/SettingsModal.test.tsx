@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../domain/orderTypes';
@@ -8,6 +8,17 @@ import { SettingsModal } from './SettingsModal';
 afterEach(() => {
   cleanup();
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 describe('SettingsModal', () => {
   it('shows default quantity rules and accurate conditional guidance', () => {
@@ -33,6 +44,46 @@ describe('SettingsModal', () => {
     await userEvent.keyboard('{Escape}');
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('awaits async save and prevents duplicate saves while pending', async () => {
+    const user = userEvent.setup();
+    const pendingSave = createDeferred<void>();
+    const onSave = vi.fn(() => pendingSave.promise);
+    const onClose = vi.fn();
+    render(<SettingsModal open settings={DEFAULT_SETTINGS} onClose={onClose} onSave={onSave} />);
+
+    await user.dblClick(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: '저장 중' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '설정 닫기' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '취소' })).toBeDisabled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      pendingSave.resolve();
+      await pendingSave.promise;
+    });
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the modal open when async save fails', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockRejectedValue(new Error('save failed'));
+    const onClose = vi.fn();
+    render(<SettingsModal open settings={DEFAULT_SETTINGS} onClose={onClose} onSave={onSave} />);
+
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('설정을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+    expect(screen.getByRole('dialog', { name: '정보 부족 기준' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('keeps Tab focus inside modal controls', async () => {
@@ -78,7 +129,7 @@ describe('SettingsModal', () => {
         }),
       }),
     );
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
   });
 
   it('saves edited minimum order rules', async () => {

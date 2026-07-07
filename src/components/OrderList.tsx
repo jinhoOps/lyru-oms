@@ -17,7 +17,7 @@ interface OrderListProps {
   onSortModeChange: (mode: OrderSortMode) => void;
   onSourceFilterChange: (source: OrderSourceFilter) => void;
   onSelect: (orderId: string) => void;
-  onClearOrders: () => void;
+  onClearOrders?: () => void;
 }
 
 const ORDER_LIST_VIEW_MODE_KEY = 'lyru-oms.orderList.viewMode.v1';
@@ -505,7 +505,7 @@ export function OrderList({
 
   function clearOrdersFromActionMenu() {
     setActionMenuOpen(false);
-    onClearOrders();
+    onClearOrders?.();
   }
 
   const header = (
@@ -600,42 +600,44 @@ export function OrderList({
               </div>
             ) : null}
           </div>
-          <div
-            className="actionMenuWrap"
-            onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setActionMenuOpen(false))}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                setActionMenuOpen(false);
-              }
-            }}
-          >
-            <button
-              type="button"
-              className="secondaryButton compactTextButton actionButton"
-              aria-expanded={actionMenuOpen}
-              onClick={() => {
-                setSortMenuOpen(false);
-                setViewMenuOpen(false);
-                setSourceMenuOpen(false);
-                setActionMenuOpen((open) => !open);
+          {onClearOrders ? (
+            <div
+              className="actionMenuWrap"
+              onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setActionMenuOpen(false))}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setActionMenuOpen(false);
+                }
               }}
             >
-              작업
-            </button>
-            {actionMenuOpen ? (
-              <div className="sortMenu actionMenu" role="menu" aria-label="주문 목록 작업">
-                <button
-                  type="button"
-                  className="actionMenuItem danger"
-                  role="menuitem"
-                  disabled={totalOrderCount === 0}
-                  onClick={clearOrdersFromActionMenu}
-                >
-                  전체 삭제
-                </button>
-              </div>
-            ) : null}
-          </div>
+              <button
+                type="button"
+                className="secondaryButton compactTextButton actionButton"
+                aria-expanded={actionMenuOpen}
+                onClick={() => {
+                  setSortMenuOpen(false);
+                  setViewMenuOpen(false);
+                  setSourceMenuOpen(false);
+                  setActionMenuOpen((open) => !open);
+                }}
+              >
+                작업
+              </button>
+              {actionMenuOpen ? (
+                <div className="sortMenu actionMenu" role="menu" aria-label="주문 목록 작업">
+                  <button
+                    type="button"
+                    className="actionMenuItem danger"
+                    role="menuitem"
+                    disabled={totalOrderCount === 0}
+                    onClick={clearOrdersFromActionMenu}
+                  >
+                    전체 삭제
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <div
             className="sourceMenuWrap"
             onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setSourceMenuOpen(false))}

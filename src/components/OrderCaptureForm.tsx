@@ -1,4 +1,4 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useMemo, useRef, useState } from 'react';
 import {
   EMPTY_ORDER_FIELDS,
   type CapturedOrder,
@@ -12,35 +12,62 @@ interface OrderCaptureFormProps {
   existingRawTexts: string[];
   settings: OrderSettings;
   source: OrderSource;
-  onSave: (order: CapturedOrder) => void;
+  initialRawText?: string;
+  onSave: (order: CapturedOrder) => void | boolean | Promise<void | boolean>;
 }
 
 const createOrderId = () => {
-  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
-    return crypto.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
   }
 
-  return `order-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const bytes = new Uint8Array(16);
+
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index += 1) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 };
 
-export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }: OrderCaptureFormProps) {
-  const [rawText, setRawText] = useState('');
+export function OrderCaptureForm({
+  existingRawTexts,
+  settings,
+  source,
+  initialRawText = '',
+  onSave,
+}: OrderCaptureFormProps) {
+  const [rawText, setRawText] = useState(initialRawText);
+  const [isSaving, setIsSaving] = useState(false);
+  const isSavingRef = useRef(false);
 
   const parsed = useMemo(() => parseRawText(rawText), [rawText]);
   const isDuplicate = rawText.trim() !== '' && hasSimilarRawText(rawText, existingRawTexts);
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    if (!rawText.trim()) {
+    if (isSavingRef.current || !rawText.trim()) {
       return;
     }
 
+    isSavingRef.current = true;
+    setIsSaving(true);
+
     const now = new Date().toISOString();
+    const submittedRawText = rawText;
     const baseOrder: CapturedOrder = {
       id: createOrderId(),
       source,
-      rawText,
+      rawText: submittedRawText,
       ...EMPTY_ORDER_FIELDS,
       ...parsed,
       manuallyEditedFields: [],
@@ -64,8 +91,15 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
       updatedAt: now,
     };
 
-    onSave(evaluateOrder(baseOrder, settings));
-    setRawText('');
+    try {
+      const saved = await onSave(evaluateOrder(baseOrder, settings));
+      if (saved !== false) {
+        setRawText((currentRawText) => (currentRawText === submittedRawText ? '' : currentRawText));
+      }
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -87,8 +121,8 @@ export function OrderCaptureForm({ existingRawTexts, settings, source, onSave }:
         <span>선물 용도: {parsed.purpose || '-'}</span>
         <span>수령 방식: {parsed.fulfillmentType || '-'}</span>
       </div>
-      <button type="submit" disabled={!rawText.trim()}>
-        저장
+      <button type="submit" disabled={isSaving || !rawText.trim()}>
+        {isSaving ? '저장 중' : '저장'}
       </button>
     </form>
   );

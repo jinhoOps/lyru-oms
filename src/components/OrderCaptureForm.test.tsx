@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../domain/orderTypes';
@@ -7,7 +7,19 @@ import { OrderCaptureForm } from './OrderCaptureForm';
 
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
+  });
+
+  return { promise, resolve, reject };
+}
 
 describe('OrderCaptureForm', () => {
   it('shows future smart store API automation guidance above raw input', () => {
@@ -16,6 +28,21 @@ describe('OrderCaptureForm', () => {
     );
 
     expect(screen.getByText('네이버 스마트스토어 같은 경우는 API 개발하면 자동으로 주문목록 추가 가능해요.')).toBeInTheDocument();
+  });
+
+  it('pre-populates raw text from a recovered draft', () => {
+    render(
+      <OrderCaptureForm
+        existingRawTexts={[]}
+        settings={DEFAULT_SETTINGS}
+        source="카카오톡 채널"
+        initialRawText="성함: 임시저장고객"
+        onSave={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('주문/문의 원문')).toHaveValue('성함: 임시저장고객');
+    expect(screen.getByText('주문 내용: -')).toBeInTheDocument();
   });
 
   it('saves raw text even when required fields are missing', async () => {
@@ -31,6 +58,26 @@ describe('OrderCaptureForm', () => {
         rawText: '성함: 김리루',
         customerName: '김리루',
         status: '확인 필요',
+      }),
+    );
+  });
+
+  it('creates a database-compatible UUID when crypto.randomUUID is unavailable', async () => {
+    const onSave = vi.fn();
+    vi.stubGlobal('crypto', {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.set(Array.from({ length: bytes.length }, (_, index) => index));
+        return bytes;
+      },
+    });
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    await userEvent.type(screen.getByLabelText('주문/문의 원문'), '성함: UUID고객');
+    await userEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: '00010203-0405-4607-8809-0a0b0c0d0e0f',
       }),
     );
   });
@@ -51,6 +98,47 @@ describe('OrderCaptureForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: '저장' }));
     expect(onSave).toHaveBeenCalled();
+  });
+
+  it('prevents duplicate submits while a save is pending', async () => {
+    const user = userEvent.setup();
+    const pendingSave = createDeferred<boolean>();
+    const onSave = vi.fn(() => pendingSave.promise);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 중복방지고객');
+    await user.dblClick(screen.getByRole('button', { name: '저장' }));
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: '저장 중' })).toBeDisabled();
+
+    await act(async () => {
+      pendingSave.resolve(true);
+      await pendingSave.promise;
+    });
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+  });
+
+  it('does not clear newer raw text when an older pending save succeeds', async () => {
+    const user = userEvent.setup();
+    const pendingSave = createDeferred<boolean>();
+    const onSave = vi.fn(() => pendingSave.promise);
+    render(<OrderCaptureForm existingRawTexts={[]} settings={DEFAULT_SETTINGS} source="카카오톡 채널" onSave={onSave} />);
+
+    const rawTextInput = screen.getByLabelText('주문/문의 원문');
+    await user.type(rawTextInput, '성함: 첫고객');
+    await user.click(screen.getByRole('button', { name: '저장' }));
+
+    fireEvent.change(rawTextInput, { target: { value: '성함: 새고객' } });
+    expect(rawTextInput).toHaveValue('성함: 새고객');
+
+    await act(async () => {
+      pendingSave.resolve(true);
+      await pendingSave.promise;
+    });
+
+    expect(rawTextInput).toHaveValue('성함: 새고객');
   });
 
   it('keeps the extraction preview focused on order content fields', async () => {
