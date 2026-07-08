@@ -91,7 +91,12 @@ afterEach(() => {
 
 async function renderUnlockedApp() {
   render(<App />);
-  await screen.findByRole('heading', { name: '주문 표준화 작업실' }, { timeout: 2000 });
+  await screen.findByRole('heading', { name: '리루네 과자집' }, { timeout: 2000 });
+}
+
+async function openWorkspaceMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: '메뉴' }));
+  return screen.getByRole('menu', { name: '작업실 메뉴' });
 }
 
 async function selectOrderListChannel(user: ReturnType<typeof userEvent.setup>, channel: string) {
@@ -154,9 +159,9 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '사장님께 확인할 질문' }));
 
     expect(screen.getByRole('region', { name: '확인 질문 쪽지' })).toBeInTheDocument();
-    const settingsButton = screen.getByRole('button', { name: '관리 설정' });
-    expect(settingsButton).toBeInTheDocument();
-    expect(settingsButton).toHaveTextContent('⚙');
+    const menuButton = screen.getByRole('button', { name: '메뉴' });
+    expect(menuButton).toBeInTheDocument();
+    expect(menuButton).toHaveTextContent('⚙');
   });
 
   it('starts an empty authenticated workspace without sample orders', async () => {
@@ -173,10 +178,27 @@ describe('App', () => {
     const user = userEvent.setup();
 
     await renderUnlockedApp();
-    await user.click(screen.getByRole('button', { name: /계정 관리 owner@lyru.test/ }));
+    const menu = await openWorkspaceMenu(user);
+    await user.click(within(menu).getByRole('menuitem', { name: '계정 관리' }));
 
     expect(screen.getByRole('dialog', { name: '로그인 계정 관리' })).toBeInTheDocument();
     expect(screen.getByText('owner@lyru.test')).toBeInTheDocument();
+  });
+
+  it('opens owner settings from the workspace menu', async () => {
+    const user = userEvent.setup();
+
+    await renderUnlockedApp();
+    const menu = await openWorkspaceMenu(user);
+
+    expect(within(menu).getByRole('menuitem', { name: '필수 설정' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '계정 관리' })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '로그아웃' })).toBeInTheDocument();
+
+    await user.click(within(menu).getByRole('menuitem', { name: '필수 설정' }));
+
+    expect(screen.getByRole('dialog', { name: '정보 부족 기준' })).toBeInTheDocument();
+    expect(screen.queryByRole('menu', { name: '작업실 메뉴' })).not.toBeInTheDocument();
   });
 
   it('hides owner-only workspace actions for staff members', async () => {
@@ -195,9 +217,14 @@ describe('App', () => {
       />,
     );
 
-    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await screen.findByRole('heading', { name: '리루네 과자집' });
 
     expect(screen.queryByRole('button', { name: '관리 설정' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: '메뉴' }));
+    const menu = screen.getByRole('menu', { name: '작업실 메뉴' });
+    expect(within(menu).queryByRole('menuitem', { name: '필수 설정' })).not.toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '계정 관리' })).toBeInTheDocument();
+    expect(within(menu).queryByRole('menuitem', { name: '로그아웃' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '작업' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /직원확인고객/ }));
@@ -219,7 +246,7 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('주문 데이터를 불러오지 못했습니다.');
-    expect(screen.queryByRole('heading', { name: '주문 표준화 작업실' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: '리루네 과자집' })).not.toBeInTheDocument();
   });
 
   it('shows cached orders read-only when offline workspace loading fails', async () => {
@@ -267,7 +294,8 @@ describe('App', () => {
     expect(screen.getByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
     expect(orderRepositoryMock.deleteOrders).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: '관리 설정' }));
+    await user.click(screen.getByRole('button', { name: '메뉴' }));
+    await user.click(screen.getByRole('menuitem', { name: '필수 설정' }));
     await user.click(within(screen.getByRole('dialog', { name: '정보 부족 기준' })).getByRole('button', { name: '저장' }));
 
     expect(screen.getByText('오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.')).toBeInTheDocument();
@@ -373,7 +401,8 @@ describe('App', () => {
     expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).not.toBeNull();
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).not.toBeNull();
 
-    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(screen.getByRole('button', { name: '메뉴' }));
+    await user.click(screen.getByRole('menuitem', { name: '로그아웃' }));
     await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(authRepositoryMock.signOut).toHaveBeenCalledTimes(1);
@@ -386,7 +415,8 @@ describe('App', () => {
     const user = userEvent.setup();
 
     await renderUnlockedApp();
-    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(screen.getByRole('button', { name: '메뉴' }));
+    await user.click(screen.getByRole('menuitem', { name: '로그아웃' }));
 
     const confirmDialog = screen.getByRole('dialog', { name: '로그아웃할까요?' });
     expect(confirmDialog).toBeInTheDocument();
@@ -397,7 +427,8 @@ describe('App', () => {
     expect(screen.queryByRole('dialog', { name: '로그아웃할까요?' })).not.toBeInTheDocument();
     expect(authRepositoryMock.signOut).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(screen.getByRole('button', { name: '메뉴' }));
+    await user.click(screen.getByRole('menuitem', { name: '로그아웃' }));
     await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(authRepositoryMock.signOut).toHaveBeenCalledTimes(1);
@@ -533,7 +564,7 @@ describe('App', () => {
       />,
     );
 
-    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await screen.findByRole('heading', { name: '리루네 과자집' });
     await user.click(await screen.findByRole('button', { name: /레이스고객/ }));
 
     const ownerMemoInput = screen.getByLabelText('사장님 내부 메모');
@@ -583,7 +614,7 @@ describe('App', () => {
       />,
     );
 
-    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await screen.findByRole('heading', { name: '리루네 과자집' });
     await user.click(await screen.findByRole('button', { name: /레이스고객/ }));
 
     const ownerMemoInput = screen.getByLabelText('사장님 내부 메모');
@@ -615,7 +646,7 @@ describe('App', () => {
       />,
     );
 
-    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await screen.findByRole('heading', { name: '리루네 과자집' });
     await user.type(screen.getByLabelText('주문/문의 원문'), '성함: 늦은고객\n곶감 1세트\n2026-07-06\n픽업');
     await user.click(screen.getByRole('button', { name: '저장' }));
 
@@ -729,7 +760,7 @@ describe('App', () => {
       />,
     );
 
-    await screen.findByRole('heading', { name: '주문 표준화 작업실' });
+    await screen.findByRole('heading', { name: '리루네 과자집' });
     expect(await screen.findByRole('button', { name: /기존고객/ })).toBeInTheDocument();
     await user.type(screen.getByLabelText('주문/문의 원문'), rawText);
     await user.click(screen.getByRole('button', { name: '저장' }));
@@ -815,7 +846,8 @@ describe('App', () => {
 
     expect(screen.getByText('45')).toHaveClass('orderQuantityBadge', 'bulk');
 
-    await user.click(screen.getByRole('button', { name: '관리 설정' }));
+    await user.click(screen.getByRole('button', { name: '메뉴' }));
+    await user.click(screen.getByRole('menuitem', { name: '필수 설정' }));
     const settingsDialog = screen.getByRole('dialog', { name: '정보 부족 기준' });
     await user.clear(within(settingsDialog).getByLabelText('대량 기준 실수량'));
     await user.type(within(settingsDialog).getByLabelText('대량 기준 실수량'), '100');

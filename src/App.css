@@ -491,6 +491,28 @@ pre {
   place-items: center;
 }
 
+.workspaceMenuWrap {
+  position: relative;
+}
+
+.workspaceMenuButton {
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.workspaceMenuButton[aria-expanded="true"] {
+  border-color: #b48a3e;
+  background: #fff4df;
+  box-shadow: 0 10px 22px rgba(22, 32, 51, 0.12);
+}
+
+.workspaceMenuButton:active {
+  transform: scale(0.96);
+}
+
 .compactTextButton {
   min-height: 36px;
   padding: 7px 10px;
@@ -584,6 +606,12 @@ pre {
   background: #fffdf8;
   padding: 6px;
   box-shadow: 0 14px 30px rgba(22, 32, 51, 0.14);
+}
+
+.workspaceMenu {
+  width: 150px;
+  transform-origin: top right;
+  animation: menuEnter 160ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .sortMenuOption {
@@ -2075,6 +2103,18 @@ pre {
   to {
     opacity: 1;
     filter: blur(0);
+  }
+}
+
+@keyframes menuEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 

@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createAuthRepository } from './auth/authRepository';
 import type { AuthRepository, WorkspaceMembership } from './auth/authTypes';
 import { AccountModal } from './components/AccountModal';
@@ -58,6 +58,27 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
   }
 };
 
+const closeMenuAfterFocusLeaves = (event: FocusEvent<HTMLDivElement>, closeMenu: () => void) => {
+  const menuWrap = event.currentTarget;
+  const nextFocus = event.relatedTarget;
+
+  if (nextFocus instanceof Node) {
+    if (!menuWrap.contains(nextFocus)) {
+      closeMenu();
+    }
+
+    return;
+  }
+
+  window.setTimeout(() => {
+    const activeElement = document.activeElement;
+
+    if (!(activeElement instanceof Node) || !menuWrap.contains(activeElement)) {
+      closeMenu();
+    }
+  }, 0);
+};
+
 type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
 
 interface WorkspaceAppProps {
@@ -82,6 +103,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
+  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
   const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
   const currentWorkspaceIdRef = useRef(membership.workspaceId);
   const workspaceGenerationRef = useRef(0);
@@ -383,6 +405,21 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
     await onSignOut?.();
   }
 
+  function openSettingsFromMenu() {
+    setWorkspaceMenuOpen(false);
+    setSettingsOpen(true);
+  }
+
+  function openAccountFromMenu() {
+    setWorkspaceMenuOpen(false);
+    setAccountOpen(true);
+  }
+
+  function openLogoutConfirmFromMenu() {
+    setWorkspaceMenuOpen(false);
+    setLogoutConfirmOpen(true);
+  }
+
   if (loadStatus === 'loading') {
     return (
       <main className="appShell appStateShell">
@@ -406,34 +443,52 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
         <header className="appHeader">
           <div>
             <p className="eyebrow">Lyru OMS</p>
-            <h1>주문 표준화 작업실</h1>
+            <h1>리루네 과자집</h1>
           </div>
           <div className="headerActions">
             <QuestionNote />
-            <button
-              type="button"
-              className="secondaryButton compactTextButton"
-              aria-label={`계정 관리 ${currentEmail}`}
-              onClick={() => setAccountOpen(true)}
+            <div
+              className="workspaceMenuWrap"
+              onBlur={(event) => closeMenuAfterFocusLeaves(event, () => setWorkspaceMenuOpen(false))}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                  setWorkspaceMenuOpen(false);
+                }
+              }}
             >
-              계정
-            </button>
-            {canManageWorkspace ? (
               <button
                 type="button"
-                className="secondaryButton iconButton settingsIconButton"
-                aria-label="관리 설정"
-                title="관리 설정"
-                onClick={() => setSettingsOpen(true)}
+                className="secondaryButton iconButton settingsIconButton workspaceMenuButton"
+                aria-label="메뉴"
+                aria-expanded={workspaceMenuOpen}
+                title="메뉴"
+                onClick={() => setWorkspaceMenuOpen((current) => !current)}
               >
                 <span aria-hidden="true">⚙</span>
               </button>
-            ) : null}
-            {onSignOut ? (
-              <button type="button" className="secondaryButton compactTextButton" onClick={() => setLogoutConfirmOpen(true)}>
-                로그아웃
-              </button>
-            ) : null}
+              {workspaceMenuOpen ? (
+                <div className="sortMenu workspaceMenu" role="menu" aria-label="작업실 메뉴">
+                  {canManageWorkspace ? (
+                    <button type="button" className="actionMenuItem" role="menuitem" onClick={openSettingsFromMenu}>
+                      필수 설정
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="actionMenuItem"
+                    role="menuitem"
+                    onClick={openAccountFromMenu}
+                  >
+                    계정 관리
+                  </button>
+                  {onSignOut ? (
+                    <button type="button" className="actionMenuItem" role="menuitem" onClick={openLogoutConfirmFromMenu}>
+                      로그아웃
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
         {isOfflineCacheReadonly ? (
