@@ -62,6 +62,25 @@ describe('orderSorting', () => {
     expect(ids(sortOrders(orders, 'recent'))).toEqual(['new', 'old']);
   });
 
+  it('sorts invalid created dates oldest in recent sorting', () => {
+    const orders = [
+      order({ id: 'invalid', createdAt: 'not-a-date' }),
+      order({ id: 'old', createdAt: '2026-07-01T00:00:00.000Z' }),
+      order({ id: 'new', createdAt: '2026-07-02T00:00:00.000Z' }),
+    ];
+
+    expect(ids(sortOrders(orders, 'recent'))).toEqual(['new', 'old', 'invalid']);
+  });
+
+  it('uses recent registration as a tie-breaker for the same desired date', () => {
+    const orders = [
+      order({ id: 'old', desiredDateTime: '2026-07-05', createdAt: '2026-07-01T00:00:00.000Z' }),
+      order({ id: 'new', desiredDateTime: '2026-07-05', createdAt: '2026-07-02T00:00:00.000Z' }),
+    ];
+
+    expect(ids(sortOrders(orders, 'desiredDate'))).toEqual(['new', 'old']);
+  });
+
   it('sorts by largest quantity using parsed candidates before quantity text', () => {
     const orders = [
       order({ id: 'text-12', quantity: '12세트' }),
