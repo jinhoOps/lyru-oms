@@ -211,10 +211,20 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
     () => (sourceFilter === '전체' ? orders : orders.filter((order) => order.source === sourceFilter)),
     [orders, sourceFilter],
   );
-  const selectedOrder = useMemo(
-    () => filteredOrders.find((order) => order.id === selectedId) ?? null,
-    [filteredOrders, selectedId],
-  );
+  const ordersById = useMemo(() => new Map(orders.map((order) => [order.id, order])), [orders]);
+  const selectedOrder = useMemo(() => {
+    if (!selectedId) {
+      return null;
+    }
+
+    const order = ordersById.get(selectedId) ?? null;
+
+    if (!order) {
+      return null;
+    }
+
+    return sourceFilter === '전체' || order.source === sourceFilter ? order : null;
+  }, [ordersById, selectedId, sourceFilter]);
   const displayOrders = useMemo(() => sortOrders(filteredOrders, sortMode), [filteredOrders, sortMode]);
   const existingRawTextKeys = useMemo(
     () => new Set(orders.map((order) => createRawTextDuplicateKey(order.rawText))),
@@ -296,7 +306,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
         return currentSelectedId;
       }
 
-      const selected = orders.find((order) => order.id === currentSelectedId);
+      const selected = ordersById.get(currentSelectedId);
       return selected?.source === nextSourceFilter ? currentSelectedId : null;
     });
   }
