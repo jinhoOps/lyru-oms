@@ -270,6 +270,43 @@ describe('evaluateOrder', () => {
     );
   });
 
+  it('flags bulk piece quantities even when menu unit count is unknown', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '맞춤 구성',
+        quantity: '45개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'custom',
+            label: '맞춤 구성',
+            unitCount: null,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 45, unit: '개', rawText: '45개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: '확인필요',
+          group: 'check',
+          code: 'bulk-real-unit',
+          field: 'quantity',
+          label: '대량 기준 가능성',
+          detail: '45개 = 45개',
+        }),
+      ]),
+    );
+    expect(evaluated.status).toBe('확인 필요');
+  });
+
   it('flags minimum order rules for shared 2구 and 4구 products', () => {
     const evaluated = evaluateOrder(
       order({
