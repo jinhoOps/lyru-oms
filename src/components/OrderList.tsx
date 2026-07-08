@@ -1,9 +1,10 @@
 import { groupBy, sortBy } from 'es-toolkit';
-import { type FocusEvent, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
 import { getPureProductionQuantity } from '../domain/orderQuantity';
 import { ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
 import type { OrderSortMode } from '../domain/orderSorting';
+import { closeMenuAfterFocusLeaves } from '../lib/focusMenu';
 
 export type OrderSourceFilter = '전체' | OrderSource;
 type OrderListViewMode = 'card' | 'list' | 'calendar';
@@ -120,27 +121,6 @@ const getCalendarQuantityLabel = (order: CapturedOrder) => {
 };
 
 const getCalendarOrderTitle = (order: CapturedOrder) => fallback(order.orderItems, '주문 내용 미정');
-
-const closeMenuAfterFocusLeaves = (event: FocusEvent<HTMLDivElement>, closeMenu: () => void) => {
-  const menuWrap = event.currentTarget;
-  const nextFocus = event.relatedTarget;
-
-  if (nextFocus instanceof Node) {
-    if (!menuWrap.contains(nextFocus)) {
-      closeMenu();
-    }
-
-    return;
-  }
-
-  window.setTimeout(() => {
-    const activeElement = document.activeElement;
-
-    if (!(activeElement instanceof Node) || !menuWrap.contains(activeElement)) {
-      closeMenu();
-    }
-  }, 0);
-};
 
 const getOrderStatusClass = (status: CapturedOrder['status']) => {
   switch (status) {

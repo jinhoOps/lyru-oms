@@ -1,4 +1,4 @@
-import { type FocusEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { createAuthRepository } from './auth/authRepository';
 import type { AuthRepository, WorkspaceMembership } from './auth/authTypes';
 import { AccountModal } from './components/AccountModal';
@@ -27,6 +27,7 @@ import {
 import { createOrderRepository, type OrderRepository } from './domain/orderRepository';
 import { evaluateOrder } from './domain/reviewRules';
 import { sortOrders, type OrderSortMode } from './domain/orderSorting';
+import { closeMenuAfterFocusLeaves } from './lib/focusMenu';
 import { createBrowserSupabaseClient } from './lib/supabaseClient';
 import type { OrderSourceFilter } from './components/OrderList';
 
@@ -56,27 +57,6 @@ const saveCapturePanelCollapsed = (collapsed: boolean) => {
   } catch {
     // Ignore blocked storage; the in-memory state still updates.
   }
-};
-
-const closeMenuAfterFocusLeaves = (event: FocusEvent<HTMLDivElement>, closeMenu: () => void) => {
-  const menuWrap = event.currentTarget;
-  const nextFocus = event.relatedTarget;
-
-  if (nextFocus instanceof Node) {
-    if (!menuWrap.contains(nextFocus)) {
-      closeMenu();
-    }
-
-    return;
-  }
-
-  window.setTimeout(() => {
-    const activeElement = document.activeElement;
-
-    if (!(activeElement instanceof Node) || !menuWrap.contains(activeElement)) {
-      closeMenu();
-    }
-  }, 0);
 };
 
 type WorkspaceLoadStatus = 'loading' | 'ready' | 'error' | 'offline-cache';
