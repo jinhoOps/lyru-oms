@@ -31,6 +31,8 @@ const normalizeKeyword = (value: string) => value.normalize('NFKC').trim().toLow
 const normalizeRawTextForExactDuplicate = (value: string) =>
   value.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
 
+export const createRawTextDuplicateKey = (rawText: string) => normalizeRawTextForExactDuplicate(rawText);
+
 const findFieldByLabel = (label: string): ParseableOrderField | undefined => {
   const normalizedLabel = normalizeKeyword(label);
 
@@ -215,8 +217,5 @@ export const parseRawText = (rawText: string): ParsedOrderFields => {
   return parsed;
 };
 
-export const hasSimilarRawText = (rawText: string, existingRawTexts: readonly string[]) => {
-  const normalizedRawText = normalizeRawTextForExactDuplicate(rawText);
-
-  return existingRawTexts.some((existingRawText) => normalizeRawTextForExactDuplicate(existingRawText) === normalizedRawText);
-};
+export const hasSimilarRawText = (rawText: string, existingRawTextKeys: ReadonlySet<string>) =>
+  existingRawTextKeys.has(createRawTextDuplicateKey(rawText));

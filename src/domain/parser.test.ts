@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parseRawText, hasSimilarRawText } from './parser';
+import { createRawTextDuplicateKey, hasSimilarRawText, parseRawText } from './parser';
+
+const rawTextKeys = (values: string[]) => new Set(values.map(createRawTextDuplicateKey));
 
 describe('parseRawText', () => {
   it('extracts known labels and related keywords', () => {
@@ -118,16 +120,22 @@ describe('parseRawText', () => {
   });
 });
 
+describe('createRawTextDuplicateKey', () => {
+  it('normalizes full-width digits, whitespace, newlines, and case for duplicate checks', () => {
+    expect(createRawTextDuplicateKey(' 주문ID: ＡＢＣ１２３\n수량:\t５ ')).toBe('주문id: abc123 수량: 5');
+  });
+});
+
 describe('hasSimilarRawText', () => {
   it('flags normalized exact raw text as duplicate possibility', () => {
-    expect(hasSimilarRawText('성함: 김리루\n수량: 5', [' 성함: 김리루 수량: 5 '])).toBe(true);
+    expect(hasSimilarRawText('성함: 김리루\n수량: 5', rawTextKeys([' 성함: 김리루 수량: 5 ']))).toBe(true);
   });
 
   it('does not flag punctuation or phone-format differences as duplicate', () => {
-    expect(hasSimilarRawText('전화번호: 010-1111-2222', ['전화번호 01011112222'])).toBe(false);
+    expect(hasSimilarRawText('전화번호: 010-1111-2222', rawTextKeys(['전화번호 01011112222']))).toBe(false);
   });
 
   it('does not flag unrelated messages', () => {
-    expect(hasSimilarRawText('성함: 김리루', ['성함: 박화과'])).toBe(false);
+    expect(hasSimilarRawText('성함: 김리루', rawTextKeys(['성함: 박화과']))).toBe(false);
   });
 });

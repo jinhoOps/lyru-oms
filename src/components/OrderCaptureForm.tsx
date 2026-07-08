@@ -9,7 +9,7 @@ import { hasSimilarRawText, parseRawText } from '../domain/parser';
 import { evaluateOrder } from '../domain/reviewRules';
 
 interface OrderCaptureFormProps {
-  existingRawTexts: string[];
+  existingRawTextKeys: ReadonlySet<string>;
   settings: OrderSettings;
   source: OrderSource;
   initialRawText?: string;
@@ -39,7 +39,7 @@ const createOrderId = () => {
 };
 
 export function OrderCaptureForm({
-  existingRawTexts,
+  existingRawTextKeys,
   settings,
   source,
   initialRawText = '',
@@ -50,7 +50,7 @@ export function OrderCaptureForm({
   const isSavingRef = useRef(false);
 
   const parsed = useMemo(() => parseRawText(rawText), [rawText]);
-  const isDuplicate = rawText.trim() !== '' && hasSimilarRawText(rawText, existingRawTexts);
+  const isDuplicate = rawText.trim() !== '' && hasSimilarRawText(rawText, existingRawTextKeys);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();

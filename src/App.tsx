@@ -25,6 +25,7 @@ import {
   saveRecentOrderCache,
 } from './domain/localDraftCache';
 import { createOrderRepository, type OrderRepository } from './domain/orderRepository';
+import { createRawTextDuplicateKey } from './domain/parser';
 import { evaluateOrder } from './domain/reviewRules';
 import { sortOrders, type OrderSortMode } from './domain/orderSorting';
 import { closeMenuAfterFocusLeaves } from './lib/focusMenu';
@@ -215,6 +216,10 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
     [filteredOrders, selectedId],
   );
   const displayOrders = useMemo(() => sortOrders(filteredOrders, sortMode), [filteredOrders, sortMode]);
+  const existingRawTextKeys = useMemo(
+    () => new Set(orders.map((order) => createRawTextDuplicateKey(order.rawText))),
+    [orders],
+  );
 
   async function handleSaveOrder(order: CapturedOrder) {
     if (blockOfflineCacheMutation()) {
@@ -520,7 +525,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
                   </select>
                 </label>
                 <OrderCaptureForm
-                  existingRawTexts={orders.map((order) => order.rawText)}
+                  existingRawTextKeys={existingRawTextKeys}
                   settings={settings}
                   source={captureSource}
                   initialRawText={savedOrderDraft?.rawText}
