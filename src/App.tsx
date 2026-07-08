@@ -461,6 +461,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
                 className="secondaryButton iconButton settingsIconButton workspaceMenuButton"
                 aria-label="메뉴"
                 aria-expanded={workspaceMenuOpen}
+                aria-haspopup="menu"
                 title="메뉴"
                 onClick={() => setWorkspaceMenuOpen((current) => !current)}
               >

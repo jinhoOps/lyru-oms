@@ -80,7 +80,7 @@ const createQuantityReviewReasons = (order: CapturedOrder, settings: OrderSettin
   const unitCount = getSingleKnownUnitCount(order);
   const reviewReasons: ReviewReason[] = [];
 
-  if (unitCount !== null && order.quantityCandidates.length === 1) {
+  if (unitCount !== null && order.quantityCandidates.length === 1 && order.quantityCandidates[0].unit === '세트') {
     const [quantityCandidate] = order.quantityCandidates;
     const matchingMinimumRule = settings.quantityRules.minimumOrderRules.find((rule) => rule.unitCount === unitCount);
 

@@ -342,6 +342,37 @@ describe('evaluateOrder', () => {
     );
   });
 
+  it('does not apply minimum set rules to piece quantities', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 2구',
+        quantity: '3개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-2',
+            label: '화과자 2구',
+            unitCount: 2,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 3, unit: '개', rawText: '3개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'minimum-order',
+        }),
+      ]),
+    );
+  });
+
   it('keeps quantity business rule reasons explicit', () => {
     const evaluated = evaluateOrder(
       order({

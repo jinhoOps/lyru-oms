@@ -162,6 +162,7 @@ describe('App', () => {
     const menuButton = screen.getByRole('button', { name: '메뉴' });
     expect(menuButton).toBeInTheDocument();
     expect(menuButton).toHaveTextContent('⚙');
+    expect(menuButton).toHaveAttribute('aria-haspopup', 'menu');
   });
 
   it('starts an empty authenticated workspace without sample orders', async () => {
@@ -214,6 +215,7 @@ describe('App', () => {
         currentEmail="owner@lyru.test"
         authRepository={authRepositoryMock}
         orderRepository={orderRepositoryMock}
+        onSignOut={vi.fn()}
       />,
     );
 
@@ -224,7 +226,7 @@ describe('App', () => {
     const menu = screen.getByRole('menu', { name: '작업실 메뉴' });
     expect(within(menu).queryByRole('menuitem', { name: '필수 설정' })).not.toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: '계정 관리' })).toBeInTheDocument();
-    expect(within(menu).queryByRole('menuitem', { name: '로그아웃' })).not.toBeInTheDocument();
+    expect(within(menu).getByRole('menuitem', { name: '로그아웃' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '작업' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /직원확인고객/ }));
