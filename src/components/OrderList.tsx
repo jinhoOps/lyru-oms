@@ -1,7 +1,8 @@
 import { groupBy, sortBy } from 'es-toolkit';
 import { type FocusEvent, useMemo, useState } from 'react';
 import { formatDday, parseExplicitDate } from '../domain/dateDisplay';
-import { FIELD_DEFINITIONS, ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
+import { getPureProductionQuantity } from '../domain/orderQuantity';
+import { ORDER_SOURCES, type CapturedOrder, type OrderSource } from '../domain/orderTypes';
 import type { OrderSortMode } from '../domain/orderSorting';
 
 export type OrderSourceFilter = '전체' | OrderSource;
@@ -30,9 +31,9 @@ const sortOptions: Array<{ mode: OrderSortMode; label: string }> = [
 ];
 
 const viewOptions: Array<{ mode: OrderListViewMode; label: string }> = [
-  { mode: 'list', label: '목록형 보기' },
-  { mode: 'card', label: '카드형 보기' },
-  { mode: 'calendar', label: '달력형 보기' },
+  { mode: 'list', label: '목록형' },
+  { mode: 'card', label: '카드형' },
+  { mode: 'calendar', label: '달력형' },
 ];
 
 const calendarRangeOptions: Array<{ mode: CalendarRangeMode; label: string }> = [
@@ -155,25 +156,24 @@ const getOrderStatusClass = (status: CapturedOrder['status']) => {
   }
 };
 
-const summarizeReviewReasonGroups = (order: CapturedOrder) => {
-  const infoReasonFields = new Set(
-    order.reviewReasons.filter((reason) => reason.group === 'info' && reason.field).map((reason) => reason.field),
+const hasBulkQuantityReason = (order: CapturedOrder) =>
+  order.reviewReasons.some((reason) => reason.code === 'bulk-real-unit');
+
+const renderQuantityBadge = (order: CapturedOrder) => {
+  const pureQuantity = getPureProductionQuantity(order);
+
+  if (pureQuantity === null) {
+    return null;
+  }
+
+  return (
+    <span
+      className={`orderQuantityBadge ${hasBulkQuantityReason(order) ? 'bulk' : ''}`}
+      aria-label={`제작 수량 ${pureQuantity}`}
+    >
+      {pureQuantity}
+    </span>
   );
-  const supplementalMissingFields = order.missingFields.filter((field) => !infoReasonFields.has(field));
-  const infoCount =
-    order.reviewReasons.filter((reason) => reason.group === 'info').length + supplementalMissingFields.length;
-  const checkCount = order.reviewReasons.filter((reason) => reason.group === 'check').length;
-  const summaries: string[] = [];
-
-  if (infoCount > 0) {
-    summaries.push(`정보 ${infoCount}개`);
-  }
-
-  if (checkCount > 0) {
-    summaries.push(`확인 ${checkCount}개`);
-  }
-
-  return summaries;
 };
 
 const formatRegisteredAt = (isoDate: string) => {
@@ -468,7 +468,6 @@ export function OrderList({
   onSelect,
   onClearOrders,
 }: OrderListProps) {
-  const [expandedRawTextIds, setExpandedRawTextIds] = useState<string[]>([]);
   const [viewMode, setViewModeState] = useState<OrderListViewMode>(() => loadOrderListViewMode());
   const [calendarRangeMode, setCalendarRangeModeState] = useState<CalendarRangeMode>(() => loadCalendarRangeMode());
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -515,12 +514,6 @@ export function OrderList({
   function setCalendarRangeMode(mode: CalendarRangeMode) {
     setCalendarRangeModeState(mode);
     saveCalendarRangeMode(mode);
-  }
-
-  function toggleRawText(orderId: string) {
-    setExpandedRawTextIds((current) =>
-      current.includes(orderId) ? current.filter((id) => id !== orderId) : [...current, orderId],
-    );
   }
 
   function chooseSortMode(mode: OrderSortMode) {
@@ -868,12 +861,10 @@ export function OrderList({
       {header}
       <div className={viewMode === 'list' ? 'orderList compact' : 'orderList'}>
         {orders.map((order) => {
-          const isExpanded = expandedRawTextIds.includes(order.id);
           const hasCustomerRequest = order.customerRequestNote.trim() !== '';
           const hasOwnerMemo = order.ownerMemo.trim() !== '';
           const hasUnconfirmedChangeRequest = order.changeRequestNote.trim() !== '' && !order.changeRequestConfirmed;
           const dday = formatDday(getDisplayDate(order));
-          const reasonSummaries = summarizeReviewReasonGroups(order);
           const statusClass = getOrderStatusClass(order.status);
 
           return (
@@ -891,13 +882,11 @@ export function OrderList({
                       {dday.label}
                     </span>
                     {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
-                    {reasonSummaries.map((summary) => (
-                      <span key={summary} className="reasonSummaryPill">
-                        {summary}
-                      </span>
-                    ))}
                   </span>
-                  <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                  <span className="orderSummaryLine">
+                    <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                    {renderQuantityBadge(order)}
+                  </span>
                   <span className="compactLine mutedText">
                     {fallback(order.customerName, '고객명 미정')} · {fallback(order.desiredDateTime, '희망일 미정')} ·{' '}
                     {fallback(order.fulfillmentType, '수령 방식 없음')}
@@ -911,15 +900,13 @@ export function OrderList({
                     <span className="ddayBadge" title={dday.title}>
                       {dday.label}
                     </span>
-                    {reasonSummaries.map((summary) => (
-                      <span key={summary} className="reasonSummaryPill">
-                        {summary}
-                      </span>
-                    ))}
                     {hasUnconfirmedChangeRequest ? <span className="changeRequestPill">변경 확인 필요</span> : null}
                     <span className="registeredAt">{formatRegisteredAt(order.createdAt)}</span>
                   </span>
-                  <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                  <span className="orderSummaryLine">
+                    <strong className="orderSummaryText">{summarizeOrder(order)}</strong>
+                    {renderQuantityBadge(order)}
+                  </span>
                   <span className="mutedText">
                     {fallback(order.customerName, '고객명 미정')} · {fallback(order.desiredDateTime, '희망일 미정')} ·{' '}
                     {fallback(order.fulfillmentType, '수령 방식 없음')}
@@ -931,18 +918,6 @@ export function OrderList({
                 </button>
               )}
 
-              {viewMode === 'card' && order.missingFields.length > 0 ? (
-                <div className="rawTextArea">
-                  <p>
-                    부족 항목:{' '}
-                    {order.missingFields.map((field) => FIELD_DEFINITIONS[field].label).join(', ')}
-                  </p>
-                  <button type="button" className="linkButton" onClick={() => toggleRawText(order.id)}>
-                    {isExpanded ? '원문 닫기' : '원문 보기'}
-                  </button>
-                  {isExpanded ? <pre>{order.rawText}</pre> : null}
-                </div>
-              ) : null}
             </article>
           );
         })}

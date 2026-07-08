@@ -88,15 +88,14 @@ beforeEach(() => {
 });
 
 describe('OrderList', () => {
-  it('does not show full raw text until expanded for information shortage', () => {
+  it('does not show raw text controls for information shortage in card mode', () => {
     renderOrderList();
     const viewGroup = openViewMenu();
-    fireEvent.click(within(viewGroup).getByRole('radio', { name: '카드형 보기' }));
+    fireEvent.click(within(viewGroup).getByRole('radio', { name: '카드형' }));
 
     expect(screen.queryByText('성함: 김리루')).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: '원문 보기' }));
-    expect(screen.getByText('성함: 김리루')).toBeInTheDocument();
+    expect(screen.queryByText(/부족 항목:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
   });
 
   it('defaults to compact list mode and hides raw text expansion', () => {
@@ -104,29 +103,50 @@ describe('OrderList', () => {
 
     expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '목록형' })).toBeChecked();
+  });
+
+  it('uses short labels for view mode choices', () => {
+    renderOrderList();
+
+    const viewGroup = openViewMenu();
+
+    expect(within(viewGroup).getByRole('radio', { name: '목록형' })).toBeChecked();
+    expect(within(viewGroup).getByRole('radio', { name: '카드형' })).toBeInTheDocument();
+    expect(within(viewGroup).getByRole('radio', { name: '달력형' })).toBeInTheDocument();
+    expect(within(viewGroup).queryByRole('radio', { name: '목록형 보기' })).not.toBeInTheDocument();
+  });
+
+  it('keeps view choice clickable from the visible text row', () => {
+    renderOrderList();
+
+    const viewGroup = openViewMenu();
+    fireEvent.click(within(viewGroup).getByText('카드형'));
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    expect(screen.getByRole('radio', { name: '카드형' })).toBeChecked();
   });
 
   it('persists card and list view mode changes', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '카드형' }));
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('card');
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '카드형 보기' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '카드형' })).toBeChecked();
 
-    fireEvent.click(screen.getByRole('radio', { name: '목록형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '목록형' }));
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('list');
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '목록형' })).toBeChecked();
   });
 
   it('opens calendar view with monthly mode by default', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
 
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
     expect(screen.getByRole('radiogroup', { name: '달력 범위' })).toBeInTheDocument();
@@ -139,16 +159,16 @@ describe('OrderList', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
     fireEvent.click(screen.getByRole('radio', { name: '2주' }));
 
     expect(localStorage.getItem('lyru-oms.orderList.viewMode.v1')).toBe('calendar');
     expect(localStorage.getItem('lyru-oms.orderList.calendarMode.v1')).toBe('twoWeek');
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '목록형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '목록형' }));
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
 
     expect(screen.getByRole('radio', { name: '2주' })).toBeChecked();
   });
@@ -172,7 +192,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
     fireEvent.click(screen.getByRole('radio', { name: '2주' }));
 
     const calendar = screen.getByLabelText('2주 주문 달력');
@@ -200,7 +220,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
 
     const rangeButton = screen.getByRole('button', { name: /곶감단지 수량 2.*마감/ });
     expect(rangeButton).toBeInTheDocument();
@@ -228,7 +248,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
     expect(screen.getByRole('heading', { name: '7월 2일' })).toBeInTheDocument();
@@ -256,7 +276,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
     expect(screen.getByRole('button', { name: /곶감단지 수량 2.*등록/ })).toBeInTheDocument();
@@ -281,7 +301,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
     fireEvent.click(screen.getByRole('radio', { name: '일별' }));
 
     expect(screen.getByRole('button', { name: /곶감단지 수량 2.*마감/ })).toBeInTheDocument();
@@ -314,7 +334,7 @@ describe('OrderList', () => {
     });
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '달력형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
 
     const unresolved = screen.getByRole('region', { name: '날짜 확인 필요' });
     expect(within(unresolved).getByRole('button', { name: /화과자 수량 4.*희망일 확인/ })).toBeInTheDocument();
@@ -335,7 +355,7 @@ describe('OrderList', () => {
 
     expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '목록형' })).toBeChecked();
   });
 
   it('falls back to list mode when stored view mode cannot be read', () => {
@@ -347,7 +367,7 @@ describe('OrderList', () => {
       renderOrderList();
 
       fireEvent.click(screen.getByRole('button', { name: '보기' }));
-      expect(screen.getByRole('radio', { name: '목록형 보기' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: '목록형' })).toBeChecked();
     } finally {
       getItem.mockRestore();
     }
@@ -361,16 +381,16 @@ describe('OrderList', () => {
     try {
       renderOrderList();
       fireEvent.click(screen.getByRole('button', { name: '보기' }));
-      fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+      fireEvent.click(screen.getByRole('radio', { name: '카드형' }));
 
       fireEvent.click(screen.getByRole('button', { name: '보기' }));
-      expect(screen.getByRole('radio', { name: '카드형 보기' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: '카드형' })).toBeChecked();
     } finally {
       setItem.mockRestore();
     }
   });
 
-  it('shows only essential fields in compact list mode', () => {
+  it('hides review reason counts in compact list mode', () => {
     renderOrderList({
       orders: [{ ...order, desiredDateTime: '7월 3일', fulfillmentType: '픽업', customerRequestNote: '리본 포장' }],
     });
@@ -379,8 +399,8 @@ describe('OrderList', () => {
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
     expect(screen.queryByText('곶감밀푀유 · 5개')).not.toBeInTheDocument();
-    expect(screen.getByText('정보 1개')).toBeInTheDocument();
-    expect(screen.getByText('확인 1개')).toBeInTheDocument();
+    expect(screen.queryByText('정보 1개')).not.toBeInTheDocument();
+    expect(screen.queryByText('확인 1개')).not.toBeInTheDocument();
     expect(screen.getByText(/김리루 · 7월 3일 ·\s*픽업/)).toBeInTheDocument();
     const compactOrderButton = screen.getByRole('button', { name: /곶감밀푀유 · 5/ });
     expect(within(compactOrderButton).queryByText('카카오톡 채널')).not.toBeInTheDocument();
@@ -404,21 +424,23 @@ describe('OrderList', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '카드형' }));
 
     expect(screen.getByText('등록 2026-06-30 09:00')).toBeInTheDocument();
   });
 
-  it('shows D-Day badge and review reason counts in card mode', () => {
+  it('hides review reason counts and missing-field raw text controls in card mode', () => {
     renderOrderList();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '카드형' }));
 
     expect(screen.getByText('D-2')).toHaveAttribute('title', ddayFixture.title);
     expect(screen.getByText('곶감밀푀유 · 5')).toBeInTheDocument();
-    expect(screen.getByText('정보 1개')).toBeInTheDocument();
-    expect(screen.getByText('확인 1개')).toBeInTheDocument();
+    expect(screen.queryByText('정보 1개')).not.toBeInTheDocument();
+    expect(screen.queryByText('확인 1개')).not.toBeInTheDocument();
+    expect(screen.queryByText(/부족 항목:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '원문 보기' })).not.toBeInTheDocument();
     expect(screen.queryByText('대추야자 오동나무 9구 세트')).not.toBeInTheDocument();
     expect(screen.queryByText('180개')).not.toBeInTheDocument();
   });
@@ -430,10 +452,10 @@ describe('OrderList', () => {
     expect(screen.getByText(/김리루 · 2026-07-03 ·\s*수령 방식 없음/)).toBeInTheDocument();
   });
 
-  it('uses missing fields as a fallback when info review reasons are missing', () => {
+  it('does not render missing fields as compact review reason counts', () => {
     renderOrderList({ orders: [{ ...order, missingFields: ['phone', 'fulfillmentType'], reviewReasons: [] }] });
 
-    expect(screen.getByText('정보 2개')).toBeInTheDocument();
+    expect(screen.queryByText('정보 2개')).not.toBeInTheDocument();
   });
 
   it('opens sort menu, chooses a sort mode, and closes the menu', () => {
@@ -526,11 +548,73 @@ describe('OrderList', () => {
     fireEvent.click(viewButton);
     fireEvent.blur(viewButton, { relatedTarget: null });
 
-    fireEvent.click(screen.getByRole('radio', { name: '카드형 보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '카드형' }));
     vi.runOnlyPendingTimers();
 
     fireEvent.click(screen.getByRole('button', { name: '보기' }));
-    expect(screen.getByRole('radio', { name: '카드형 보기' })).toBeChecked();
+    expect(screen.getByRole('radio', { name: '카드형' })).toBeChecked();
+  });
+
+  it('shows a calculated production quantity badge in compact list mode', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          orderItems: '곶감말이 2구',
+          quantity: '6세트',
+          menuMatches: [{ menuId: 'roll-2', label: '곶감말이 2구', unitCount: 2, confidence: 'exact' }],
+          quantityCandidates: [{ value: 6, unit: '세트', rawText: '6세트' }],
+        },
+      ],
+    });
+
+    const compactOrderButton = screen.getByRole('button', { name: /곶감말이 2구 · 6세트/ });
+    expect(within(compactOrderButton).getByText('12')).toHaveClass('orderQuantityBadge');
+  });
+
+  it('omits the production quantity badge when quantity cannot be calculated', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          orderItems: '맞춤 구성',
+          quantity: '6세트',
+          menuMatches: [{ menuId: 'custom', label: '맞춤 구성', unitCount: null, confidence: 'exact' }],
+          quantityCandidates: [{ value: 6, unit: '세트', rawText: '6세트' }],
+        },
+      ],
+    });
+
+    const compactOrderButton = screen.getByRole('button', { name: /맞춤 구성 · 6세트/ });
+    expect(within(compactOrderButton).queryByText('12')).not.toBeInTheDocument();
+    expect(within(compactOrderButton).queryByText('수량 확인')).not.toBeInTheDocument();
+  });
+
+  it('emphasizes the production quantity badge when the bulk threshold reason exists', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          orderItems: '화과자 9구',
+          quantity: '5세트',
+          menuMatches: [{ menuId: 'wagashi-9', label: '화과자 9구', unitCount: 9, confidence: 'exact' }],
+          quantityCandidates: [{ value: 5, unit: '세트', rawText: '5세트' }],
+          reviewReasons: [
+            ...order.reviewReasons,
+            {
+              kind: '확인필요',
+              group: 'check',
+              code: 'bulk-real-unit',
+              field: 'quantity',
+              label: '대량 기준 가능성',
+              message: '대량 기준에 해당할 수 있어 확인이 필요합니다.',
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByText('45')).toHaveClass('orderQuantityBadge', 'bulk');
   });
 
   it('keeps only one toolbar menu open at a time', () => {
