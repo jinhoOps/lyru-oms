@@ -1,5 +1,6 @@
 import { partition } from 'es-toolkit';
 
+import { getPureProductionQuantity } from './orderQuantity';
 import {
   FIELD_DEFINITIONS,
   type CapturedOrder,
@@ -77,36 +78,40 @@ const getSingleKnownUnitCount = (order: CapturedOrder) => {
 
 const createQuantityReviewReasons = (order: CapturedOrder, settings: OrderSettings): ReviewReason[] => {
   const unitCount = getSingleKnownUnitCount(order);
-
-  if (unitCount === null || order.quantityCandidates.length !== 1) {
-    return [];
-  }
-
-  const [quantityCandidate] = order.quantityCandidates;
-  const matchingMinimumRule = settings.quantityRules.minimumOrderRules.find((rule) => rule.unitCount === unitCount);
   const reviewReasons: ReviewReason[] = [];
 
-  if (matchingMinimumRule && quantityCandidate.value < matchingMinimumRule.minimumSets) {
-    reviewReasons.push(
-      checkReason(
-        'minimum-order',
-        '최소 주문 조건 확인',
-        '최소 주문 조건을 확인해야 합니다.',
-        {
-          field: 'quantity',
-          detail: `${unitCount}구 상품은 최소 ${matchingMinimumRule.minimumSets}세트 기준입니다. 현재 ${quantityCandidate.rawText}입니다.`,
-        },
-      ),
-    );
+  if (unitCount !== null && order.quantityCandidates.length === 1 && order.quantityCandidates[0].unit === '세트') {
+    const [quantityCandidate] = order.quantityCandidates;
+    const matchingMinimumRule = settings.quantityRules.minimumOrderRules.find((rule) => rule.unitCount === unitCount);
+
+    if (matchingMinimumRule && quantityCandidate.value < matchingMinimumRule.minimumSets) {
+      reviewReasons.push(
+        checkReason(
+          'minimum-order',
+          '최소 주문 조건 확인',
+          '최소 주문 조건을 확인해야 합니다.',
+          {
+            field: 'quantity',
+            detail: `${unitCount}구 상품은 최소 ${matchingMinimumRule.minimumSets}세트 기준입니다. 현재 ${quantityCandidate.rawText}입니다.`,
+          },
+        ),
+      );
+    }
   }
 
-  const realUnitCount = unitCount * quantityCandidate.value;
+  const realUnitCount = getPureProductionQuantity(order);
 
-  if (realUnitCount >= settings.quantityRules.bulkRealUnitThreshold) {
+  if (realUnitCount !== null && realUnitCount >= settings.quantityRules.bulkRealUnitThreshold) {
+    const [quantityCandidate] = order.quantityCandidates;
+    const detail =
+      unitCount === null || quantityCandidate.unit === '개'
+        ? `${quantityCandidate.rawText} = ${realUnitCount}개`
+        : `${unitCount}구 x ${quantityCandidate.rawText} = ${realUnitCount}구`;
+
     reviewReasons.push(
       checkReason('bulk-real-unit', '대량 기준 가능성', '대량 기준에 해당할 수 있어 확인이 필요합니다.', {
         field: 'quantity',
-        detail: `${unitCount}구 x ${quantityCandidate.rawText} = ${realUnitCount}구`,
+        detail,
       }),
     );
   }

@@ -239,6 +239,74 @@ describe('evaluateOrder', () => {
     expect(evaluated.status).toBe('확인 필요');
   });
 
+  it('uses piece quantities as pure production quantity for bulk checks', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 9구',
+        quantity: '5개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-9',
+            label: '화과자 9구',
+            unitCount: 9,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 5, unit: '개', rawText: '5개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+  });
+
+  it('flags bulk piece quantities even when menu unit count is unknown', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '맞춤 구성',
+        quantity: '45개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'custom',
+            label: '맞춤 구성',
+            unitCount: null,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 45, unit: '개', rawText: '45개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: '확인필요',
+          group: 'check',
+          code: 'bulk-real-unit',
+          field: 'quantity',
+          label: '대량 기준 가능성',
+          detail: '45개 = 45개',
+        }),
+      ]),
+    );
+    expect(evaluated.status).toBe('확인 필요');
+  });
+
   it('flags minimum order rules for shared 2구 and 4구 products', () => {
     const evaluated = evaluateOrder(
       order({
@@ -269,6 +337,37 @@ describe('evaluateOrder', () => {
           code: 'minimum-order',
           field: 'quantity',
           label: '최소 주문 조건 확인',
+        }),
+      ]),
+    );
+  });
+
+  it('does not apply minimum set rules to piece quantities', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 2구',
+        quantity: '3개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-2',
+            label: '화과자 2구',
+            unitCount: 2,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 3, unit: '개', rawText: '3개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'minimum-order',
         }),
       ]),
     );
