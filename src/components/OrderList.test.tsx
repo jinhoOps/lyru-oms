@@ -229,6 +229,62 @@ describe('OrderList', () => {
     expect(within(rangeButton).queryByText('2세트')).not.toBeInTheDocument();
   });
 
+  it('keeps calendar range output stable after toolbar menu changes', () => {
+    renderOrderList({
+      orders: [
+        {
+          ...order,
+          id: 'calendar-stable-first',
+          customerName: '박기간',
+          orderItems: '곶감단지',
+          quantity: '2세트',
+          desiredDateTime: '2026-07-03',
+          parsedDate: null,
+          createdAt: '2026-07-01T00:30:00.000Z',
+          updatedAt: '2026-07-01T00:30:00.000Z',
+        },
+        {
+          ...order,
+          id: 'calendar-stable-second',
+          customerName: '최주문',
+          orderItems: '화과자',
+          quantity: '4개',
+          desiredDateTime: '2026-07-08',
+          parsedDate: null,
+          createdAt: '2026-07-02T00:30:00.000Z',
+          updatedAt: '2026-07-02T00:30:00.000Z',
+        },
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    fireEvent.click(screen.getByRole('radio', { name: '달력형' }));
+
+    const getCalendarOutput = () => {
+      const calendar = screen.getByLabelText('월별 주문 달력');
+      return within(calendar)
+        .getAllByRole('button')
+        .map((button) => ({
+          label: button.getAttribute('aria-label'),
+          gridColumn: button.style.gridColumn,
+          text: button.textContent,
+        }));
+    };
+    const initialOutput = getCalendarOutput();
+
+    fireEvent.click(screen.getByRole('button', { name: '정렬' }));
+    expect(getCalendarOutput()).toEqual(initialOutput);
+
+    fireEvent.click(screen.getByRole('button', { name: '보기' }));
+    expect(getCalendarOutput()).toEqual(initialOutput);
+
+    fireEvent.click(screen.getByRole('button', { name: '작업' }));
+    expect(getCalendarOutput()).toEqual(initialOutput);
+
+    fireEvent.click(screen.getByRole('button', { name: '채널: 전체' }));
+    expect(getCalendarOutput()).toEqual(initialOutput);
+  });
+
   it('shows today orders once in daily mode with the correct range status', () => {
     vi.setSystemTime(new Date('2026-07-02T03:00:00.000Z'));
     renderOrderList({

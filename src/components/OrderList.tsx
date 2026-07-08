@@ -484,6 +484,28 @@ export function OrderList({
       unresolvedItems,
     };
   }, [orders]);
+  const calendarWindow = useMemo(
+    () => (viewMode !== 'calendar' || calendarRangeMode === 'day' ? null : getCalendarWindow(calendarRangeMode, todayIsoDate)),
+    [calendarRangeMode, todayIsoDate, viewMode],
+  );
+  const calendarSegments = useMemo(
+    () => {
+      if (viewMode !== 'calendar' || !calendarWindow) {
+        return [];
+      }
+
+      return buildRangeSegments(calendarData.rangeItems, calendarWindow.rows, calendarWindow.startDate, calendarWindow.endDate);
+    },
+    [calendarData.rangeItems, calendarWindow, viewMode],
+  );
+  const segmentsByRow = useMemo<Record<string, CalendarRangeSegment[]>>(
+    () => (viewMode === 'calendar' ? groupBy(calendarSegments, (segment) => segment.rowId) : {}),
+    [calendarSegments, viewMode],
+  );
+  const dailyItems = useMemo(
+    () => (viewMode === 'calendar' && calendarRangeMode === 'day' ? buildDailyItems(calendarData.rangeItems, todayIsoDate) : []),
+    [calendarData.rangeItems, calendarRangeMode, todayIsoDate, viewMode],
+  );
 
   function setViewMode(mode: OrderListViewMode) {
     setViewModeState(mode);
@@ -696,13 +718,6 @@ export function OrderList({
   }
 
   if (viewMode === 'calendar') {
-    const calendarWindow = calendarRangeMode === 'day' ? null : getCalendarWindow(calendarRangeMode, todayIsoDate);
-    const calendarSegments = calendarWindow
-      ? buildRangeSegments(calendarData.rangeItems, calendarWindow.rows, calendarWindow.startDate, calendarWindow.endDate)
-      : [];
-    const segmentsByRow = groupBy(calendarSegments, (segment) => segment.rowId);
-    const dailyItems = calendarRangeMode === 'day' ? buildDailyItems(calendarData.rangeItems, todayIsoDate) : [];
-
     return (
       <section className="orderListPanel" aria-label="주문 목록">
         {header}
