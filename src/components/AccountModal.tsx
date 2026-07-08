@@ -158,9 +158,9 @@ export function AccountModal({ open, currentEmail, membership, authRepository, o
   }
 
   return (
-    <div className="modalBackdrop" role="presentation">
+    <div className="modalBackdrop bottomSheetBackdrop" role="presentation">
       <section
-        className="settingsModal accountModal"
+        className="settingsModal accountModal bottomSheetModal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="account-title"

@@ -357,6 +357,7 @@ describe('App', () => {
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
     expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
@@ -373,11 +374,33 @@ describe('App', () => {
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).not.toBeNull();
 
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(authRepositoryMock.signOut).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
     expect(localStorage.getItem(localDraftCacheKeys.orderDraft)).toBeNull();
     expect(localStorage.getItem(localDraftCacheKeys.recentOrderCache)).toBeNull();
+  });
+
+  it('asks for confirmation before logging out of a ready workspace', async () => {
+    const user = userEvent.setup();
+
+    await renderUnlockedApp();
+    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+
+    const confirmDialog = screen.getByRole('dialog', { name: '로그아웃할까요?' });
+    expect(confirmDialog).toBeInTheDocument();
+    expect(authRepositoryMock.signOut).not.toHaveBeenCalled();
+
+    await user.click(within(confirmDialog).getByRole('button', { name: '취소' }));
+
+    expect(screen.queryByRole('dialog', { name: '로그아웃할까요?' })).not.toBeInTheDocument();
+    expect(authRepositoryMock.signOut).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
+
+    expect(authRepositoryMock.signOut).toHaveBeenCalledTimes(1);
   });
 
   it('updates the recent-order cache after a successful new order save', async () => {

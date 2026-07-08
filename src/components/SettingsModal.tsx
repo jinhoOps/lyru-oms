@@ -182,10 +182,10 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
   }
 
   return (
-    <div className="modalBackdrop" role="presentation">
+    <div className="modalBackdrop settingsModalBackdrop" role="presentation">
       <section
         ref={dialogRef}
-        className="settingsModal"
+        className="settingsModal settingsFullscreenModal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
@@ -208,67 +208,69 @@ export function SettingsModal({ open, settings, onClose, onSave }: SettingsModal
           </button>
         </div>
 
-        <fieldset className="settingsGroup">
-          <legend>필수 항목</legend>
-          <div className="checkGrid">
-            {configurableRequiredFields.map((field) => (
-              <label key={field} className="checkRow">
-                <input
-                  type="checkbox"
-                  checked={requiredFields.includes(field)}
-                  onChange={() => toggleRequiredField(field)}
-                />
-                <span>{FIELD_DEFINITIONS[field].label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        <fieldset className="settingsGroup">
-          <legend>주문 수량 조건</legend>
-          <label className="settingInput">
-            대량 기준 실수량
-            <input
-              type="number"
-              min="1"
-              inputMode="numeric"
-              value={bulkQuantityThreshold}
-              onChange={(event) => setBulkQuantityThreshold(event.target.value)}
-            />
-          </label>
-          <div className="quantityRuleList">
-            {minimumOrderRules.map((rule, index) => (
-              <div key={index} className="quantityRuleRow">
-                <label>
+        <div className="settingsModalBody">
+          <fieldset className="settingsGroup">
+            <legend>필수 항목</legend>
+            <div className="checkGrid">
+              {configurableRequiredFields.map((field) => (
+                <label key={field} className="checkRow">
                   <input
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    aria-label={`최소 주문 조건 ${index + 1} 상품 구수`}
-                    value={rule.unitCount}
-                    onChange={(event) => updateMinimumOrderRule(index, 'unitCount', event.target.value)}
+                    type="checkbox"
+                    checked={requiredFields.includes(field)}
+                    onChange={() => toggleRequiredField(field)}
                   />
-                  <span>구 상품</span>
+                  <span>{FIELD_DEFINITIONS[field].label}</span>
                 </label>
-                <label>
-                  <span>최소</span>
-                  <input
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    aria-label={`최소 주문 조건 ${index + 1} 최소 세트`}
-                    value={rule.minimumSets}
-                    onChange={(event) => updateMinimumOrderRule(index, 'minimumSets', event.target.value)}
-                  />
-                  <span>세트</span>
-                </label>
-              </div>
-            ))}
-          </div>
-        </fieldset>
+              ))}
+            </div>
+          </fieldset>
 
-        <p className="settingsNote">택배 주소는 수령 방식이 택배일 때만 추가 확인 항목으로 봅니다.</p>
-        {saveError ? <p role="alert">{saveError}</p> : null}
+          <fieldset className="settingsGroup">
+            <legend>주문 수량 조건</legend>
+            <label className="settingInput">
+              대량 기준 실수량
+              <input
+                type="number"
+                min="1"
+                inputMode="numeric"
+                value={bulkQuantityThreshold}
+                onChange={(event) => setBulkQuantityThreshold(event.target.value)}
+              />
+            </label>
+            <div className="quantityRuleList">
+              {minimumOrderRules.map((rule, index) => (
+                <div key={index} className="quantityRuleRow">
+                  <label>
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      aria-label={`최소 주문 조건 ${index + 1} 상품 구수`}
+                      value={rule.unitCount}
+                      onChange={(event) => updateMinimumOrderRule(index, 'unitCount', event.target.value)}
+                    />
+                    <span>구 상품</span>
+                  </label>
+                  <label>
+                    <span>최소</span>
+                    <input
+                      type="number"
+                      min="1"
+                      inputMode="numeric"
+                      aria-label={`최소 주문 조건 ${index + 1} 최소 세트`}
+                      value={rule.minimumSets}
+                      onChange={(event) => updateMinimumOrderRule(index, 'minimumSets', event.target.value)}
+                    />
+                    <span>세트</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </fieldset>
+
+          <p className="settingsNote">택배 주소는 수령 방식이 택배일 때만 추가 확인 항목으로 봅니다.</p>
+          {saveError ? <p role="alert">{saveError}</p> : null}
+        </div>
 
         <div className="modalActions">
           <button type="button" className="secondaryButton" disabled={isSaving} onClick={onClose}>

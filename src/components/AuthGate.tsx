@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/authTypes';
+import { ConfirmDialog } from './ConfirmDialog';
 
 type AuthGateProps = {
   authRepository: AuthRepository;
@@ -21,6 +22,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
   const [blockedError, setBlockedError] = useState('');
   const [membership, setMembership] = useState<WorkspaceMembership | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
   const [checking, setChecking] = useState(false);
   const mountedRef = useRef(false);
   const requestIdRef = useRef(0);
@@ -128,6 +130,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
   }
 
   async function handleSignOut() {
+    setSignOutConfirmOpen(false);
     const requestId = startAuthRequest();
     setBlockedError('');
 
@@ -184,7 +187,7 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
             <button type="button" onClick={loadSession}>
               다시 시도
             </button>
-            <button type="button" className="secondaryButton" onClick={handleSignOut}>
+            <button type="button" className="secondaryButton" onClick={() => setSignOutConfirmOpen(true)}>
               로그아웃
             </button>
           </div>
@@ -192,6 +195,14 @@ export function AuthGate({ authRepository, children, onBeforeSignOut }: AuthGate
             {blockedError}
           </p>
         </section>
+        <ConfirmDialog
+          open={signOutConfirmOpen}
+          title="로그아웃할까요?"
+          description="현재 기기에서 로그인 세션을 종료합니다."
+          confirmLabel="로그아웃"
+          onCancel={() => setSignOutConfirmOpen(false)}
+          onConfirm={handleSignOut}
+        />
       </main>
     );
   }

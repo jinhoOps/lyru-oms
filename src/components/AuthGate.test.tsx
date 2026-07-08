@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AuthRepository, AuthSession, WorkspaceMembership } from '../auth/authTypes';
@@ -224,6 +224,7 @@ describe('AuthGate', () => {
 
     await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' });
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(authRepository.signOut).toHaveBeenCalledTimes(1);
     expect(await screen.findByRole('heading', { name: 'Lyru OMS 로그인' })).toBeInTheDocument();
@@ -245,6 +246,7 @@ describe('AuthGate', () => {
 
     await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' });
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(onBeforeSignOut).toHaveBeenCalledTimes(1);
     expect(onBeforeSignOut).toHaveBeenCalledBefore(vi.mocked(authRepository.signOut));
@@ -266,6 +268,7 @@ describe('AuthGate', () => {
 
     await screen.findByRole('heading', { name: '작업실 접근 권한이 없습니다' });
     await user.click(screen.getByRole('button', { name: '로그아웃' }));
+    await user.click(within(screen.getByRole('dialog', { name: '로그아웃할까요?' })).getByRole('button', { name: '로그아웃' }));
 
     expect(await screen.findByText('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.')).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Lyru OMS 로그인' })).not.toBeInTheDocument();

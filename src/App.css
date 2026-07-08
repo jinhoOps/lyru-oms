@@ -1335,7 +1335,7 @@ pre {
   inset: 0;
   z-index: 20;
   display: grid;
-  place-items: center;
+  place-items: end center;
   padding: 18px;
   background: rgba(22, 32, 51, 0.32);
 }
@@ -1347,9 +1347,10 @@ pre {
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid #e4dac7;
-  border-radius: 8px;
+  border-radius: 12px 12px 0 0;
   background: #fffaf2;
   box-shadow: 0 18px 48px rgba(22, 32, 51, 0.2);
+  animation: sheetSlideUp 220ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .orderDetailModal .detailHeader {
@@ -1674,6 +1675,20 @@ pre {
   background: rgba(22, 32, 51, 0.36);
 }
 
+.settingsModalBackdrop {
+  place-items: stretch center;
+  padding: 12px;
+}
+
+.bottomSheetBackdrop {
+  place-items: end center;
+}
+
+.confirmBackdrop {
+  z-index: 40;
+  place-items: center;
+}
+
 .settingsModal {
   width: min(100%, 560px);
   max-height: calc(100vh - 32px);
@@ -1681,6 +1696,22 @@ pre {
   border-radius: 8px;
   background: #fffaf2;
   padding: 16px;
+}
+
+.settingsFullscreenModal {
+  width: min(100%, 720px);
+  height: calc(100vh - 24px);
+  max-height: none;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+  box-shadow: 0 18px 48px rgba(22, 32, 51, 0.2);
+}
+
+.settingsModalBody {
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .settingsGroup {
@@ -1722,6 +1753,47 @@ pre {
 
 .accountModal {
   gap: 16px;
+}
+
+.bottomSheetModal {
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 18px 48px rgba(22, 32, 51, 0.22);
+  animation: sheetSlideUp 220ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.confirmDialog {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 16px;
+  border: 1px solid #e4dac7;
+  border-radius: 8px;
+  background: #fffaf2;
+  padding: 18px;
+  box-shadow: 0 18px 48px rgba(22, 32, 51, 0.24);
+  animation: confirmPop 160ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.confirmDialog h2,
+.confirmDialog p {
+  margin: 0;
+}
+
+.confirmDialog h2 {
+  color: #1b2430;
+  font-size: 18px;
+}
+
+.confirmDialog p {
+  margin-top: 6px;
+  color: #746552;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.confirmDialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .accountSection {
@@ -1969,5 +2041,37 @@ pre {
   to {
     opacity: 1;
     filter: blur(0);
+  }
+}
+
+@keyframes sheetSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes confirmPop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orderDetailModal,
+  .bottomSheetModal,
+  .confirmDialog {
+    animation: none;
   }
 }

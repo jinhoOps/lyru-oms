@@ -3,6 +3,7 @@ import { createAuthRepository } from './auth/authRepository';
 import type { AuthRepository, WorkspaceMembership } from './auth/authTypes';
 import { AccountModal } from './components/AccountModal';
 import { AuthGate } from './components/AuthGate';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { OrderCaptureForm } from './components/OrderCaptureForm';
 import { OrderDetail } from './components/OrderDetail';
 import { OrderList } from './components/OrderList';
@@ -80,6 +81,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
   const [sourceFilter, setSourceFilter] = useState<OrderSourceFilter>('전체');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const [captureCollapsed, setCaptureCollapsed] = useState(() => loadCapturePanelCollapsed());
   const currentWorkspaceIdRef = useRef(membership.workspaceId);
   const workspaceGenerationRef = useRef(0);
@@ -376,6 +378,11 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
     }
   }
 
+  async function handleConfirmSignOut() {
+    setLogoutConfirmOpen(false);
+    await onSignOut?.();
+  }
+
   if (loadStatus === 'loading') {
     return (
       <main className="appShell appStateShell">
@@ -423,7 +430,7 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
               </button>
             ) : null}
             {onSignOut ? (
-              <button type="button" className="secondaryButton compactTextButton" onClick={onSignOut}>
+              <button type="button" className="secondaryButton compactTextButton" onClick={() => setLogoutConfirmOpen(true)}>
                 로그아웃
               </button>
             ) : null}
@@ -519,6 +526,14 @@ export function WorkspaceApp({ membership, currentEmail, authRepository, orderRe
           membership={membership}
           authRepository={authRepository}
           onClose={() => setAccountOpen(false)}
+        />
+        <ConfirmDialog
+          open={logoutConfirmOpen}
+          title="로그아웃할까요?"
+          description="현재 기기에서 로그인 세션을 종료합니다."
+          confirmLabel="로그아웃"
+          onCancel={() => setLogoutConfirmOpen(false)}
+          onConfirm={handleConfirmSignOut}
         />
       </main>
   );
