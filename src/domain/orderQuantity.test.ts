@@ -75,6 +75,28 @@ describe('getPureProductionQuantity', () => {
     ).toBeNull();
   });
 
+  it('returns null when quantity is missing', () => {
+    expect(
+      getPureProductionQuantity(
+        order({
+          menuMatches: [{ menuId: 'roll-2', label: '곶감말이 2구', unitCount: 2, confidence: 'exact' }],
+          quantityCandidates: [],
+        }),
+      ),
+    ).toBeNull();
+  });
+
+  it('returns null when set quantity has no menu match', () => {
+    expect(
+      getPureProductionQuantity(
+        order({
+          menuMatches: [],
+          quantityCandidates: [{ value: 6, unit: '세트', rawText: '6세트' }],
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it('returns null when set quantity has no known menu unit count', () => {
     expect(
       getPureProductionQuantity(
