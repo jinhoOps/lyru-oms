@@ -813,7 +813,7 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: '저장' }));
     await user.click(screen.getByRole('button', { name: '주문 상세 닫기' }));
 
-    expect(screen.getByText('확인 1개')).toBeInTheDocument();
+    expect(screen.getByText('45')).toHaveClass('orderQuantityBadge', 'bulk');
 
     await user.click(screen.getByRole('button', { name: '관리 설정' }));
     const settingsDialog = screen.getByRole('dialog', { name: '정보 부족 기준' });
@@ -821,7 +821,8 @@ describe('App', () => {
     await user.type(within(settingsDialog).getByLabelText('대량 기준 실수량'), '100');
     await user.click(within(settingsDialog).getByRole('button', { name: '저장' }));
 
-    expect(screen.queryByText('확인 1개')).not.toBeInTheDocument();
+    expect(screen.getByText('45')).toHaveClass('orderQuantityBadge');
+    expect(screen.getByText('45')).not.toHaveClass('bulk');
   });
 
   it('changes displayed order when sort mode changes', async () => {
