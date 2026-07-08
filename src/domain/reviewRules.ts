@@ -1,5 +1,6 @@
 import { partition } from 'es-toolkit';
 
+import { getPureProductionQuantity } from './orderQuantity';
 import {
   FIELD_DEFINITIONS,
   type CapturedOrder,
@@ -100,9 +101,9 @@ const createQuantityReviewReasons = (order: CapturedOrder, settings: OrderSettin
     );
   }
 
-  const realUnitCount = unitCount * quantityCandidate.value;
+  const realUnitCount = getPureProductionQuantity(order);
 
-  if (realUnitCount >= settings.quantityRules.bulkRealUnitThreshold) {
+  if (realUnitCount !== null && realUnitCount >= settings.quantityRules.bulkRealUnitThreshold) {
     reviewReasons.push(
       checkReason('bulk-real-unit', '대량 기준 가능성', '대량 기준에 해당할 수 있어 확인이 필요합니다.', {
         field: 'quantity',

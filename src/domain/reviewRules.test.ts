@@ -239,6 +239,37 @@ describe('evaluateOrder', () => {
     expect(evaluated.status).toBe('확인 필요');
   });
 
+  it('uses piece quantities as pure production quantity for bulk checks', () => {
+    const evaluated = evaluateOrder(
+      order({
+        customerName: '김리루',
+        phone: '010',
+        orderItems: '화과자 9구',
+        quantity: '5개',
+        desiredDateTime: '7월 3일',
+        fulfillmentType: '픽업',
+        menuMatches: [
+          {
+            menuId: 'wagashi-9',
+            label: '화과자 9구',
+            unitCount: 9,
+            confidence: 'exact',
+          },
+        ],
+        quantityCandidates: [{ value: 5, unit: '개', rawText: '5개' }],
+      }),
+      DEFAULT_SETTINGS,
+    );
+
+    expect(evaluated.reviewReasons).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'bulk-real-unit',
+        }),
+      ]),
+    );
+  });
+
   it('flags minimum order rules for shared 2구 and 4구 products', () => {
     const evaluated = evaluateOrder(
       order({
