@@ -5,6 +5,7 @@ const ORDER_DRAFT_KEY = 'lyru-oms.orderDraft.v1';
 const RECENT_ORDER_CACHE_KEY = 'lyru-oms.recentOrderCache.v1';
 const DAY_MS = 86_400_000;
 const RECENT_ORDER_LIMIT = 30;
+const RECENT_ORDER_CACHE_LIMIT = 100;
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const DRAFT_FIELD_KEYS = [
@@ -223,7 +224,7 @@ export const saveRecentOrderCache = (workspaceId: string, orders: CapturedOrder[
   const payload: RecentOrderCachePayload = {
     workspaceId,
     cachedAt: now.toISOString(),
-    orders: sortByUpdatedDesc([...selectedOrdersById.values()]),
+    orders: sortByUpdatedDesc([...selectedOrdersById.values()]).slice(0, RECENT_ORDER_CACHE_LIMIT),
   };
 
   writeLocalStorage(RECENT_ORDER_CACHE_KEY, JSON.stringify(payload));

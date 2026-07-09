@@ -162,6 +162,37 @@ describe('localDraftCache', () => {
     expect(stored.orders).toHaveLength(32);
   });
 
+  it('caps the recent-order cache at 100 orders after combining date-window and recent orders', () => {
+    const dateWindowOrders = Array.from({ length: 120 }, (_, index) =>
+      createOrder({
+        id: `date-window-${index}`,
+        desiredDateTime: '2026-07-20',
+        updatedAt: `2026-06-${String(1 + (index % 28)).padStart(2, '0')}T00:00:00.000Z`,
+      }),
+    );
+
+    const recentOrders = Array.from({ length: 30 }, (_, index) =>
+      createOrder({
+        id: `recent-cap-${index}`,
+        desiredDateTime: '2026-12-31',
+        updatedAt: `2026-07-${String(6 - Math.floor(index / 24)).padStart(2, '0')}T${String(
+          23 - (index % 24),
+        ).padStart(2, '0')}:00:00.000Z`,
+      }),
+    );
+
+    saveRecentOrderCache('workspace-1', [...dateWindowOrders, ...recentOrders]);
+
+    const cachedOrders = loadRecentOrderCache('workspace-1');
+    const cachedIds = cachedOrders.map((order) => order.id);
+
+    expect(cachedOrders).toHaveLength(100);
+    expect(recentOrders.every((order) => cachedIds.includes(order.id))).toBe(true);
+
+    const stored = JSON.parse(localStorage.getItem('lyru-oms.recentOrderCache.v1') ?? '{}');
+    expect(stored.orders).toHaveLength(100);
+  });
+
   it('uses saved parsedDate metadata when selecting date-window cache orders', () => {
     const order = createOrder({
       id: 'parsed-date-window',
