@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 초기 작업실 로딩에서 `order_change_requests` 전체 history 대신 주문별 최신 변경 요청 1건만 RPC로 가져오게 만든다.
+**Goal:** 초기 작업실 로딩에서 `order_change_requests` 직접 테이블 조회 대신 주문별 최신 변경 요청 1건을 반환하는 RPC를 호출하게 만든다.
 
-**Architecture:** `loadWorkspaceData`는 기존 orders/settings 로딩과 `CapturedOrder` mapping을 유지한다. 변경 요청 조회만 `public.list_latest_order_change_requests` RPC로 바꾸고, DB에는 동일한 최신성 기준과 composite index를 추가한다.
+**Architecture:** `loadWorkspaceData`는 기존 orders/settings 로딩과 `CapturedOrder` mapping을 유지한다. 변경 요청 조회만 `public.list_latest_order_change_requests` RPC로 바꾸고, DB에는 동일한 최신성 기준과 composite index를 추가한다. 현재 DB는 주문당 변경 요청 1건 모델이므로 이번 slice의 주효과는 row 수 절감보다 권한 경계와 쿼리 계약을 DB RPC로 모으는 것이다.
 
 **Tech Stack:** TypeScript, Supabase JS v2, PostgreSQL SQL/PLpgSQL, Vitest.
 

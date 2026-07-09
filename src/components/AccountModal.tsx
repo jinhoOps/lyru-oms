@@ -10,6 +10,27 @@ interface AccountModalProps {
 }
 
 const MIN_PASSWORD_LENGTH = 8;
+const ACCOUNT_ADMIN_SETUP_ERROR =
+  '계정관리 DB 설정이 아직 적용되지 않았습니다. Supabase migration을 먼저 반영해 주세요.';
+
+const isMissingAccountAdminRpcError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  return (
+    message.includes('list_workspace_members') ||
+    message.includes('upsert_workspace_member_by_email') ||
+    message.includes('Could not find the function') ||
+    message.includes('PGRST202')
+  );
+};
+
+const getMemberLoadErrorMessage = (error: unknown) =>
+  isMissingAccountAdminRpcError(error) ? ACCOUNT_ADMIN_SETUP_ERROR : '멤버 목록을 불러오지 못했습니다.';
+
+const getMemberSaveErrorMessage = (error: unknown) =>
+  isMissingAccountAdminRpcError(error)
+    ? ACCOUNT_ADMIN_SETUP_ERROR
+    : '멤버 권한을 저장하지 못했습니다. Auth 사용자가 먼저 생성되어 있는지 확인해 주세요.';
 
 export function AccountModal({ open, currentEmail, membership, authRepository, onClose }: AccountModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -70,12 +91,12 @@ export function AccountModal({ open, currentEmail, membership, authRepository, o
 
         setMembers(nextMembers);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!active) {
           return;
         }
 
-        setMemberError('멤버 목록을 불러오지 못했습니다.');
+        setMemberError(getMemberLoadErrorMessage(error));
       })
       .finally(() => {
         if (active) {
@@ -141,8 +162,8 @@ export function AccountModal({ open, currentEmail, membership, authRepository, o
       setMembers(nextMembers);
       setMemberEmail('');
       setMemberStatus('멤버 권한을 저장했습니다.');
-    } catch {
-      setMemberError('멤버 권한을 저장하지 못했습니다. Auth 사용자가 먼저 생성되어 있는지 확인해 주세요.');
+    } catch (error) {
+      setMemberError(getMemberSaveErrorMessage(error));
     } finally {
       setIsSavingMember(false);
     }

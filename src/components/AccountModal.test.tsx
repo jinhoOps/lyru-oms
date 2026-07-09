@@ -148,6 +148,26 @@ describe('AccountModal', () => {
     expect(await screen.findByText('jsss2536@naver.com')).toBeInTheDocument();
   });
 
+  it('explains when account management RPC migrations are missing', async () => {
+    const authRepository = createAuthRepositoryMock({
+      listWorkspaceMembers: vi.fn().mockRejectedValue(new Error('Could not find the function public.list_workspace_members')),
+    });
+
+    render(
+      <AccountModal
+        open
+        currentEmail="okho04@gmail.com"
+        membership={ownerMembership}
+        authRepository={authRepository}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      '계정관리 DB 설정이 아직 적용되지 않았습니다. Supabase migration을 먼저 반영해 주세요.',
+    );
+  });
+
   it('hides member management from staff users', () => {
     const authRepository = createAuthRepositoryMock();
 

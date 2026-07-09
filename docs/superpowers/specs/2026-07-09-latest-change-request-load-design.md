@@ -10,7 +10,7 @@
 
 그 뒤 클라이언트에서 `order_change_requests`를 `updated_at desc`, `created_at desc`, `id desc` 순서로 훑으며 주문별 최신 변경 요청 1건만 `Map`에 남긴다. 이 방식은 동작은 맞지만, 변경 요청 이력이 쌓일수록 초기 로딩 payload와 DB 정렬 비용이 커진다.
 
-이번 slice의 목표는 UI 동작과 `CapturedOrder` 데이터 모델을 유지하면서, 초기 로딩에서 변경 요청 history 전체를 가져오는 낭비를 제거하는 것이다.
+현재 스키마는 `order_change_requests`를 `(workspace_id, order_id)` 기준 주문당 1건으로 유지한다. 따라서 이번 slice의 목표는 UI 동작과 `CapturedOrder` 데이터 모델을 유지하면서, 변경 요청 조회를 클라이언트의 직접 테이블 조회에서 권한 경계가 있는 RPC로 옮기고 “주문별 최신 1건” 계약을 DB에 두는 것이다. 나중에 변경 요청 이력 모델로 확장하더라도 초기 로딩 경로는 같은 RPC 계약을 유지할 수 있다.
 
 ## 결정
 
@@ -122,4 +122,4 @@ Migration static review에서 확인할 항목:
 
 또 다른 위험은 `security definer` 함수에서 workspace 경계를 느슨하게 처리하는 것이다. 함수는 반드시 `target_workspace_id` membership을 확인하고, 해당 workspace row만 조회해야 한다.
 
-이번 slice는 변경 요청 history 전체 로드만 줄인다. 주문 row payload와 주문 수 제한은 그대로 남으므로, 초기 로딩 최적화의 다음 slice로 column 축소 또는 pagination/window 정책을 별도로 다룰 수 있다.
+이번 slice는 변경 요청 테이블 직접 조회를 RPC 경계로 옮긴다. 현재 스키마에서는 주문당 변경 요청 1건이므로 즉각적인 row 수 절감보다 권한/쿼리 계약 정리가 핵심이다. 주문 row payload와 주문 수 제한은 그대로 남으므로, 초기 로딩 최적화의 다음 slice로 column 축소 또는 pagination/window 정책을 별도로 다룰 수 있다.
