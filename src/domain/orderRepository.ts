@@ -70,6 +70,12 @@ interface ChangeRequestRow extends LatestChangeRequest {
   updated_at: string;
 }
 
+interface SaveOrderWithDetailsRow extends OrderRow {
+  change_request_id: string | null;
+  change_request_note: string | null;
+  change_request_confirmed: boolean | null;
+}
+
 type QueryResultValue<T> = { data: T; error: Error | null };
 type QueryResult<T> = Promise<QueryResultValue<T>>;
 type SelectQuery<T> = {
@@ -100,6 +106,7 @@ type SupabaseLike = {
     update<T>(payload: unknown): MutationQuery<T>;
     delete<T>(): MutationQuery<T>;
   };
+  rpc<T>(functionName: string, args?: Record<string, unknown>): QueryResult<T>;
 };
 
 const cloneSettings = (settings: OrderSettings): OrderSettings => ({
@@ -189,6 +196,19 @@ export const mapOrderFromRow = (row: OrderRow, latestChangeRequest?: LatestChang
   updatedAt: row.updated_at,
 });
 
+const mapOrderFromSaveOrderRpcRow = (row: SaveOrderWithDetailsRow): CapturedOrder => {
+  const latestChangeRequest =
+    row.change_request_note === null
+      ? undefined
+      : {
+          id: row.change_request_id ?? '',
+          note: row.change_request_note,
+          confirmed: row.change_request_confirmed ?? false,
+        };
+
+  return mapOrderFromRow(row, latestChangeRequest);
+};
+
 const selectOrders = async (supabase: SupabaseLike, workspaceId: string): QueryResult<OrderRow[]> =>
   await supabase
     .from('orders')
@@ -238,43 +258,27 @@ export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
       };
     },
     async saveOrder(workspaceId, order) {
-      const orderResult = (await supabase
-        .from('orders')
-        .upsert<OrderRow>(mapOrderToRow(order, workspaceId))
-        .select('*')
-        .single()) as { data: OrderRow; error: Error | null };
-
-      throwIfError(orderResult.error);
-
+      const orderRow = mapOrderToRow(order, workspaceId);
       const note = order.changeRequestNote.trim();
-      if (!note) {
-        const deleteResult = await supabase
-          .from('order_change_requests')
-          .delete<null>()
-          .eq('workspace_id', workspaceId)
-          .eq('order_id', order.id);
+      const result = await supabase.rpc<SaveOrderWithDetailsRow[]>('save_order_with_details', {
+        target_workspace_id: workspaceId,
+        order_payload: orderRow,
+        change_request_payload: note
+          ? {
+              note,
+              confirmed: order.changeRequestConfirmed,
+            }
+          : null,
+      });
 
-        throwIfError(deleteResult.error);
-        return mapOrderFromRow(orderResult.data);
+      throwIfError(result.error);
+
+      const [savedOrder] = result.data ?? [];
+      if (!savedOrder) {
+        throw new Error('주문 저장 결과를 확인할 수 없습니다.');
       }
 
-      const changeRequestResult = await supabase
-        .from('order_change_requests')
-        .upsert<LatestChangeRequest>(
-          {
-            workspace_id: workspaceId,
-            order_id: order.id,
-            note,
-            confirmed: order.changeRequestConfirmed,
-          },
-          { onConflict: 'workspace_id,order_id' },
-        )
-        .select('id, note, confirmed')
-        .single();
-
-      throwIfError(changeRequestResult.error);
-
-      return mapOrderFromRow(orderResult.data, changeRequestResult.data);
+      return mapOrderFromSaveOrderRpcRow(savedOrder);
     },
     async deleteOrders(workspaceId, orderIds) {
       if (orderIds.length === 0) {
