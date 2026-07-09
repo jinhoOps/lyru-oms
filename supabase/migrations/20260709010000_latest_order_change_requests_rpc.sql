@@ -51,4 +51,5 @@ end;
 $$;
 
 revoke all on function public.list_latest_order_change_requests(uuid) from anon;
+revoke execute on function public.list_latest_order_change_requests(uuid) from public;
 grant execute on function public.list_latest_order_change_requests(uuid) to authenticated;
