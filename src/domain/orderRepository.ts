@@ -224,13 +224,9 @@ const selectSettings = (supabase: SupabaseLike, workspaceId: string): QueryResul
     .maybeSingle();
 
 const selectChangeRequests = async (supabase: SupabaseLike, workspaceId: string): QueryResult<ChangeRequestRow[]> =>
-  await supabase
-    .from('order_change_requests')
-    .select<ChangeRequestRow[]>('id, order_id, note, confirmed, created_at, updated_at')
-    .eq('workspace_id', workspaceId)
-    .order('updated_at', { ascending: false })
-    .order('created_at', { ascending: false })
-    .order('id', { ascending: false });
+  await supabase.rpc<ChangeRequestRow[]>('list_latest_order_change_requests', {
+    target_workspace_id: workspaceId,
+  });
 
 export function createOrderRepository(supabase: SupabaseLike): OrderRepository {
   return {

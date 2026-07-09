@@ -38,7 +38,9 @@ function createSupabaseMock({
   insertedChangeRequestRow = null,
   updatedChangeRequestRow = null,
   saveOrderRpcRow = null,
+  latestChangeRequestRows = null,
   rpcError = null,
+  latestChangeRequestsRpcError = null,
   savedSettingsRow,
 }: {
   orderRows?: OrderRow[];
@@ -52,7 +54,9 @@ function createSupabaseMock({
     change_request_note: string | null;
     change_request_confirmed: boolean | null;
   }) | null;
+  latestChangeRequestRows?: ChangeRequestRowMock[] | null;
   rpcError?: Error | null;
+  latestChangeRequestsRpcError?: Error | null;
   savedSettingsRow?: WorkspaceSettingsRow;
 } = {}) {
   const calls: Array<{ table: string; method: string; args: unknown[] }> = [];
@@ -143,8 +147,14 @@ function createSupabaseMock({
     }),
   }));
 
-  const rpc = vi.fn((functionName: string, args: unknown) => {
+  const rpc = vi.fn((functionName: string, args?: unknown) => {
     record('rpc', functionName, [args]);
+    if (functionName === 'list_latest_order_change_requests') {
+      return Promise.resolve({
+        data: latestChangeRequestRows ?? changeRequestRows,
+        error: latestChangeRequestsRpcError,
+      });
+    }
     return Promise.resolve({ data: saveOrderRpcRow ? [saveOrderRpcRow] : [], error: rpcError });
   });
 
@@ -228,14 +238,10 @@ describe('orderRepository', () => {
     });
     expect(supabase.from).toHaveBeenCalledWith('orders');
     expect(supabase.from).toHaveBeenCalledWith('workspace_settings');
-    expect(supabase.from).toHaveBeenCalledWith('order_change_requests');
-    expect(supabase.calls).toEqual(
-      expect.arrayContaining([
-        { table: 'order_change_requests', method: 'order', args: ['updated_at', { ascending: false }] },
-        { table: 'order_change_requests', method: 'order', args: ['created_at', { ascending: false }] },
-        { table: 'order_change_requests', method: 'order', args: ['id', { ascending: false }] },
-      ]),
-    );
+    expect(supabase.from).not.toHaveBeenCalledWith('order_change_requests');
+    expect(supabase.rpc).toHaveBeenCalledWith('list_latest_order_change_requests', {
+      target_workspace_id: workspaceId,
+    });
   });
 
   it('falls back for malformed workspace settings fields instead of failing load', async () => {
@@ -257,6 +263,15 @@ describe('orderRepository', () => {
         quantityRules: DEFAULT_SETTINGS.quantityRules,
       },
     });
+  });
+
+  it('throws latest change request RPC errors while loading workspace data', async () => {
+    const supabase = createSupabaseMock({
+      latestChangeRequestsRpcError: new Error('latest change requests failed'),
+    });
+    const repository = createOrderRepository(supabase as never);
+
+    await expect(repository.loadWorkspaceData(workspaceId)).rejects.toThrow('latest change requests failed');
   });
 
   it('saves an order and change request through the transactional RPC', async () => {
