@@ -272,7 +272,7 @@ describe('App', () => {
     render(<App />);
 
     expect(
-      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+      await screen.findByText('인터넷 연결이 필요합니다. 최근 주문은 읽기 전용으로만 확인할 수 있어요.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /캐시고객/ })).toBeInTheDocument();
 
@@ -317,7 +317,7 @@ describe('App', () => {
     render(<App />);
 
     expect(
-      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+      await screen.findByText('인터넷 연결이 필요합니다. 최근 주문은 읽기 전용으로만 확인할 수 있어요.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /온라인캐시고객/ })).toBeInTheDocument();
     expect(screen.queryByText('주문 데이터를 불러오지 못했습니다.')).not.toBeInTheDocument();
@@ -489,7 +489,7 @@ describe('App', () => {
     render(<App />);
 
     expect(
-      await screen.findByText('오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.'),
+      await screen.findByText('인터넷 연결이 필요합니다. 최근 주문은 읽기 전용으로만 확인할 수 있어요.'),
     ).toBeInTheDocument();
     expect(screen.queryByText('삭제될고객')).not.toBeInTheDocument();
   });

@@ -33,7 +33,7 @@ import { createBrowserSupabaseClient } from './lib/supabaseClient';
 import type { OrderSourceFilter } from './components/OrderList';
 
 const CAPTURE_PANEL_COLLAPSED_KEY = 'lyru-oms.capturePanel.collapsed.v1';
-const OFFLINE_CACHE_STATUS_MESSAGE = '오프라인 상태입니다. 최근 주문을 읽기 전용으로 보여드려요.';
+const OFFLINE_CACHE_STATUS_MESSAGE = '인터넷 연결이 필요합니다. 최근 주문은 읽기 전용으로만 확인할 수 있어요.';
 const READ_ONLY_CACHE_MUTATION_MESSAGE = '오프라인 캐시는 읽기 전용입니다. 연결 후 다시 시도해 주세요.';
 
 const loadCapturePanelCollapsed = () => {
